@@ -1,6 +1,4 @@
 export default async function handler(request) {
-  console.log("API route called");
-
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -20,39 +18,60 @@ export default async function handler(request) {
       });
     }
 
-    console.log("Calling fal.ai..."); // Debug
-
-    const falFormData = new FormData();
-    falFormData.append('image', image);
-    falFormData.append('prompt', prompt);
-
-    const response = await fetch('https://api.fal.ai/v1/run/Qwen/Qwen-Image-Edit', {
+    // Upload image to fal storage
+    const file = new File([image], image.name, { type: image.type });
+    const storageResponse = await fetch('https://api.fal.ai/storage/upload', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${process.env.FAL_KEY}`
       },
-      body: falFormData
+      body: file
     });
 
-    console.log("fal.ai response status:", response.status);
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("fal.ai error:", data);
-      return new Response(JSON.stringify({ error: data.error || 'fal.ai request failed' }), {
-        status: response.status,
+    if (!storageResponse.ok) {
+      const error = await storageResponse.json().catch(() => ({}));
+      return new Response(JSON.stringify({ error: 'Upload failed', details: error }), {
+        status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    return new Response(JSON.stringify({ edited_image_url: data.images[0].url }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
+    const { url: imageUrl } = await storageResponse.json();
+
+    // Call fal.ai qwen-image-edit model
+    const falResponse = await fetch('https://api.fal.ai/v1/run/fal-ai/qwen-image-edit', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${process.env.FAL_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        input: {
+          prompt: prompt,
+          image_url: imageUrl,
+          sync_mode: true
+        }
+      })
     });
 
+    const result = await falResponse.json();
+
+    if (result.data?.images?.[0]?.url) {
+      return new Response(JSON.stringify({ edited_image_url: result.data.images[0].url }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } else {
+      return new Response(JSON.stringify({ 
+        error: result.error || 'fal.ai request failed', 
+        details: result 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
   } catch (error) {
-    console.error("Server error:", error);
     return new Response(JSON.stringify({ error: 'Server error: ' + error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
