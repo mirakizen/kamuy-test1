@@ -6,38 +6,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parse form data using a method compatible with Vercel
-    const formData = await new Promise((resolve, reject) => {
-      const chunks = [];
-      req.on('data', chunk => chunks.push(chunk));
-      req.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-        resolve(buffer);
+    const { image, imageName, imageType, prompt } = req.body;
+
+    if (!image || !prompt) {
+      return res.status(400).json({ 
+        error: 'Missing image or prompt' 
       });
-      req.on('error', reject);
-    });
-
-    // Extract image and prompt from form data (simplified for demo)
-    // In a real app, you'd properly parse multipart/form-data
-    const boundary = req.headers['content-type'].split('boundary=')[1];
-    const parts = formData.toString().split('--' + boundary);
-    
-    let imageFile = null;
-    let prompt = null;
-
-    for (const part of parts) {
-      if (part.includes('name="image"')) {
-        const headersEnd = part.indexOf('\r\n\r\n');
-        imageFile = part.slice(headersEnd + 4, part.lastIndexOf('\r\n'));
-      }
-      if (part.includes('name="prompt"')) {
-        const headersEnd = part.indexOf('\r\n\r\n');
-        prompt = part.slice(headersEnd + 4, part.lastIndexOf('\r\n')).trim();
-      }
-    }
-
-    if (!imageFile || !prompt) {
-      return res.status(400).json({ error: 'Missing image or prompt' });
     }
 
     // Configure fal client
@@ -45,9 +19,17 @@ export default async function handler(req, res) {
       credentials: process.env.FAL_KEY
     });
 
+    // Convert Base64 to a Blob and then a File
+    const byteString = atob(image);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([ab], { type: imageType });
+    const file = new File([blob], imageName, { type: imageType });
+
     // Upload image to fal storage
-    const blob = new Blob([imageFile], { type: 'image/jpeg' });
-    const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
     const imageUrl = await fal.storage.upload(file);
 
     // Call the model
@@ -74,6 +56,6 @@ export default async function handler(req, res) {
 
 export const config = {
   api: {
-    bodyParser: false
+    bodyParser: true // Vercel will parse JSON for us
   }
 };

@@ -56,6 +56,16 @@
     const resultImage = document.getElementById("resultImage");
     const downloadBtn = document.getElementById("downloadBtn");
 
+    // Function to convert file to base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]); // Remove data URL prefix
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
     editBtn.addEventListener("click", async () => {
       const imageFile = imageInput.files[0];
       const prompt = promptInput.value.trim();
@@ -65,18 +75,26 @@
         return;
       }
 
-      const formData = new FormData();
-      formData.append("image", imageFile);
-      formData.append("prompt", prompt);
-
       try {
         editBtn.classList.add("hidden");
         loading.classList.remove("hidden");
         resultDiv.classList.add("hidden");
 
+        // Convert image to base64
+        const base64Image = await fileToBase64(imageFile);
+
+        // Send JSON to our API
         const response = await fetch("/api/edit", {
           method: "POST",
-          body: formData
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            image: base64Image,
+            imageName: imageFile.name,
+            imageType: imageFile.type,
+            prompt: prompt
+          })
         });
 
         const data = await response.json();
