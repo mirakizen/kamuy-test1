@@ -1,4 +1,6 @@
 export default async function handler(request) {
+  console.log("API route called");
+
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -18,6 +20,8 @@ export default async function handler(request) {
       });
     }
 
+    console.log("Calling fal.ai..."); // Debug
+
     const falFormData = new FormData();
     falFormData.append('image', image);
     falFormData.append('prompt', prompt);
@@ -30,9 +34,12 @@ export default async function handler(request) {
       body: falFormData
     });
 
+    console.log("fal.ai response status:", response.status);
+
     const data = await response.json();
 
     if (!response.ok) {
+      console.error("fal.ai error:", data);
       return new Response(JSON.stringify({ error: data.error || 'fal.ai request failed' }), {
         status: response.status,
         headers: { 'Content-Type': 'application/json' }
@@ -45,6 +52,7 @@ export default async function handler(request) {
     });
 
   } catch (error) {
+    console.error("Server error:", error);
     return new Response(JSON.stringify({ error: 'Server error: ' + error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
