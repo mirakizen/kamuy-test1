@@ -1,5 +1,4 @@
-import { Readable } from 'stream';
-import { parse } from 'formidable';
+import { fal } from '@fal-ai/client';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,93 +6,69 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parse form data
-    const data = await new Promise((resolve, reject) => {
-      const form = parse({
-        multiples: false,
-        keepExtensions: true
+    // Parse form data using a method compatible with Vercel
+    const formData = await new Promise((resolve, reject) => {
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        resolve(buffer);
       });
-
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        resolve({ fields, files });
-      });
+      req.on('error', reject);
     });
 
-    const imageFile = data.files.image;
-    const prompt = data.fields.prompt;
+    // Extract image and prompt from form data (simplified for demo)
+    // In a real app, you'd properly parse multipart/form-data
+    const boundary = req.headers['content-type'].split('boundary=')[1];
+    const parts = formData.toString().split('--' + boundary);
+    
+    let imageFile = null;
+    let prompt = null;
 
-    if (!imageFile || !prompt) {
-      return res.status(400).json({ 
-        error: 'Missing image or prompt' 
-      });
+    for (const part of parts) {
+      if (part.includes('name="image"')) {
+        const headersEnd = part.indexOf('\r\n\r\n');
+        imageFile = part.slice(headersEnd + 4, part.lastIndexOf('\r\n'));
+      }
+      if (part.includes('name="prompt"')) {
+        const headersEnd = part.indexOf('\r\n\r\n');
+        prompt = part.slice(headersEnd + 4, part.lastIndexOf('\r\n')).trim();
+      }
     }
 
-    // Read image file
-    const imageBuffer = await new Promise((resolve, reject) => {
-      const chunks = [];
-      const stream = Readable.from(imageFile);
-      stream.on('data', chunk => chunks.push(chunk));
-      stream.on('end', () => resolve(Buffer.concat(chunks)));
-      stream.on('error', reject);
+    if (!imageFile || !prompt) {
+      return res.status(400).json({ error: 'Missing image or prompt' });
+    }
+
+    // Configure fal client
+    fal.config({
+      credentials: process.env.FAL_KEY
     });
 
     // Upload image to fal storage
-    const storageResponse = await fetch('https://api.fal.ai/storage/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${process.env.FAL_KEY}`
+    const blob = new Blob([imageFile], { type: 'image/jpeg' });
+    const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
+    const imageUrl = await fal.storage.upload(file);
+
+    // Call the model
+    const result = await fal.subscribe('fal-ai/qwen-image-edit', {
+      input: {
+        prompt: prompt,
+        image_url: imageUrl,
+        sync_mode: true
       },
-      body: imageBuffer,
-      headers: {
-        'Content-Type': imageFile.mimetype
-      }
+      logs: true
     });
-
-    if (!storageResponse.ok) {
-      const error = await storageResponse.json().catch(() => ({}));
-      return res.status(500).json({ 
-        error: 'Upload failed', 
-        details: error 
-      });
-    }
-
-    const { url: imageUrl } = await storageResponse.json();
-
-    // Call fal.ai qwen-image-edit model
-    const falResponse = await fetch('https://api.fal.ai/v1/run/fal-ai/qwen-image-edit', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${process.env.FAL_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        input: {
-          prompt: prompt,
-          image_url: imageUrl,
-          sync_mode: true
-        }
-      })
-    });
-
-    const result = await falResponse.json();
 
     if (result.data?.images?.[0]?.url) {
-      return res.status(200).json({ 
-        edited_image_url: result.data.images[0].url 
-      });
+      return res.status(200).json({ edited_image_url: result.data.images[0].url });
     } else {
-      return res.status(500).json({ 
-        error: result.error || 'fal.ai request failed', 
-        details: result 
-      });
+      return res.status(500).json({ error: 'fal.ai request failed' });
     }
 
   } catch (error) {
     console.error('Server error:', error);
-    return res.status(500).json({ 
-      error: 'Server error: ' + error.message 
-    });
+    return res.status(500).json({ error: 'Server error: ' + error.message });
   }
 }
 
