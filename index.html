@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Kamuy - AI Image Editor powered by Qwen" />
+  <title>Kamuy - AI Image Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .dropzone {
+      border: 3px dashed #adb5bd;
+      border-radius: 12px;
+      background: #f8f9fa;
+      transition: all 0.2s;
+    }
+    .dropzone:hover {
+      border-color: #0d6efd;
+      background: #f1f3f5;
+    }
+    .btn {
+      transition: all 0.2s;
+    }
+    .spinner {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+    <!-- Header -->
+    <div class="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white text-center">
+      <h1 class="text-3xl font-bold mb-1">✨ Kamuy</h1>
+      <p class="opacity-90">AI Image Editing, Powered by Qwen</p>
+    </div>
+
+    <!-- Body -->
+    <div class="p-8">
+      <!-- Upload -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
+        <input type="file" id="imageInput" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+      </div>
+
+      <!-- Prompt -->
+      <div class="mb-6">
+        <label for="prompt" class="block text-sm font-medium text-gray-700 mb-2">Edit Prompt</label>
+        <input type="text" id="prompt" placeholder="Change the car color to red, shiny finish" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+      </div>
+
+      <!-- Edit Button -->
+      <button id="editBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg btn transition duration-200 flex items-center justify-center">
+        <i class="fas fa-magic mr-2"></i> Edit Image
+      </button>
+
+      <!-- Loading -->
+      <div id="loading" class="hidden mt-4 text-center text-gray-600">
+        <div class="spinner mr-2"></div> Editing your image...
+      </div>
+
+      <!-- Result -->
+      <div id="result" class="hidden mt-6">
+        <h3 class="text-lg font-medium text-gray-800 mb-2">✨ Edited Image</h3>
+        <img id="resultImage" class="w-full rounded-lg border shadow-sm"/>
+        <a id="downloadBtn" class="mt-3 inline-block text-center w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg btn transition duration-200">
+          <i class="fas fa-download mr-2"></i> Download Image
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-8 py-4 bg-gray-50 text-center text-sm text-gray-500 border-t">
+      Powered by <strong>Qwen-Image-Edit</strong> | <a href="https://qwen.com" class="text-blue-600">Learn more</a>
+    </div>
+  </div>
+
+  <script>
+    const imageInput = document.getElementById("imageInput");
+    const promptInput = document.getElementById("prompt");
+    const editBtn = document.getElementById("editBtn");
+    const loading = document.getElementById("loading");
+    const resultDiv = document.getElementById("result");
+    const resultImage = document.getElementById("resultImage");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    editBtn.addEventListener("click", async () => {
+      const imageFile = imageInput.files[0];
+      const prompt = promptInput.value.trim();
+
+      if (!imageFile || !prompt) {
+        alert("Please upload an image and enter a detailed prompt.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("image", imageFile);
+      formData.append("prompt", prompt);
+
+      try {
+        editBtn.classList.add("hidden");
+        loading.classList.remove("hidden");
+        resultDiv.classList.add("hidden");
+
+        const response = await fetch("/api/edit", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.edited_image_url) {
+          resultImage.src = data.edited_image_url;
+          downloadBtn.href = data.edited_image_url;
+          resultDiv.classList.remove("hidden");
+        } else {
+          alert("Error: " + (data.error || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Request failed: " + err.message);
+      } finally {
+        loading.classList.add("hidden");
+        editBtn.classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
+</html>

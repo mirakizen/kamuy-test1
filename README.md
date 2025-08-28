@@ -1,1 +1,0 @@
-# kamuy-test1
