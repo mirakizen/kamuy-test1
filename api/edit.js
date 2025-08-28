@@ -1,21 +1,15 @@
-export default async function handler(request) {
-  if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const formData = await request.formData();
+    const formData = await req.formData();
     const image = formData.get('image');
     const prompt = formData.get('prompt');
 
     if (!image || !prompt) {
-      return new Response(JSON.stringify({ error: 'Missing image or prompt' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return res.status(400).json({ error: 'Missing image or prompt' });
     }
 
     // Upload image to fal storage
@@ -30,10 +24,7 @@ export default async function handler(request) {
 
     if (!storageResponse.ok) {
       const error = await storageResponse.json().catch(() => ({}));
-      return new Response(JSON.stringify({ error: 'Upload failed', details: error }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return res.status(500).json({ error: 'Upload failed', details: error });
     }
 
     const { url: imageUrl } = await storageResponse.json();
@@ -57,25 +48,16 @@ export default async function handler(request) {
     const result = await falResponse.json();
 
     if (result.data?.images?.[0]?.url) {
-      return new Response(JSON.stringify({ edited_image_url: result.data.images[0].url }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return res.status(200).json({ edited_image_url: result.data.images[0].url });
     } else {
-      return new Response(JSON.stringify({ 
+      return res.status(500).json({ 
         error: result.error || 'fal.ai request failed', 
         details: result 
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
       });
     }
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Server error: ' + error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(500).json({ error: 'Server error: ' + error.message });
   }
 }
 
