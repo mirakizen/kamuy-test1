@@ -416,7 +416,7 @@
             <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <p class="mt-2">Click to upload or drag and drop</p>
-          <p class="text-xs">PNG, JPG, GIF up to 4MB (recommended)</p>
+          <p class="text-xs">PNG, JPG, GIF up to 10MB</p>
         </div>
         <!-- Preview -->
         <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
@@ -753,14 +753,14 @@
       dropzone.classList.remove("border-blue-500", "bg-blue-50");
       if (e.dataTransfer.files.length) {
         const file = e.dataTransfer.files[0];
-        processAndUploadImage(file);
+        handleImageUpload(file);
       }
     });
 
     imageInput.addEventListener("change", () => {
       const file = imageInput.files[0];
       if (file) {
-        processAndUploadImage(file);
+        handleImageUpload(file);
       }
     });
 
@@ -769,125 +769,34 @@
     const previewName = document.getElementById("previewName");
     const previewSize = document.getElementById("previewSize");
 
-    function showPreview(file, originalSize) {
+    function showPreview(file) {
       const reader = new FileReader();
       reader.onload = () => {
         previewImg.src = reader.result;
         previewName.textContent = file.name;
-        previewSize.textContent = (originalSize / (1024*1024)).toFixed(1) + " MB";
+        previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
         imagePreview.classList.remove("hidden");
       };
       reader.readAsDataURL(file);
     }
 
-    // === Image Compression Function ===
-    function compressImage(file, maxSizeMB = 2) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const img = new Image();
-          img.src = e.target.result;
-          
-          img.onload = function() {
-            let width = img.width;
-            let height = img.height;
-            
-            // Calculate new dimensions (maintain aspect ratio)
-            const maxSize = 1920; // Max dimension for good quality
-            if (width > maxSize || height > maxSize) {
-              if (width > height) {
-                height = Math.round(height * maxSize / width);
-                width = maxSize;
-              } else {
-                width = Math.round(width * maxSize / height);
-                height = maxSize;
-              }
-            }
-            
-            // Create canvas and draw image
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Start with high quality
-            let quality = 0.9;
-            const mime = file.type || 'image/jpeg';
-            
-            function tryCompression() {
-              // Convert to blob with current quality
-              canvas.toBlob(blob => {
-                if (!blob) {
-                  reject(new Error('Canvas toBlob failed'));
-                  return;
-                }
-                
-                // Check if size is acceptable
-                if (blob.size <= maxSizeMB * 1024 * 1024 || quality <= 0.3) {
-                  resolve({
-                    blob: blob,
-                    originalSize: file.size,
-                    compressedSize: blob.size,
-                    quality: quality
-                  });
-                } else {
-                  // Reduce quality and try again
-                  quality -= 0.1;
-                  tryCompression();
-                }
-              }, mime, quality);
-            }
-            
-            tryCompression();
-          };
-          
-          img.onerror = reject;
-        };
-        
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function processAndUploadImage(file) {
+    function handleImageUpload(file) {
       // Check if file is an image
       if (!file.type.match('image.*')) {
         alert('Please select an image file (PNG, JPG, GIF)');
         return;
       }
       
-      // Check size (show warning but allow processing)
-      if (file.size > 4 * 1024 * 1024) {
-        showToast('Warning: Large image! Compressing for better performance...');
+      // Check size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        alert(`File is too large (${(file.size/(1024*1024)).toFixed(1)} MB). Please upload an image under 10MB.`);
+        return;
       }
       
-      // Compress the image
-      compressImage(file, 2).then(result => {
-        // Show preview with original size
-        showPreview(result.blob, file.size);
-        
-        // Store the compressed image for editing
-        const dataTransfer = new DataTransfer();
-        const compressedFile = new File([result.blob], file.name, {
-          type: file.type,
-          lastModified: file.lastModified
-        });
-        dataTransfer.items.add(compressedFile);
-        imageInput.files = dataTransfer.files;
-        
-        // Show compression info
-        const originalMB = (file.size / (1024*1024)).toFixed(1);
-        const compressedMB = (result.compressedSize / (1024*1024)).toFixed(1);
-        const qualityMsg = `Compressed from ${originalMB}MB to ${compressedMB}MB (Quality: ${(result.quality * 100).toFixed(0)}%)`;
-        showToast(qualityMsg);
-      }).catch(err => {
-        console.error('Compression error:', err);
-        // Fallback to showing the original image
-        showPreview(file, file.size);
-        imageInput.files = [file];
-        showToast('Warning: Could not compress image');
-      });
+      // Show preview
+      showPreview(file);
+      showToast("Image uploaded successfully");
     }
 
     function getStylePrompt() {
@@ -911,7 +820,11 @@
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onload = () => {
+          // Remove the data URL prefix (e.g., "data:image/png;base64,")
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
@@ -1023,6 +936,13 @@
         return;
       }
 
+      // Check size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (imageFile.size > maxSize) {
+        alert(`Image too large! (${(imageFile.size/(1024*1024)).toFixed(1)} MB). Please upload an image under 10MB.`);
+        return;
+      }
+
       try {
         editBtn.classList.add("hidden");
         loading.classList.remove("hidden");
@@ -1033,7 +953,6 @@
 
         const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
 
-        // Convert to base64 (now with smaller image)
         const base64Image = await fileToBase64(imageFile);
 
         // Critical fix: Use POST with proper error handling
@@ -1053,8 +972,22 @@
 
         // Critical fix: Check if response is OK
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Server error: ${response.status} - ${errorText.substring(0, 100)}...`);
+          let errorMessage = `Server error: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage += ` - ${errorData.error}`;
+            }
+          } catch (e) {
+            // If response is not JSON, try to get text
+            try {
+              const errorText = await response.text();
+              errorMessage += ` - ${errorText.substring(0, 100)}...`;
+            } catch (e2) {
+              errorMessage += " - Failed to parse error response";
+            }
+          }
+          throw new Error(errorMessage);
         }
 
         // Critical fix: Check if response is JSON
@@ -1063,8 +996,7 @@
         if (contentType && contentType.includes("application/json")) {
           data = await response.json();
         } else {
-          const text = await response.text();
-          throw new Error(`Expected JSON response but got: ${text.substring(0, 100)}...`);
+          throw new Error("Expected JSON response but received different content type");
         }
 
         if (data.edited_image_url) {
