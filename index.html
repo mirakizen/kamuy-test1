@@ -555,6 +555,17 @@
       font-size: 0.875rem;
       color: #6b7280;
     }
+    
+    /* Mask overlay for visual feedback */
+    .mask-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-6">
@@ -640,11 +651,12 @@
           <div class="mask-container" style="position: relative; padding-top: 100%;">
             <img id="maskBaseImage" class="comparison-image" src="" alt="Base image for masking" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;" />
             <canvas id="maskCanvas" class="mask-canvas" width="400" height="400"></canvas>
+            <div id="maskOverlay" class="mask-overlay"></div>
           </div>
           
           <div class="mask-controls">
-            <div class="mask-tool active" data-tool="brush">🖌️ Brush</div>
-            <div class="mask-tool" data-tool="eraser">🧹 Eraser</div>
+            <div class="mask-tool active" data-tool="brush">🖌️ Brush (Keep)</div>
+            <div class="mask-tool" data-tool="eraser">🧹 Eraser (Remove)</div>
             <div class="mask-tool" data-tool="fill">🎨 Fill</div>
             <div class="mask-tool" data-tool="undo">↩️ Undo</div>
             <div class="mask-tool" data-tool="redo">↪️ Redo</div>
@@ -706,7 +718,7 @@
               <span class="tooltip">Transform into vibrant anime style</span>
             </button>
             <button type="button" class="style-btn" onclick="toggleStyle(this, 'studio ghibli')">
-              🎬 Ghibli
+              �� Ghibli
               <span class="tooltip">Studio Ghibli watercolor aesthetic</span>
             </button>
             <button type="button" class="style-btn" onclick="toggleStyle(this, 'picasso')">
@@ -718,7 +730,7 @@
               <span class="tooltip">Neon lights, rain, futuristic</span>
             </button>
             <button type="button" class="style-btn" onclick="toggleStyle(this, 'van gogh')">
-              🖼️ Van Gogh
+              ��️ Van Gogh
               <span class="tooltip">Expressive brushstrokes, textured</span>
             </button>
             <button type="button" class="style-btn" onclick="toggleStyle(this, 'lego')">
@@ -819,6 +831,14 @@
     const tabs = document.querySelectorAll('.tab');
     const tabContents = document.querySelectorAll('.tab-content');
     
+    // Style sets for each tab
+    const promptSelectedStyles = new Set();
+    const maskSelectedStyles = new Set();
+    const styleTransferSelectedStyles = new Set();
+    
+    // Current active tab
+    let currentTab = 'promptEdit';
+    
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
         // Remove active class from all tabs and content
@@ -828,6 +848,7 @@
         // Add active class to clicked tab and corresponding content
         tab.classList.add('active');
         const tabName = tab.getAttribute('data-tab');
+        currentTab = tabName;
         const contentElement = document.getElementById(`${tabName}Tab`);
         
         // Critical fix: Check if content element exists before accessing classList
@@ -840,25 +861,24 @@
           } else if (tabName === 'styleTransfer') {
             setupStyleTransferTab();
           }
+          
+          // Update placeholder based on current tab
+          updatePlaceholder();
         }
       });
     });
     
-    // Initialize style transfer tab functionality
-    function setupStyleTransferTab() {
-      const intensitySlider = document.getElementById('styleIntensity');
-      const intensityValue = document.getElementById('intensityValue');
-      
-      if (intensitySlider && intensityValue) {
-        intensitySlider.addEventListener('input', () => {
-          const value = Math.round(intensitySlider.value * 100);
-          intensityValue.textContent = `${value}%`;
-        });
-      }
-    }
+    // Initialize the current tab
+    updatePlaceholder();
     
     // Style intensity slider
-    setupStyleTransferTab();
+    const intensitySlider = document.getElementById('styleIntensity');
+    const intensityValue = document.getElementById('intensityValue');
+    
+    intensitySlider.addEventListener('input', () => {
+      const value = Math.round(intensitySlider.value * 100);
+      intensityValue.textContent = `${value}%`;
+    });
     
     // Mask editor functionality
     let maskCanvas = null;
@@ -872,13 +892,17 @@
     function initMaskEditor() {
       const canvas = document.getElementById('maskCanvas');
       const img = document.getElementById('maskBaseImage');
+      const overlay = document.getElementById('maskOverlay');
       
       if (!img || !img.src) return;
       
       // Set canvas dimensions to match image
       const rect = img.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const canvasWidth = Math.min(rect.width, 1000);
+      const canvasHeight = Math.min(rect.height, 1000);
+      
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
       canvas.style.width = '100%';
       canvas.style.height = '100%';
       
@@ -890,6 +914,17 @@
       
       // Set up drawing tools
       setupDrawingTools();
+      
+      // Initialize overlay
+      if (overlay) {
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.pointerEvents = 'none';
+        overlay.style.zIndex = '2';
+      }
     }
     
     function setupDrawingTools() {
@@ -963,10 +998,12 @@
       maskCtx.beginPath();
       
       if (currentTool === 'brush') {
+        // Blue for keep areas
         maskCtx.globalCompositeOperation = 'source-over';
         maskCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
       } else if (currentTool === 'eraser') {
-        maskCtx.globalCompositeOperation = 'destination-out';
+        // Red for remove areas (with transparency)
+        maskCtx.globalCompositeOperation = 'source-over';
         maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
       } else if (currentTool === 'fill') {
         // Fill implementation would go here
@@ -991,6 +1028,7 @@
     function saveState() {
       if (!maskCtx || !maskCanvas) return;
       
+      // Save current state to history
       maskHistory = maskHistory.slice(0, historyIndex + 1);
       maskHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
       historyIndex = maskHistory.length - 1;
@@ -1008,6 +1046,56 @@
       
       historyIndex++;
       maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
+    }
+    
+    // Function to get mask data as base64
+    function getMaskData() {
+      if (!maskCanvas || !maskCtx) return null;
+      
+      // Create a new canvas to process the mask
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = maskCanvas.width;
+      tempCanvas.height = maskCanvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      // Copy the mask data
+      tempCtx.drawImage(maskCanvas, 0, 0);
+      
+      // Process the mask to make it more defined
+      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+      const data = imageData.data;
+      
+      // Convert to binary mask (keep areas = blue, remove areas = red)
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+        const a = data[i+3];
+        
+        // If it's blue (keep area), make it fully opaque blue
+        if (b > r && b > g && a > 50) {
+          data[i] = 0;
+          data[i+1] = 0;
+          data[i+2] = 255;
+          data[i+3] = 255;
+        } 
+        // If it's red (remove area), make it fully opaque red
+        else if (r > g && r > b && a > 50) {
+          data[i] = 255;
+          data[i+1] = 0;
+          data[i+2] = 0;
+          data[i+3] = 255;
+        }
+        // Otherwise, make it transparent
+        else {
+          data[i+3] = 0;
+        }
+      }
+      
+      tempCtx.putImageData(imageData, 0, 0);
+      
+      // Return as base64
+      return tempCanvas.toDataURL('image/png');
     }
     
     // === Toast Notification System ===
@@ -1236,7 +1324,6 @@
     });
 
     // === Style Presets ===
-    const selectedStyles = new Set();
     const promptInput = document.getElementById("prompt");
     const maskPromptInput = document.getElementById("maskPrompt");
     const stylePromptInput = document.getElementById("prompt"); // Reusing the same prompt input for style tab
@@ -1255,20 +1342,42 @@
       'desert mirage': "with desert mirage effect, heat haze"
     };
 
-    function updatePlaceholder(input, styles) {
-      if (!input) return;
-      
-      if (input.value) return;
-      
-      const activeStyles = Array.from(styles);
-      if (activeStyles.length === 0) {
-        input.placeholder = defaultPlaceholder;
-      } else {
-        input.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+    function updatePlaceholder() {
+      if (currentTab === 'promptEdit' && promptInput) {
+        if (promptInput.value) return;
+        
+        const activeStyles = Array.from(promptSelectedStyles);
+        if (activeStyles.length === 0) {
+          promptInput.placeholder = defaultPlaceholder;
+        } else {
+          promptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+        }
+      } else if (currentTab === 'maskEdit' && maskPromptInput) {
+        if (maskPromptInput.value) return;
+        maskPromptInput.placeholder = "Remove the background";
+      } else if (currentTab === 'styleTransfer' && stylePromptInput) {
+        if (stylePromptInput.value) return;
+        
+        const activeStyles = Array.from(styleTransferSelectedStyles);
+        if (activeStyles.length === 0) {
+          stylePromptInput.placeholder = defaultPlaceholder;
+        } else {
+          stylePromptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+        }
       }
     }
 
     function toggleStyle(button, style) {
+      let selectedStyles;
+      
+      if (currentTab === 'promptEdit') {
+        selectedStyles = promptSelectedStyles;
+      } else if (currentTab === 'maskEdit') {
+        selectedStyles = maskSelectedStyles;
+      } else {
+        selectedStyles = styleTransferSelectedStyles;
+      }
+      
       const isActive = button.classList.contains('style-active');
       if (isActive) {
         button.classList.remove('style-active');
@@ -1284,29 +1393,106 @@
         selectedStyles.add(style);
       }
       
-      // Update placeholder for style tab
-      if (document.querySelector('#styleTransferTab').classList.contains('active')) {
-        updatePlaceholder(stylePromptInput, selectedStyles);
-      }
+      updatePlaceholder();
     }
 
-    promptInput.addEventListener('focus', () => {
+    promptInput?.addEventListener('focus', () => {
       if (promptInput && !promptInput.value) {
-        const activeStyles = Array.from(selectedStyles);
+        const activeStyles = Array.from(promptSelectedStyles);
         if (activeStyles.length > 0) {
           promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
         }
       }
     });
 
-    promptInput.addEventListener('blur', () => {
+    promptInput?.addEventListener('blur', () => {
       if (promptInput) {
-        updatePlaceholder(promptInput, selectedStyles);
+        updatePlaceholder();
       }
     });
 
+    maskPromptInput?.addEventListener('focus', () => {
+      if (maskPromptInput && !maskPromptInput.value) {
+        maskPromptInput.placeholder = "Describe what to add/remove";
+      }
+    });
+
+    maskPromptInput?.addEventListener('blur', () => {
+      if (maskPromptInput && !maskPromptInput.value) {
+        maskPromptInput.placeholder = "Remove the background";
+      }
+    });
+
+    stylePromptInput?.addEventListener('focus', () => {
+      if (stylePromptInput && !stylePromptInput.value) {
+        const activeStyles = Array.from(styleTransferSelectedStyles);
+        if (activeStyles.length > 0) {
+          stylePromptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
+        }
+      }
+    });
+
+    stylePromptInput?.addEventListener('blur', () => {
+      if (stylePromptInput) {
+        updatePlaceholder();
+      }
+    });
+
+    // === Loading Screen Animation ===
+    const loadingText = document.getElementById('loadingText');
+    const stages = [
+      document.getElementById('stage1'),
+      document.getElementById('stage2'),
+      document.getElementById('stage3'),
+      document.getElementById('stage4')
+    ];
+
+    // Loading stages
+    const loadingStages = [
+      { text: "Analyzing your image...", stage: 0 },
+      { text: "Understanding visual elements...", stage: 1 },
+      { text: "Applying AI magic...", stage: 2 },
+      { text: "Finalizing your masterpiece...", stage: 3 }
+    ];
+
+    let currentStage = 0;
+    let loadingInterval;
+    let tipsInterval;
+
+    function startLoadingAnimation() {
+      currentStage = 0;
+      updateLoadingStage(currentStage);
+      
+      // Stage progression every 1.5s
+      loadingInterval = setInterval(() => {
+        if (currentStage < loadingStages.length - 1) {
+          currentStage++;
+          updateLoadingStage(currentStage);
+        }
+      }, 1500);
+    }
+
+    function updateLoadingStage(stageIndex) {
+      loadingText.textContent = loadingStages[stageIndex].text;
+      
+      // Update stage indicators
+      stages.forEach((stage, i) => {
+        if (i <= stageIndex) {
+          stage.classList.add('active');
+        } else {
+          stage.classList.remove('active');
+        }
+      });
+    }
+
+    function stopLoadingAnimation() {
+      clearInterval(loadingInterval);
+      // Reset to first stage for next time
+      updateLoadingStage(0);
+    }
+
     // === Processing Functions ===
-    function getStylePrompt() {
+    function getStylePrompt(tab) {
       const styles = {
         anime: "in anime style",
         'studio ghibli': "in Studio Ghibli style",
@@ -1319,6 +1505,17 @@
         pixar: "in Pixar 3D animation style, soft lighting",
         'desert mirage': "with desert mirage effect, heat haze"
       };
+      
+      let selectedStyles;
+      
+      if (tab === 'promptEdit') {
+        selectedStyles = promptSelectedStyles;
+      } else if (tab === 'maskEdit') {
+        selectedStyles = maskSelectedStyles;
+      } else {
+        selectedStyles = styleTransferSelectedStyles;
+      }
+      
       return Array.from(selectedStyles)
         .map(s => styles[s] || s)
         .join(", ");
@@ -1534,9 +1731,9 @@
       editBtn.addEventListener("click", async () => {
         const imageFile = imageInput.files[0];
         const prompt = document.getElementById("prompt").value.trim();
-        const stylePrompt = getStylePrompt();
+        const stylePrompt = getStylePrompt('promptEdit');
 
-        if (!imageFile || (!prompt && selectedStyles.size === 0)) {
+        if (!imageFile || (!prompt && promptSelectedStyles.size === 0)) {
           alert("Please upload an image and enter a prompt or select a style.");
           return;
         }
@@ -1545,6 +1742,9 @@
           editBtn.classList.add("hidden");
           loading.classList.remove("hidden");
           resultDiv.classList.add("hidden");
+          
+          // Start loading animation
+          startLoadingAnimation();
           
           const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
           const compressionResult = await compressForServer(imageFile);
@@ -1573,6 +1773,9 @@
               prompt: finalPrompt
             })
           });
+
+          // Stop loading animation
+          stopLoadingAnimation();
 
           // Error handling
           if (!response.ok) {
@@ -1631,10 +1834,11 @@
           }
         } catch (err) {
           console.error("Detailed error:", err);
-          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-        } finally {
+          // Stop loading animation on error
+          stopLoadingAnimation();
           loading.classList.add("hidden");
           editBtn.classList.remove("hidden");
+          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
         }
       });
     }
@@ -1655,6 +1859,9 @@
           loading.classList.remove("hidden");
           resultDiv.classList.add("hidden");
           
+          // Start loading animation
+          startLoadingAnimation();
+          
           // For mask editing, we'll use the same compression as prompt editing
           const compressionResult = await compressForServer(imageFile);
           const compressedFile = compressionResult.file;
@@ -1667,6 +1874,9 @@
 
           // Convert to base64
           const base64Image = await fileToBase64(compressedFile);
+          
+          // Get mask data if available
+          const maskData = getMaskData();
 
           // API call - same endpoint but with mask information
           const response = await fetch("/api/edit", {
@@ -1680,10 +1890,13 @@
               imageName: imageFile.name,
               imageType: imageFile.type,
               prompt: prompt,
-              // In a real implementation, we'd include mask data here
-              mask: null
+              // Include mask data
+              mask: maskData
             })
           });
+
+          // Stop loading animation
+          stopLoadingAnimation();
 
           // Error handling
           if (!response.ok) {
@@ -1737,10 +1950,11 @@
           }
         } catch (err) {
           console.error("Detailed error:", err);
-          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-        } finally {
+          // Stop loading animation on error
+          stopLoadingAnimation();
           loading.classList.add("hidden");
           maskEditBtn.classList.remove("hidden");
+          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
         }
       });
     }
@@ -1750,10 +1964,10 @@
       styleEditBtn.addEventListener("click", async () => {
         const imageFile = styleImageInput.files[0];
         const prompt = document.getElementById("prompt").value.trim();
-        const stylePrompt = getStylePrompt();
+        const stylePrompt = getStylePrompt('styleTransfer');
         const intensity = document.getElementById('styleIntensity') ? document.getElementById('styleIntensity').value : 0.7;
         
-        if (!imageFile || selectedStyles.size === 0) {
+        if (!imageFile || styleTransferSelectedStyles.size === 0) {
           alert("Please upload an image and select at least one style.");
           return;
         }
@@ -1762,6 +1976,9 @@
           styleEditBtn.classList.add("hidden");
           loading.classList.remove("hidden");
           resultDiv.classList.add("hidden");
+          
+          // Start loading animation
+          startLoadingAnimation();
           
           // For style transfer, we'll use the same compression
           const compressionResult = await compressForServer(imageFile);
@@ -1798,6 +2015,9 @@
               style_intensity: intensity
             })
           });
+
+          // Stop loading animation
+          stopLoadingAnimation();
 
           // Error handling
           if (!response.ok) {
@@ -1851,10 +2071,11 @@
           }
         } catch (err) {
           console.error("Detailed error:", err);
-          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-        } finally {
+          // Stop loading animation on error
+          stopLoadingAnimation();
           loading.classList.add("hidden");
           styleEditBtn.classList.remove("hidden");
+          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
         }
       });
     }
@@ -1925,9 +2146,7 @@
     }
 
     // Initialize placeholder
-    if (promptInput) {
-      updatePlaceholder(promptInput, selectedStyles);
-    }
+    updatePlaceholder();
   </script>
 </body>
 </html>
