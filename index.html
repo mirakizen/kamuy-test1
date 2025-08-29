@@ -16,6 +16,8 @@
       --border-primary: #e5e7eb;
       --btn-bg: #3b82f6;
       --btn-text: #ffffff;
+      --tab-active: #2563eb;
+      --tab-inactive: #e5e7eb;
     }
 
     .dark {
@@ -26,6 +28,8 @@
       --border-primary: #374151;
       --btn-bg: #2563eb;
       --btn-text: #ffffff;
+      --tab-active: #3b82f6;
+      --tab-inactive: #4b5563;
     }
 
     body {
@@ -33,6 +37,7 @@
       background-color: var(--bg-primary);
       color: var(--text-primary);
       transition: background-color 0.3s ease, color 0.3s ease;
+      touch-action: manipulation;
     }
 
     .container {
@@ -40,6 +45,55 @@
       border-radius: 0.75rem;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       overflow: hidden;
+    }
+
+    /* Tab styles */
+    .tabs-container {
+      display: flex;
+      border-bottom: 1px solid var(--border-primary);
+    }
+    
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 0.75rem 0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    
+    .tab.active {
+      color: var(--tab-active);
+    }
+    
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: var(--tab-active);
+    }
+    
+    .tab:hover:not(.active) {
+      background-color: rgba(37, 99, 235, 0.05);
+    }
+    
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .dropzone {
@@ -406,12 +460,100 @@
       color: #7c2d12;
     }
     
-    /* Download Instructions */
-    .download-instructions {
+    /* Mask Editor */
+    .mask-container {
+      position: relative;
+      width: 100%;
+      margin-top: 1rem;
+    }
+    
+    .mask-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    
+    .mask-controls {
+      display: flex;
+      gap: 0.5rem;
       margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+    
+    .mask-tool {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      background-color: #e5e7eb;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+    
+    .mask-tool.active {
+      background-color: #2563eb;
+      color: white;
+    }
+    
+    .mask-brush-size {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .brush-size-preview {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: #2563eb;
+      transition: all 0.2s ease;
+    }
+    
+    .mask-help {
       font-size: 0.75rem;
       color: #6b7280;
+      margin-top: 0.5rem;
       text-align: center;
+    }
+    
+    /* Style Transfer Enhancements */
+    .style-intensity {
+      margin-top: 0.5rem;
+    }
+    
+    .style-intensity label {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-size: 0.875rem;
+    }
+    
+    .intensity-slider {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #e5e7eb;
+      border-radius: 2px;
+      outline: none;
+    }
+    
+    .intensity-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #2563eb;
+      cursor: pointer;
+    }
+    
+    .intensity-value {
+      text-align: center;
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+      color: #6b7280;
     }
   </style>
 </head>
@@ -424,93 +566,196 @@
           Dark Mode
         </button>
       </div>
-      <p class="text-center mb-6">AI Image Editing, Powered by Qwen</p>
       
-      <!-- Facebook WebView Warning -->
-      <div id="fbWarning" class="fb-warning">
-        <strong>Facebook Browser Detected</strong>
-        <p class="mt-1">For best results, open this link in Chrome or Safari browser.</p>
-        <p class="mt-1 text-sm">Facebook's in-app browser has limitations that may cause issues.</p>
+      <!-- Tab Navigation -->
+      <div class="tabs-container mb-6">
+        <div class="tab active" data-tab="prompt-edit">Prompt Edit</div>
+        <div class="tab" data-tab="mask-edit">Remove/Add Mask</div>
+        <div class="tab" data-tab="style-transfer">Style Transfer</div>
       </div>
-
-      <!-- Upload -->
-      <div class="mb-6">
-        <label class="block text-sm font-medium mb-2">Upload Image</label>
-        <input type="file" id="imageInput" accept="image/*" class="hidden" />
-        <div id="dropzone" class="dropzone w-full p-6 text-center cursor-pointer">
-          <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-            <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <p class="mt-2">Click to upload or drag and drop</p>
-          <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
-        </div>
-        <!-- Preview -->
-        <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
-          <img id="previewImg" class="h-20 w-20 object-cover rounded" />
-          <div class="ml-3">
-            <p id="previewName" class="text-sm font-medium"></p>
-            <p id="previewSize" class="text-sm"></p>
+      
+      <!-- Tab Content -->
+      <div id="promptEditTab" class="tab-content active">
+        <p class="text-center mb-6 text-sm text-gray-500">Describe what you want changed - our AI understands natural language</p>
+        
+        <!-- Upload -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">Upload Image</label>
+          <input type="file" id="imageInput" accept="image/*" class="hidden" />
+          <div id="dropzone" class="dropzone w-full p-6 text-center cursor-pointer">
+            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p class="mt-2">Click to upload or drag and drop</p>
+            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
+          </div>
+          <!-- Preview -->
+          <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
+            <img id="previewImg" class="h-20 w-20 object-cover rounded" />
+            <div class="ml-3">
+              <p id="previewName" class="text-sm font-medium"></p>
+              <p id="previewSize" class="text-sm"></p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Prompt -->
-      <div class="mb-6">
-        <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
-        <input type="text" id="prompt" placeholder="Change the car color to red" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
-      </div>
-
-      <!-- Style Presets -->
-      <div class="mb-6">
-        <label class="block text-sm font-medium mb-2">Style Presets</label>
-        <div class="style-grid">
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'anime')">
-            🎨 Anime
-            <span class="tooltip">Transform into vibrant anime style</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'studio ghibli')">
-            �� Ghibli
-            <span class="tooltip">Studio Ghibli watercolor aesthetic</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'picasso')">
-            🎨 Picasso
-            <span class="tooltip">Cubist abstraction and bold forms</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'cyberpunk')">
-            🕹️ Cyberpunk
-            <span class="tooltip">Neon lights, rain, futuristic</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'van gogh')">
-            🖼️ Van Gogh
-            <span class="tooltip">Expressive brushstrokes, textured</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'lego')">
-            🧱 LEGO
-            <span class="tooltip">Plastic brick diorama style</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixel art')">
-            🎮 Pixel
-            <span class="tooltip">16-bit retro video game style</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'sketch')">
-            🖋️ Sketch
-            <span class="tooltip">Pencil drawing with shading</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixar')">
-            🧸 Pixar
-            <span class="tooltip">3D animation, soft lighting</span>
-          </button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'desert mirage')">
-            🏜️ Mirage
-            <span class="tooltip">Heat haze, desert illusion</span>
-          </button>
+        <!-- Prompt -->
+        <div class="mb-6">
+          <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
+          <input type="text" id="prompt" placeholder="Change the car color to red" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
         </div>
-      </div>
 
-      <!-- Edit Button -->
-      <button id="editBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-        <i class="fas fa-magic mr-2"></i> Edit Image
-      </button>
+        <!-- Edit Button -->
+        <button id="editBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+          <i class="fas fa-magic mr-2"></i> Edit Image
+        </button>
+      </div>
+      
+      <div id="maskEditTab" class="tab-content">
+        <p class="text-center mb-6 text-sm text-gray-500">Paint what to keep or remove - precise object editing</p>
+        
+        <!-- Upload -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">Upload Image</label>
+          <input type="file" id="maskImageInput" accept="image/*" class="hidden" />
+          <div id="maskDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
+            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p class="mt-2">Click to upload or drag and drop</p>
+            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
+          </div>
+          <!-- Preview -->
+          <div id="maskImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
+            <img id="maskPreviewImg" class="h-20 w-20 object-cover rounded" />
+            <div class="ml-3">
+              <p id="maskPreviewName" class="text-sm font-medium"></p>
+              <p id="maskPreviewSize" class="text-sm"></p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Mask Editor -->
+        <div id="maskEditor" class="hidden mb-6">
+          <div class="mask-container" style="position: relative; padding-top: 100%;">
+            <img id="maskBaseImage" class="comparison-image" src="" alt="Base image for masking" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;" />
+            <canvas id="maskCanvas" class="mask-canvas" width="400" height="400"></canvas>
+          </div>
+          
+          <div class="mask-controls">
+            <div class="mask-tool active" data-tool="brush">🖌️ Brush</div>
+            <div class="mask-tool" data-tool="eraser">🧹 Eraser</div>
+            <div class="mask-tool" data-tool="fill">🎨 Fill</div>
+            <div class="mask-tool" data-tool="undo">↩️ Undo</div>
+            <div class="mask-tool" data-tool="redo">↪️ Redo</div>
+            
+            <div class="mask-brush-size">
+              <label for="brushSize">Size:</label>
+              <input type="range" id="brushSize" min="1" max="50" value="10" class="w-24" />
+              <div class="brush-size-preview" style="width: 10px; height: 10px;"></div>
+            </div>
+          </div>
+          
+          <div class="mask-help">
+            <p>Draw on the image to select what to keep (blue) or remove (red)</p>
+          </div>
+        </div>
+        
+        <!-- Mask Prompt -->
+        <div class="mb-6">
+          <label for="maskPrompt" class="block text-sm font-medium mb-2">What would you like to change?</label>
+          <input type="text" id="maskPrompt" placeholder="Remove the background" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+        </div>
+        
+        <!-- Edit Button -->
+        <button id="maskEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+          <i class="fas fa-paint-brush mr-2"></i> Apply Mask Edit
+        </button>
+      </div>
+      
+      <div id="styleTransferTab" class="tab-content">
+        <p class="text-center mb-6 text-sm text-gray-500">Transform your image into any artistic style</p>
+        
+        <!-- Upload -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">Upload Image</label>
+          <input type="file" id="styleImageInput" accept="image/*" class="hidden" />
+          <div id="styleDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
+            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p class="mt-2">Click to upload or drag and drop</p>
+            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
+          </div>
+          <!-- Preview -->
+          <div id="styleImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
+            <img id="stylePreviewImg" class="h-20 w-20 object-cover rounded" />
+            <div class="ml-3">
+              <p id="stylePreviewName" class="text-sm font-medium"></p>
+              <p id="stylePreviewSize" class="text-sm"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Style Presets -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">Style Presets</label>
+          <div class="style-grid">
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'anime')">
+              🎨 Anime
+              <span class="tooltip">Transform into vibrant anime style</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'studio ghibli')">
+              🎬 Ghibli
+              <span class="tooltip">Studio Ghibli watercolor aesthetic</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'picasso')">
+              🎨 Picasso
+              <span class="tooltip">Cubist abstraction and bold forms</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'cyberpunk')">
+              🕹️ Cyberpunk
+              <span class="tooltip">Neon lights, rain, futuristic</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'van gogh')">
+              🖼️ Van Gogh
+              <span class="tooltip">Expressive brushstrokes, textured</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'lego')">
+              🧱 LEGO
+              <span class="tooltip">Plastic brick diorama style</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixel art')">
+              🎮 Pixel
+              <span class="tooltip">16-bit retro video game style</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'sketch')">
+              🖋️ Sketch
+              <span class="tooltip">Pencil drawing with shading</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixar')">
+              🧸 Pixar
+              <span class="tooltip">3D animation, soft lighting</span>
+            </button>
+            <button type="button" class="style-btn" onclick="toggleStyle(this, 'desert mirage')">
+              🏜️ Mirage
+              <span class="tooltip">Heat haze, desert illusion</span>
+            </button>
+          </div>
+          
+          <!-- Style Intensity Slider -->
+          <div class="style-intensity mt-4">
+            <label for="styleIntensity">Style Intensity</label>
+            <input type="range" id="styleIntensity" class="intensity-slider" min="0.1" max="1.0" step="0.1" value="0.7">
+            <div class="intensity-value">Intensity: <span id="intensityValue">70%</span></div>
+          </div>
+        </div>
+
+        <!-- Edit Button -->
+        <button id="styleEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+          <i class="fas fa-palette mr-2"></i> Apply Style
+        </button>
+      </div>
 
       <!-- Loading -->
       <div id="loading" class="hidden mt-4 text-center text-gray-600">
@@ -570,55 +815,174 @@
   </div>
 
   <script>
-    const selectedStyles = new Set();
-    const promptInput = document.getElementById("prompt");
-    const defaultPlaceholder = "Change the car color to red";
-    const stylePlaceholders = {
-      anime: "Make it anime-style with vibrant colors",
-      'studio ghibli': "Transform into a Studio Ghibli scene",
-      picasso: "in Picasso's cubist style, abstract forms",
-      cyberpunk: "Cyberpunk neon lights and rain effects",
-      'van gogh': "in the style of Van Gogh, expressive brushstrokes",
-      lego: "as a LEGO diorama, plastic texture",
-      'pixel art': "in 16-bit pixel art style",
-      sketch: "as a pencil sketch, hand-drawn lines",
-      pixar: "in Pixar 3D animation style, soft lighting",
-      'desert mirage': "with desert mirage effect, heat haze"
-    };
-
+    // Tab functionality
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Remove active class from all tabs and content
+        tabs.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        
+        // Add active class to clicked tab and corresponding content
+        tab.classList.add('active');
+        const tabName = tab.getAttribute('data-tab');
+        document.getElementById(`${tabName}Tab`).classList.add('active');
+        
+        // Initialize tab-specific functionality
+        if (tabName === 'mask-edit') {
+          initMaskEditor();
+        }
+      });
+    });
+    
+    // Style intensity slider
+    const intensitySlider = document.getElementById('styleIntensity');
+    const intensityValue = document.getElementById('intensityValue');
+    
+    intensitySlider.addEventListener('input', () => {
+      const value = Math.round(intensitySlider.value * 100);
+      intensityValue.textContent = `${value}%`;
+    });
+    
+    // Mask editor functionality
+    let maskCanvas = null;
+    let maskCtx = null;
+    let isDrawing = false;
+    let currentTool = 'brush';
+    let brushSize = 10;
+    let maskHistory = [];
+    let historyIndex = -1;
+    
+    function initMaskEditor() {
+      const canvas = document.getElementById('maskCanvas');
+      const img = document.getElementById('maskBaseImage');
+      
+      if (!img.src) return;
+      
+      // Set canvas dimensions to match image
+      const rect = img.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      
+      maskCanvas = canvas;
+      maskCtx = canvas.getContext('2d');
+      
+      // Clear canvas
+      maskCtx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Set up drawing tools
+      setupDrawingTools();
+    }
+    
+    function setupDrawingTools() {
+      if (!maskCanvas || !maskCtx) return;
+      
+      // Tool selection
+      document.querySelectorAll('.mask-tool').forEach(tool => {
+        tool.addEventListener('click', () => {
+          document.querySelectorAll('.mask-tool').forEach(t => t.classList.remove('active'));
+          tool.classList.add('active');
+          currentTool = tool.getAttribute('data-tool');
+        });
+      });
+      
+      // Brush size
+      const brushSizeInput = document.getElementById('brushSize');
+      const brushPreview = document.querySelector('.brush-size-preview');
+      
+      brushSizeInput.addEventListener('input', () => {
+        brushSize = parseInt(brushSizeInput.value);
+        brushPreview.style.width = `${brushSize/2}px`;
+        brushPreview.style.height = `${brushSize/2}px`;
+      });
+      
+      // Drawing events
+      maskCanvas.addEventListener('mousedown', startDrawing);
+      maskCanvas.addEventListener('mousemove', draw);
+      maskCanvas.addEventListener('mouseup', stopDrawing);
+      maskCanvas.addEventListener('mouseleave', stopDrawing);
+      
+      maskCanvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startDrawing({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+      });
+      maskCanvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        draw({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+      });
+      maskCanvas.addEventListener('touchend', stopDrawing);
+      
+      // Undo/Redo
+      document.querySelector('[data-tool="undo"]').addEventListener('click', undo);
+      document.querySelector('[data-tool="redo"]').addEventListener('click', redo);
+    }
+    
+    function startDrawing(e) {
+      isDrawing = true;
+      saveState();
+      draw(e);
+    }
+    
+    function draw(e) {
+      if (!isDrawing) return;
+      
+      const rect = maskCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      maskCtx.beginPath();
+      
+      if (currentTool === 'brush') {
+        maskCtx.globalCompositeOperation = 'source-over';
+        maskCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+      } else if (currentTool === 'eraser') {
+        maskCtx.globalCompositeOperation = 'destination-out';
+        maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+      } else if (currentTool === 'fill') {
+        // Fill implementation would go here
+        return;
+      }
+      
+      maskCtx.lineWidth = brushSize;
+      maskCtx.lineCap = 'round';
+      maskCtx.lineTo(x, y);
+      maskCtx.stroke();
+      maskCtx.beginPath();
+      maskCtx.moveTo(x, y);
+    }
+    
+    function stopDrawing() {
+      isDrawing = false;
+      maskCtx.beginPath();
+    }
+    
+    function saveState() {
+      maskHistory = maskHistory.slice(0, historyIndex + 1);
+      maskHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
+      historyIndex = maskHistory.length - 1;
+    }
+    
+    function undo() {
+      if (historyIndex <= 0) return;
+      
+      historyIndex--;
+      maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
+    }
+    
+    function redo() {
+      if (historyIndex >= maskHistory.length - 1) return;
+      
+      historyIndex++;
+      maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
+    }
+    
     // === Toast Notification System ===
     const toast = document.getElementById('toast');
-    const loadingText = document.getElementById('loadingText');
-    const stages = [
-      document.getElementById('stage1'),
-      document.getElementById('stage2'),
-      document.getElementById('stage3'),
-      document.getElementById('stage4')
-    ];
-
-    // Loading stages
-    const loadingStages = [
-      { text: "Analyzing your image...", stage: 0 },
-      { text: "Understanding visual elements...", stage: 1 },
-      { text: "Applying AI magic...", stage: 2 },
-      { text: "Finalizing your masterpiece...", stage: 3 }
-    ];
-
-    // Processing tips (3 seconds each)
-    const processingTips = [
-      "Did you know? You can combine styles for unique results!",
-      "Pro tip: Be specific in your prompt for better results.",
-      "Try using 'Pixar style' for fun character edits!",
-      "Editing text? Just describe what you want changed.",
-      "You can undo style selections by clicking again.",
-      "Large images may take a few extra seconds to process.",
-      "Use the slider to compare original vs edited precisely."
-    ];
-
-    let currentStage = 0;
-    let loadingInterval;
-    let tipsInterval;
-
+    
     function showToast(message) {
       toast.textContent = message;
       toast.classList.add('show');
@@ -628,92 +992,170 @@
       }, 3000);
     }
 
-    function startLoadingAnimation() {
-      currentStage = 0;
-      updateLoadingStage(currentStage);
-      
-      // Stage progression every 1.5s
-      loadingInterval = setInterval(() => {
-        if (currentStage < loadingStages.length - 1) {
-          currentStage++;
-          updateLoadingStage(currentStage);
-        } else {
-          // After all stages, switch to rotating tips every 3 seconds
-          clearInterval(loadingInterval);
-          let tipIndex = 0;
-          loadingText.textContent = processingTips[tipIndex];
+    // Detect Facebook WebView
+    function isFacebookWebView() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      return (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || 
+             (ua.indexOf("FB_IAB") > -1) || (ua.indexOf("FB4A") > -1);
+    }
+
+    // Show Facebook warning if needed
+    if (isFacebookWebView()) {
+      document.getElementById('fbWarning').style.display = 'block';
+    }
+
+    // === Rest of the JS ===
+    const dropzone = document.getElementById("dropzone");
+    const imageInput = document.getElementById("imageInput");
+    const maskDropzone = document.getElementById("maskDropzone");
+    const maskImageInput = document.getElementById("maskImageInput");
+    const styleDropzone = document.getElementById("styleDropzone");
+    const styleImageInput = document.getElementById("styleImageInput");
+    
+    // Prompt Edit Tab
+    dropzone.addEventListener("click", () => imageInput.click());
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("border-blue-500", "bg-blue-50");
+    });
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("border-blue-500", "bg-blue-50");
+    });
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("border-blue-500", "bg-blue-50");
+      if (e.dataTransfer.files.length) {
+        const file = e.dataTransfer.files[0];
+        handleImageUpload(file, 'prompt');
+      }
+    });
+    
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (file) {
+        handleImageUpload(file, 'prompt');
+      }
+    });
+    
+    // Mask Edit Tab
+    maskDropzone.addEventListener("click", () => maskImageInput.click());
+    maskDropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      maskDropzone.classList.add("border-blue-500", "bg-blue-50");
+    });
+    maskDropzone.addEventListener("dragleave", () => {
+      maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
+    });
+    maskDropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
+      if (e.dataTransfer.files.length) {
+        const file = e.dataTransfer.files[0];
+        handleImageUpload(file, 'mask');
+      }
+    });
+    
+    maskImageInput.addEventListener("change", () => {
+      const file = maskImageInput.files[0];
+      if (file) {
+        handleImageUpload(file, 'mask');
+      }
+    });
+    
+    // Style Transfer Tab
+    styleDropzone.addEventListener("click", () => styleImageInput.click());
+    styleDropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      styleDropzone.classList.add("border-blue-500", "bg-blue-50");
+    });
+    styleDropzone.addEventListener("dragleave", () => {
+      styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
+    });
+    styleDropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
+      if (e.dataTransfer.files.length) {
+        const file = e.dataTransfer.files[0];
+        handleImageUpload(file, 'style');
+      }
+    });
+    
+    styleImageInput.addEventListener("change", () => {
+      const file = styleImageInput.files[0];
+      if (file) {
+        handleImageUpload(file, 'style');
+      }
+    });
+    
+    const imagePreview = document.getElementById("imagePreview");
+    const previewImg = document.getElementById("previewImg");
+    const previewName = document.getElementById("previewName");
+    const previewSize = document.getElementById("previewSize");
+    
+    const maskImagePreview = document.getElementById("maskImagePreview");
+    const maskPreviewImg = document.getElementById("maskPreviewImg");
+    const maskPreviewName = document.getElementById("maskPreviewName");
+    const maskPreviewSize = document.getElementById("maskPreviewSize");
+    
+    const styleImagePreview = document.getElementById("styleImagePreview");
+    const stylePreviewImg = document.getElementById("stylePreviewImg");
+    const stylePreviewName = document.getElementById("stylePreviewName");
+    const stylePreviewSize = document.getElementById("stylePreviewSize");
+    
+    function showPreview(file, type) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (type === 'prompt') {
+          previewImg.src = reader.result;
+          previewName.textContent = file.name;
+          previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+          imagePreview.classList.remove("hidden");
+        } else if (type === 'mask') {
+          maskPreviewImg.src = reader.result;
+          maskPreviewName.textContent = file.name;
+          maskPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+          maskImagePreview.classList.remove("hidden");
           
-          tipsInterval = setInterval(() => {
-            tipIndex = (tipIndex + 1) % processingTips.length;
-            loadingText.textContent = processingTips[tipIndex];
-          }, 3000);
+          // Show mask editor
+          document.getElementById('maskEditor').classList.remove('hidden');
+          document.getElementById('maskBaseImage').src = reader.result;
+        } else if (type === 'style') {
+          stylePreviewImg.src = reader.result;
+          stylePreviewName.textContent = file.name;
+          stylePreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+          styleImagePreview.classList.remove("hidden");
         }
-      }, 1500);
+      };
+      reader.readAsDataURL(file);
     }
 
-    function updateLoadingStage(stageIndex) {
-      loadingText.textContent = loadingStages[stageIndex].text;
+    function handleImageUpload(file, type) {
+      // Check if file is an image
+      if (!file.type.match('image.*')) {
+        alert('Please select an image file (PNG, JPG, GIF)');
+        return;
+      }
       
-      // Update stage indicators
-      stages.forEach((stage, i) => {
-        if (i <= stageIndex) {
-          stage.classList.add('active');
-        } else {
-          stage.classList.remove('active');
-        }
-      });
-    }
-
-    function stopLoadingAnimation() {
-      clearInterval(loadingInterval);
-      clearInterval(tipsInterval);
-      // Reset to first stage for next time
-      updateLoadingStage(0);
-    }
-
-    function updatePlaceholder() {
-      if (promptInput.value) return;
+      // Show preview with original size
+      showPreview(file, type);
       
-      const activeStyles = Array.from(selectedStyles);
-      if (activeStyles.length === 0) {
-        promptInput.placeholder = defaultPlaceholder;
-      } else {
-        promptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+      // Store the original file for later processing
+      if (type === 'prompt') {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        imageInput.files = dataTransfer.files;
+      } else if (type === 'mask') {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        maskImageInput.files = dataTransfer.files;
+      } else if (type === 'style') {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        styleImageInput.files = dataTransfer.files;
       }
+      
+      showToast("Image uploaded successfully");
     }
-
-    function toggleStyle(button, style) {
-      const isActive = button.classList.contains('style-active');
-      if (isActive) {
-        button.classList.remove('style-active');
-        button.style.backgroundColor = '';
-        button.style.borderColor = 'var(--border-primary)';
-        button.style.color = 'var(--text-primary)';
-        selectedStyles.delete(style);
-      } else {
-        button.classList.add('style-active');
-        button.style.backgroundColor = '#2563eb';
-        button.style.borderColor = '#2563eb';
-        button.style.color = 'white';
-        selectedStyles.add(style);
-      }
-      updatePlaceholder();
-    }
-
-    promptInput.addEventListener('focus', () => {
-      if (!promptInput.value) {
-        const activeStyles = Array.from(selectedStyles);
-        if (activeStyles.length > 0) {
-          promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
-        }
-      }
-    });
-
-    promptInput.addEventListener('blur', () => {
-      if (!promptInput.value) {
-        updatePlaceholder();
-      }
-    });
 
     // === Vertical Reveal Slider (Mobile-Fixed) ===
     const beforeImage = document.getElementById('beforeImage');
@@ -763,80 +1205,75 @@
       e.preventDefault();
     });
 
-    // === Rest of the JS ===
-    const dropzone = document.getElementById("dropzone");
-    const imageInput = document.getElementById("imageInput");
-    dropzone.addEventListener("click", () => imageInput.click());
+    // === Style Presets ===
+    const selectedStyles = new Set();
+    const promptInput = document.getElementById("prompt");
+    const maskPromptInput = document.getElementById("maskPrompt");
+    const stylePromptInput = document.getElementById("prompt"); // Reusing the same prompt input for style tab
+    
+    const defaultPlaceholder = "Change the car color to red";
+    const stylePlaceholders = {
+      anime: "Make it anime-style with vibrant colors",
+      'studio ghibli': "Transform into a Studio Ghibli scene",
+      picasso: "in Picasso's cubist style, abstract forms",
+      cyberpunk: "Cyberpunk neon lights and rain effects",
+      'van gogh': "in the style of Van Gogh, expressive brushstrokes",
+      lego: "as a LEGO diorama, plastic texture",
+      'pixel art': "in 16-bit pixel art style",
+      sketch: "as a pencil sketch, hand-drawn lines",
+      pixar: "in Pixar 3D animation style, soft lighting",
+      'desert mirage': "with desert mirage effect, heat haze"
+    };
 
-    dropzone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dropzone.classList.add("border-blue-500", "bg-blue-50");
-    });
-    dropzone.addEventListener("dragleave", () => {
-      dropzone.classList.remove("border-blue-500", "bg-blue-50");
-    });
-    dropzone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      dropzone.classList.remove("border-blue-500", "bg-blue-50");
-      if (e.dataTransfer.files.length) {
-        const file = e.dataTransfer.files[0];
-        handleImageUpload(file);
+    function updatePlaceholder(input, styles) {
+      if (input.value) return;
+      
+      const activeStyles = Array.from(styles);
+      if (activeStyles.length === 0) {
+        input.placeholder = defaultPlaceholder;
+      } else {
+        input.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+      }
+    }
+
+    function toggleStyle(button, style) {
+      const isActive = button.classList.contains('style-active');
+      if (isActive) {
+        button.classList.remove('style-active');
+        button.style.backgroundColor = '';
+        button.style.borderColor = 'var(--border-primary)';
+        button.style.color = 'var(--text-primary)';
+        selectedStyles.delete(style);
+      } else {
+        button.classList.add('style-active');
+        button.style.backgroundColor = '#2563eb';
+        button.style.borderColor = '#2563eb';
+        button.style.color = 'white';
+        selectedStyles.add(style);
+      }
+      
+      // Update placeholder for style tab
+      if (document.querySelector('#styleTransferTab').classList.contains('active')) {
+        updatePlaceholder(stylePromptInput, selectedStyles);
+      }
+    }
+
+    promptInput.addEventListener('focus', () => {
+      if (!promptInput.value) {
+        const activeStyles = Array.from(selectedStyles);
+        if (activeStyles.length > 0) {
+          promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
+        }
       }
     });
 
-    imageInput.addEventListener("change", () => {
-      const file = imageInput.files[0];
-      if (file) {
-        handleImageUpload(file);
+    promptInput.addEventListener('blur', () => {
+      if (!promptInput.value) {
+        updatePlaceholder(promptInput, selectedStyles);
       }
     });
 
-    const imagePreview = document.getElementById("imagePreview");
-    const previewImg = document.getElementById("previewImg");
-    const previewName = document.getElementById("previewName");
-    const previewSize = document.getElementById("previewSize");
-
-    function showPreview(file, originalSize) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        previewImg.src = reader.result;
-        previewName.textContent = file.name;
-        previewSize.textContent = (originalSize / (1024*1024)).toFixed(1) + " MB";
-        imagePreview.classList.remove("hidden");
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // Detect Facebook WebView
-    function isFacebookWebView() {
-      const ua = navigator.userAgent || navigator.vendor || window.opera;
-      return (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || 
-             (ua.indexOf("FB_IAB") > -1) || (ua.indexOf("FB4A") > -1);
-    }
-
-    // Show Facebook warning if needed
-    if (isFacebookWebView()) {
-      document.getElementById('fbWarning').style.display = 'block';
-    }
-
-    function handleImageUpload(file) {
-      // Check if file is an image
-      if (!file.type.match('image.*')) {
-        alert('Please select an image file (PNG, JPG, GIF)');
-        return;
-      }
-      
-      // Show preview with original size
-      showPreview(file, file.size);
-      
-      // Store the original file for later processing
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      imageInput.files = dataTransfer.files;
-      
-      showToast("Image uploaded successfully");
-    }
-
+    // === Processing Functions ===
     function getStylePrompt() {
       const styles = {
         anime: "in anime style",
@@ -855,7 +1292,20 @@
         .join(", ");
     }
 
-    // Smart compression function - the key fix
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // Remove the data URL prefix (e.g., "image/png;base64,")
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Smart compression function
     async function compressForServer(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -947,20 +1397,10 @@
       });
     }
 
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          // Remove the data URL prefix (e.g., "image/png;base64,")
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
+    // === API Functions ===
     const editBtn = document.getElementById("editBtn");
+    const maskEditBtn = document.getElementById("maskEditBtn");
+    const styleEditBtn = document.getElementById("styleEditBtn");
     const loading = document.getElementById("loading");
     const resultDiv = document.getElementById("result");
     const downloadBtn = document.getElementById("downloadBtn");
@@ -1057,6 +1497,7 @@
     // Initialize history
     loadHistory();
 
+    // === Prompt Edit Functionality ===
     editBtn.addEventListener("click", async () => {
       const imageFile = imageInput.files[0];
       const prompt = document.getElementById("prompt").value.trim();
@@ -1072,13 +1513,7 @@
         loading.classList.remove("hidden");
         resultDiv.classList.add("hidden");
         
-        // Start loading animation
-        startLoadingAnimation();
-        loadingText.textContent = "Optimizing image for processing...";
-
         const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
-
-        // Critical fix: Smart compression that targets the right base64 size
         const compressionResult = await compressForServer(imageFile);
         const compressedFile = compressionResult.file;
         
@@ -1091,11 +1526,7 @@
         // Convert to base64
         const base64Image = await fileToBase64(compressedFile);
 
-        // Check base64 size (should be safe now)
-        const base64SizeMB = (base64Image.length * 0.75 / (1024*1024)).toFixed(2);
-        console.log(`Base64 size: ${base64SizeMB}MB`);
-
-        // Critical fix: Use POST with proper error handling
+        // API call
         const response = await fetch("/api/edit", {
           method: "POST",
           headers: { 
@@ -1110,7 +1541,7 @@
           })
         });
 
-        // Critical fix: Check if response is OK
+        // Error handling
         if (!response.ok) {
           let errorMessage = `Server error: ${response.status}`;
           try {
@@ -1121,7 +1552,6 @@
               errorMessage += ` - ${errorData.detail}`;
             }
           } catch (e) {
-            // If response is not JSON, try to get text
             try {
               const errorText = await response.text();
               errorMessage += ` - ${errorText.substring(0, 100)}...`;
@@ -1138,7 +1568,7 @@
           throw new Error(errorMessage);
         }
 
-        // Critical fix: Check if response is JSON
+        // Parse response
         const contentType = response.headers.get("content-type");
         let data;
         if (contentType && contentType.includes("application/json")) {
@@ -1172,8 +1602,222 @@
       } finally {
         loading.classList.add("hidden");
         editBtn.classList.remove("hidden");
-        // Stop loading animation
-        stopLoadingAnimation();
+      }
+    });
+    
+    // === Mask Edit Functionality ===
+    maskEditBtn.addEventListener("click", async () => {
+      const imageFile = maskImageInput.files[0];
+      const prompt = document.getElementById("maskPrompt").value.trim();
+      
+      if (!imageFile || !prompt) {
+        alert("Please upload an image and enter a prompt for the mask edit.");
+        return;
+      }
+      
+      try {
+        maskEditBtn.classList.add("hidden");
+        loading.classList.remove("hidden");
+        resultDiv.classList.add("hidden");
+        
+        // For mask editing, we'll use the same compression as prompt editing
+        const compressionResult = await compressForServer(imageFile);
+        const compressedFile = compressionResult.file;
+        
+        // Show compression info
+        const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+        const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+        const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+        showToast(qualityMsg);
+
+        // Convert to base64
+        const base64Image = await fileToBase64(compressedFile);
+
+        // API call - same endpoint but with mask information
+        const response = await fetch("/api/edit", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            image: base64Image,
+            imageName: imageFile.name,
+            imageType: imageFile.type,
+            prompt: prompt,
+            // In a real implementation, we'd include mask data here
+            mask_data: null
+          })
+        });
+
+        // Error handling
+        if (!response.ok) {
+          let errorMessage = `Server error: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage += ` - ${errorData.error}`;
+            } else if (errorData.detail) {
+              errorMessage += ` - ${errorData.detail}`;
+            }
+          } catch (e) {
+            try {
+              const errorText = await response.text();
+              errorMessage += ` - ${errorText.substring(0, 100)}...`;
+            } catch (e2) {
+              errorMessage += " - Failed to parse error response";
+            }
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        // Parse response
+        const contentType = response.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+          data = await response.json();
+        } else {
+          throw new Error("Expected JSON response but received different content type");
+        }
+
+        if (data.edited_image_url) {
+          const originalUrl = URL.createObjectURL(imageFile);
+          beforeImage.src = originalUrl;
+          afterImage.src = data.edited_image_url;
+          
+          resultDiv.classList.remove("hidden");
+
+          // Reset slider to 50%
+          const container = sliderHandle.parentElement;
+          const midPoint = (container.offsetWidth - 40) / 2;
+          sliderHandle.style.left = midPoint + 'px';
+          imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+          // Set up download functionality
+          setupDownload(data.edited_image_url);
+          showToast("Mask edit completed! 🎉");
+        } else {
+          throw new Error("Invalid response format: missing edited_image_url");
+        }
+      } catch (err) {
+        console.error("Detailed error:", err);
+        alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
+      } finally {
+        loading.classList.add("hidden");
+        maskEditBtn.classList.remove("hidden");
+      }
+    });
+    
+    // === Style Transfer Functionality ===
+    styleEditBtn.addEventListener("click", async () => {
+      const imageFile = styleImageInput.files[0];
+      const prompt = document.getElementById("prompt").value.trim();
+      const stylePrompt = getStylePrompt();
+      const intensity = document.getElementById('styleIntensity').value;
+      
+      if (!imageFile || selectedStyles.size === 0) {
+        alert("Please upload an image and select at least one style.");
+        return;
+      }
+      
+      try {
+        styleEditBtn.classList.add("hidden");
+        loading.classList.remove("hidden");
+        resultDiv.classList.add("hidden");
+        
+        // For style transfer, we'll use the same compression
+        const compressionResult = await compressForServer(imageFile);
+        const compressedFile = compressionResult.file;
+        
+        // Show compression info
+        const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+        const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+        const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+        showToast(qualityMsg);
+
+        // Convert to base64
+        const base64Image = await fileToBase64(compressedFile);
+
+        // Construct prompt with style information
+        let finalPrompt = stylePrompt;
+        if (prompt) {
+          finalPrompt = `${prompt}, ${stylePrompt}`;
+        }
+        
+        // API call
+        const response = await fetch("/api/edit", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            image: base64Image,
+            imageName: imageFile.name,
+            imageType: imageFile.type,
+            prompt: finalPrompt,
+            // In a real implementation, we'd use intensity parameter
+            style_intensity: intensity
+          })
+        });
+
+        // Error handling
+        if (!response.ok) {
+          let errorMessage = `Server error: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage += ` - ${errorData.error}`;
+            } else if (errorData.detail) {
+              errorMessage += ` - ${errorData.detail}`;
+            }
+          } catch (e) {
+            try {
+              const errorText = await response.text();
+              errorMessage += ` - ${errorText.substring(0, 100)}...`;
+            } catch (e2) {
+              errorMessage += " - Failed to parse error response";
+            }
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        // Parse response
+        const contentType = response.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+          data = await response.json();
+        } else {
+          throw new Error("Expected JSON response but received different content type");
+        }
+
+        if (data.edited_image_url) {
+          const originalUrl = URL.createObjectURL(imageFile);
+          beforeImage.src = originalUrl;
+          afterImage.src = data.edited_image_url;
+          
+          resultDiv.classList.remove("hidden");
+
+          // Reset slider to 50%
+          const container = sliderHandle.parentElement;
+          const midPoint = (container.offsetWidth - 40) / 2;
+          sliderHandle.style.left = midPoint + 'px';
+          imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+          // Set up download functionality
+          setupDownload(data.edited_image_url);
+          showToast("Style transfer completed! 🎨");
+        } else {
+          throw new Error("Invalid response format: missing edited_image_url");
+        }
+      } catch (err) {
+        console.error("Detailed error:", err);
+        alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
+      } finally {
+        loading.classList.add("hidden");
+        styleEditBtn.classList.remove("hidden");
       }
     });
 
@@ -1239,7 +1883,7 @@
     }
 
     // Initialize placeholder
-    updatePlaceholder();
+    updatePlaceholder(promptInput, selectedStyles);
   </script>
 </body>
 </html>
