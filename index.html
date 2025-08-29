@@ -2,16 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Kamuy - AI Image Editor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .dropzone { border: 3px dashed #adb5bd; border-radius: 12px; background: #f8f9fa; }
-    .dropzone:hover { border-color: #0d6efd; background: #f1f3f5; }
-    .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid #f3f3f3; border-top: 2px solid #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      touch-action: pan-y; /* Allow vertical scroll, control horizontal */
+    }
+    .dropzone { 
+      border: 3px dashed #adb5bd; 
+      border-radius: 12px; 
+      background: #f8f9fa; 
+      transition: all 0.2s ease; 
+    }
+    .dropzone:hover { 
+      border-color: #0d6efd; 
+      background: #f1f3f5; 
+    }
+    .spinner { 
+      display: inline-block; 
+      width: 1em; 
+      height: 1em; 
+      border: 2px solid #f3f3f3; 
+      border-top: 2px solid #fff; 
+      border-radius: 50%; 
+      animation: spin 1s linear infinite; 
+    }
     .style-btn {
-      @apply px-3 py-1 text-xs font-medium rounded-full border border-gray-300 transition-all duration-200 cursor-pointer;
+      @apply px-3 py-1 text-xs font-medium rounded-full border border-gray-300 transition-all duration-200 cursor-pointer active:scale-95;
     }
     .style-grid {
       display: grid;
@@ -41,6 +60,8 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     @media (max-width: 640px) {
       .style-grid { grid-template-columns: repeat(3, 1fr); }
+      .dropzone { padding: 1rem; }
+      .spinner { width: 1.2em; height: 1.2em; }
     }
 
     /* Vertical Reveal Slider */
@@ -51,6 +72,7 @@
       overflow: hidden;
       border-radius: 0.5rem;
       border: 1px solid #e5e7eb;
+      touch-action: none; /* Prevent default touch behavior */
     }
     .comparison-image {
       display: block;
@@ -84,6 +106,7 @@
       background: rgba(255,255,255,0.8);
       border-left: 1px solid #d1d5db;
       border-right: 1px solid #d1d5db;
+      touch-action: none;
     }
     .slider-handle::before {
       content: "↔";
@@ -100,9 +123,9 @@
     }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-6">
   <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-    <div class="p-8">
+    <div class="p-6 sm:p-8">
       <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">✨ Kamuy</h1>
       <p class="text-center text-gray-600 mb-6">AI Image Editing, Powered by Qwen</p>
 
@@ -257,7 +280,7 @@
       }
     });
 
-    // === Vertical Reveal Slider ===
+    // === Vertical Reveal Slider (Mobile-Fixed) ===
     const beforeImage = document.getElementById('beforeImage');
     const afterImage = document.getElementById('afterImage');
     const imageOverlay = document.getElementById('imageOverlay');
@@ -266,6 +289,8 @@
 
     function handleMove(e) {
       if (!isDragging) return;
+      
+      e.preventDefault(); // Prevent scrolling while dragging
       
       const container = sliderHandle.parentElement;
       const rect = container.getBoundingClientRect();
@@ -298,7 +323,7 @@
 
     sliderHandle.addEventListener('touchstart', (e) => {
       isDragging = true;
-      document.addEventListener('touchmove', handleMove);
+      document.addEventListener('touchmove', handleMove, { passive: false });
       document.addEventListener('touchend', stopDragging);
       e.preventDefault();
     });
