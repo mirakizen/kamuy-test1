@@ -616,6 +616,53 @@
           <input type="text" id="prompt" placeholder="Change the car color to red" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
         </div>
 
+        <!-- Style Presets (for Prompt Edit tab) -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">Style Presets</label>
+          <div class="style-grid" id="promptStyleGrid">
+            <button type="button" class="style-btn">
+              🎨 Anime
+              <span class="tooltip">Transform into vibrant anime style</span>
+            </button>
+            <button type="button" class="style-btn">
+              🎬 Ghibli
+              <span class="tooltip">Studio Ghibli watercolor aesthetic</span>
+            </button>
+            <button type="button" class="style-btn">
+              🎨 Picasso
+              <span class="tooltip">Cubist abstraction and bold forms</span>
+            </button>
+            <button type="button" class="style-btn">
+              🕹️ Cyberpunk
+              <span class="tooltip">Neon lights, rain, futuristic</span>
+            </button>
+            <button type="button" class="style-btn">
+              🖼️ Van Gogh
+              <span class="tooltip">Expressive brushstrokes, textured</span>
+            </button>
+            <button type="button" class="style-btn">
+              🧱 LEGO
+              <span class="tooltip">Plastic brick diorama style</span>
+            </button>
+            <button type="button" class="style-btn">
+              🎮 Pixel
+              <span class="tooltip">16-bit retro video game style</span>
+            </button>
+            <button type="button" class="style-btn">
+              🖋️ Sketch
+              <span class="tooltip">Pencil drawing with shading</span>
+            </button>
+            <button type="button" class="style-btn">
+              🧸 Pixar
+              <span class="tooltip">3D animation, soft lighting</span>
+            </button>
+            <button type="button" class="style-btn">
+              🏜️ Mirage
+              <span class="tooltip">Heat haze, desert illusion</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Edit Button -->
         <button id="editBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
           <i class="fas fa-magic mr-2"></i> Edit Image
@@ -712,44 +759,44 @@
         <!-- Style Presets -->
         <div class="mb-6">
           <label class="block text-sm font-medium mb-2">Style Presets</label>
-          <div class="style-grid">
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'anime')">
+          <div class="style-grid" id="styleTransferGrid">
+            <button type="button" class="style-btn">
               🎨 Anime
               <span class="tooltip">Transform into vibrant anime style</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'studio ghibli')">
-              �� Ghibli
+            <button type="button" class="style-btn">
+              🎬 Ghibli
               <span class="tooltip">Studio Ghibli watercolor aesthetic</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'picasso')">
+            <button type="button" class="style-btn">
               🎨 Picasso
               <span class="tooltip">Cubist abstraction and bold forms</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'cyberpunk')">
+            <button type="button" class="style-btn">
               🕹️ Cyberpunk
               <span class="tooltip">Neon lights, rain, futuristic</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'van gogh')">
-              ��️ Van Gogh
+            <button type="button" class="style-btn">
+              🖼️ Van Gogh
               <span class="tooltip">Expressive brushstrokes, textured</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'lego')">
+            <button type="button" class="style-btn">
               🧱 LEGO
               <span class="tooltip">Plastic brick diorama style</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixel art')">
+            <button type="button" class="style-btn">
               🎮 Pixel
               <span class="tooltip">16-bit retro video game style</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'sketch')">
+            <button type="button" class="style-btn">
               🖋️ Sketch
               <span class="tooltip">Pencil drawing with shading</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixar')">
+            <button type="button" class="style-btn">
               🧸 Pixar
               <span class="tooltip">3D animation, soft lighting</span>
             </button>
-            <button type="button" class="style-btn" onclick="toggleStyle(this, 'desert mirage')">
+            <button type="button" class="style-btn">
               🏜️ Mirage
               <span class="tooltip">Heat haze, desert illusion</span>
             </button>
@@ -827,17 +874,45 @@
   </div>
 
   <script>
-    // Wait for DOM to be fully loaded before executing JavaScript
+    // Declare all critical variables at the top to avoid TDZ issues
+    let promptSelectedStyles = new Set();
+    let maskSelectedStyles = new Set();
+    let styleTransferSelectedStyles = new Set();
+    let currentTab = 'promptEdit';
+    let maskCanvas = null;
+    let maskCtx = null;
+    let isDrawing = false;
+    let currentTool = 'brush';
+    let brushSize = 10;
+    let maskHistory = [];
+    let historyIndex = -1;
+    
+    // Style placeholders and default values
+    const defaultPlaceholder = "Change the car color to red";
+    const stylePlaceholders = {
+      anime: "Make it anime-style with vibrant colors",
+      'studio ghibli': "Transform into a Studio Ghibli scene",
+      picasso: "in Picasso's cubist style, abstract forms",
+      cyberpunk: "Cyberpunk neon lights and rain effects",
+      'van gogh': "in the style of Van Gogh, expressive brushstrokes",
+      lego: "as a LEGO diorama, plastic texture",
+      'pixel art': "in 16-bit pixel art style",
+      sketch: "as a pencil sketch, hand-drawn lines",
+      pixar: "in Pixar 3D animation style, soft lighting",
+      'desert mirage': "with desert mirage effect, heat haze"
+    };
+    
+    // Loading stages
+    const loadingStages = [
+      { text: "Analyzing your image...", stage: 0 },
+      { text: "Understanding visual elements...", stage: 1 },
+      { text: "Applying AI magic...", stage: 2 },
+      { text: "Finalizing your masterpiece...", stage: 3 }
+    ];
+    
+    // Initialize the app when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-      // Style sets for each tab
-      const promptSelectedStyles = new Set();
-      const maskSelectedStyles = new Set();
-      const styleTransferSelectedStyles = new Set();
-      
-      // Current active tab
-      let currentTab = 'promptEdit';
-      
-      // DOM elements - declared at the top to avoid TDZ errors
+      // DOM elements
       const tabs = document.querySelectorAll('.tab');
       const tabContents = document.querySelectorAll('.tab-content');
       const toast = document.getElementById('toast');
@@ -855,6 +930,7 @@
       const previewSize = document.getElementById("previewSize");
       const promptInput = document.getElementById("prompt");
       const editBtn = document.getElementById("editBtn");
+      const promptStyleGrid = document.getElementById("promptStyleGrid");
       
       // Mask elements
       const maskImagePreview = document.getElementById("maskImagePreview");
@@ -870,6 +946,7 @@
       const stylePreviewName = document.getElementById("stylePreviewName");
       const stylePreviewSize = document.getElementById("stylePreviewSize");
       const styleEditBtn = document.getElementById("styleEditBtn");
+      const styleTransferGrid = document.getElementById("styleTransferGrid");
       
       // Result elements
       const loading = document.getElementById("loading");
@@ -881,10 +958,6 @@
       const imageOverlay = document.getElementById('imageOverlay');
       const sliderHandle = document.getElementById('sliderHandle');
       
-      // Mask editor variables - declared but not initialized yet
-      let maskCanvas = null;
-      let maskCtx = null;
-      
       // Loading screen elements
       const loadingText = document.getElementById('loadingText');
       const stages = [
@@ -893,21 +966,37 @@
         document.getElementById('stage3'),
         document.getElementById('stage4')
       ];
-
-      // Loading stages
-      const loadingStages = [
-        { text: "Analyzing your image...", stage: 0 },
-        { text: "Understanding visual elements...", stage: 1 },
-        { text: "Applying AI magic...", stage: 2 },
-        { text: "Finalizing your masterpiece...", stage: 3 }
-      ];
-
-      let currentStage = 0;
-      let loadingInterval;
       
       // Style intensity elements
       const intensitySlider = document.getElementById('styleIntensity');
       const intensityValue = document.getElementById('intensityValue');
+      
+      // Initialize style buttons for all tabs
+      function initStyleButtons() {
+        // Prompt Edit tab buttons
+        if (promptStyleGrid) {
+          promptStyleGrid.querySelectorAll('.style-btn').forEach((button, index) => {
+            const styles = Object.keys(stylePlaceholders);
+            const style = styles[index % styles.length];
+            
+            button.addEventListener('click', () => {
+              toggleStyle(button, style, 'promptEdit');
+            });
+          });
+        }
+        
+        // Style Transfer tab buttons
+        if (styleTransferGrid) {
+          styleTransferGrid.querySelectorAll('.style-btn').forEach((button, index) => {
+            const styles = Object.keys(stylePlaceholders);
+            const style = styles[index % styles.length];
+            
+            button.addEventListener('click', () => {
+              toggleStyle(button, style, 'styleTransfer');
+            });
+          });
+        }
+      }
       
       // Tab functionality
       tabs.forEach(tab => {
@@ -941,6 +1030,9 @@
       
       // Initialize the current tab
       updatePlaceholder();
+      
+      // Initialize style buttons
+      initStyleButtons();
       
       // Style intensity slider
       if (intensitySlider && intensityValue) {
@@ -1051,12 +1143,6 @@
           redoTool.addEventListener('click', redo);
         }
       }
-      
-      let isDrawing = false;
-      let currentTool = 'brush';
-      let brushSize = 10;
-      let maskHistory = [];
-      let historyIndex = -1;
       
       function startDrawing(e) {
         if (!maskCanvas || !maskCtx) return;
@@ -1389,20 +1475,6 @@
       }
 
       // === Style Presets ===
-      const defaultPlaceholder = "Change the car color to red";
-      const stylePlaceholders = {
-        anime: "Make it anime-style with vibrant colors",
-        'studio ghibli': "Transform into a Studio Ghibli scene",
-        picasso: "in Picasso's cubist style, abstract forms",
-        cyberpunk: "Cyberpunk neon lights and rain effects",
-        'van gogh': "in the style of Van Gogh, expressive brushstrokes",
-        lego: "as a LEGO diorama, plastic texture",
-        'pixel art': "in 16-bit pixel art style",
-        sketch: "as a pencil sketch, hand-drawn lines",
-        pixar: "in Pixar 3D animation style, soft lighting",
-        'desert mirage': "with desert mirage effect, heat haze"
-      };
-
       function updatePlaceholder() {
         if (currentTab === 'promptEdit' && promptInput) {
           if (promptInput.value) return;
@@ -1428,12 +1500,12 @@
         }
       }
 
-      function toggleStyle(button, style) {
+      function toggleStyle(button, style, tab) {
         let selectedStyles;
         
-        if (currentTab === 'promptEdit') {
+        if (tab === 'promptEdit') {
           selectedStyles = promptSelectedStyles;
-        } else if (currentTab === 'maskEdit') {
+        } else if (tab === 'maskEdit') {
           selectedStyles = maskSelectedStyles;
         } else {
           selectedStyles = styleTransferSelectedStyles;
@@ -1506,6 +1578,9 @@
       }
 
       // === Loading Screen Animation ===
+      let currentStage = 0;
+      let loadingInterval;
+      
       function startLoadingAnimation() {
         currentStage = 0;
         updateLoadingStage(currentStage);
