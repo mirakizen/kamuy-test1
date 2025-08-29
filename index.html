@@ -6,68 +6,121 @@
   <title>Kamuy - AI Image Editor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { 
-      font-family: 'Inter', sans-serif; 
-      touch-action: pan-y; 
-      transition: background-color 0.3s ease;
-    }
-    body.dark {
-      --bg-primary: #111827;
-      --bg-secondary: #1f2937;
-      --text-primary: #f9fafb;
-      --text-secondary: #d1d5db;
-      --border-primary: #374151;
-    }
-    body:not(.dark) {
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
+    :root {
       --bg-primary: #f9fafb;
       --bg-secondary: #ffffff;
       --text-primary: #111827;
       --text-secondary: #4b5563;
       --border-primary: #e5e7eb;
+      --btn-bg: #3b82f6;
+      --btn-text: #ffffff;
     }
-    .dark .dropzone, 
-    .dark .style-btn, 
-    .dark .comparison-container, 
-    .dark .resolution-toggle,
-    .dark .usage-counter,
-    .dark #result,
-    .dark .style-grid button {
-      --tw-bg-opacity: 1;
-      background-color: rgba(31, 41, 54, var(--tw-bg-opacity));
-      border-color: #374151;
-      color: #f9fafb;
+
+    .dark {
+      --bg-primary: #111827;
+      --bg-secondary: #1f2937;
+      --text-primary: #f9fafb;
+      --text-secondary: #d1d5db;
+      --border-primary: #374151;
+      --btn-bg: #2563eb;
+      --btn-text: #ffffff;
     }
-    .dark .style-btn:hover,
-    .dark .style-btn.style-active {
-      background-color: #2563eb;
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
-    .dropzone { 
-      border: 3px dashed #adb5bd; 
-      border-radius: 12px; 
-      background: #f8f9fa; 
-      transition: all 0.2s ease; 
+
+    .container {
+      background-color: var(--bg-secondary);
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
     }
-    .dropzone:hover { 
-      border-color: #0d6efd; 
-      background: #f1f3f5; 
+
+    .dropzone {
+      border: 3px dashed var(--border-primary);
+      border-radius: 12px;
+      background: #f8f9fa;
+      transition: all 0.2s ease;
+      color: var(--text-secondary);
     }
-    .spinner { 
-      display: inline-block; 
-      width: 1em; 
-      height: 1em; 
-      border: 2px solid #f3f3f3; 
-      border-top: 2px solid #fff; 
-      border-radius: 50%; 
-      animation: spin 1s linear infinite; 
+
+    .dark .dropzone {
+      background: #1f2937;
+      color: #d1d5db;
     }
+
+    .dropzone:hover {
+      border-color: #0d6efd;
+      background: #f1f3f5;
+    }
+
+    .dark .dropzone:hover {
+      background: #374151;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
     .style-btn {
-      @apply px-3 py-1 text-xs font-medium rounded-full border border-gray-300 transition-all duration-200 cursor-pointer active:scale-95 relative;
+      @apply px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-pointer relative;
+      border-color: var(--border-primary);
+      color: var(--text-primary);
+      background-color: transparent;
     }
+
+    .style-btn:hover {
+      background-color: #2563eb;
+      color: white;
+      transform: scale(1.05);
+    }
+
+    .style-btn.style-active {
+      background-color: #2563eb;
+      color: white;
+    }
+
+    .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      z-index: 10;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 4px;
+    }
+
+    .style-btn:hover .tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
     .style-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 0.5rem;
     }
+
     .toast {
       position: fixed;
       top: 20px;
@@ -84,31 +137,12 @@
       transition: all 0.3s ease;
       z-index: 50;
     }
+
     .toast.show {
       transform: translateX(0);
       opacity: 1;
     }
-    .tooltip {
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #1f2937;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      white-space: nowrap;
-      z-index: 10;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s ease;
-    }
-    .style-btn:hover .tooltip {
-      opacity: 1;
-      visibility: visible;
-    }
-    
+
     /* Enhanced Loading Screen */
     .loading-container {
       display: flex;
@@ -118,14 +152,14 @@
       height: 200px;
       padding: 1rem;
     }
-    
+
     .ai-loader {
       position: relative;
       width: 80px;
       height: 80px;
       margin-bottom: 1.5rem;
     }
-    
+
     .loader-ring {
       position: absolute;
       width: 100%;
@@ -135,19 +169,19 @@
       border-radius: 50%;
       animation: rotate 1.5s linear infinite;
     }
-    
+
     .loader-ring:nth-child(2) {
       border: 3px solid transparent;
       border-right-color: #8b5cf6;
       animation-delay: -0.375s;
     }
-    
+
     .loader-ring:nth-child(3) {
       border: 3px solid transparent;
       border-bottom-color: #06b6d4;
       animation-delay: -0.75s;
     }
-    
+
     .loader-dot {
       position: absolute;
       width: 16px;
@@ -159,13 +193,13 @@
       margin: -8px 0 0 -8px;
       animation: pulse 1.5s ease-in-out infinite;
     }
-    
+
     .loader-stages {
       display: flex;
       gap: 0.5rem;
       margin-top: 1rem;
     }
-    
+
     .stage {
       width: 8px;
       height: 8px;
@@ -173,35 +207,46 @@
       background-color: #cbd5e1;
       transition: all 0.3s ease;
     }
-    
+
     .stage.active {
       background-color: #2563eb;
       transform: scale(1.3);
     }
-    
+
     .loading-text {
       font-size: 1.1rem;
       font-weight: 500;
-      color: #1e293b;
+      color: var(--text-primary);
       min-height: 1.5rem;
       text-align: center;
     }
-    
+
     @keyframes rotate {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    
+
     @keyframes pulse {
       0%, 100% { transform: scale(1); opacity: 1; }
       50% { transform: scale(1.5); opacity: 0.5; }
     }
-    
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     @media (max-width: 640px) {
-      .style-grid { grid-template-columns: repeat(3, 1fr); }
-      .dropzone { padding: 1rem; }
-      .spinner { width: 1.2em; height: 1.2em; }
+      .style-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .dropzone {
+        padding: 1rem;
+      }
+      .spinner {
+        width: 1.2em;
+        height: 1.2em;
+      }
     }
 
     /* Vertical Reveal Slider */
@@ -211,14 +256,16 @@
       height: auto;
       overflow: hidden;
       border-radius: 0.5rem;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--border-primary);
       touch-action: none;
     }
+
     .comparison-image {
       display: block;
       width: 100%;
       height: auto;
     }
+
     .image-overlay {
       position: absolute;
       top: 0;
@@ -228,10 +275,12 @@
       overflow: hidden;
       pointer-events: none;
     }
+
     .image-overlay img {
       width: 100%;
       height: auto;
     }
+
     .slider-handle {
       position: absolute;
       top: 0;
@@ -248,16 +297,28 @@
       border-right: 1px solid #d1d5db;
       touch-action: none;
     }
+
+    .dark .slider-handle {
+      background: rgba(0,0,0,0.8);
+      border-left: 1px solid #374151;
+      border-right: 1px solid #374151;
+    }
+
     .slider-handle::before {
       content: "↔";
       font-size: 24px;
       color: #4b5563;
       opacity: 0.8;
     }
+
+    .dark .slider-handle::before {
+      color: #d1d5db;
+    }
+
     .slider-instruction {
       text-align: center;
       font-size: 0.875rem;
-      color: #4b5563;
+      color: var(--text-secondary);
       margin-top: 0.25rem;
       font-style: italic;
     }
@@ -277,9 +338,11 @@
       overflow-y: auto;
       padding: 1rem;
     }
+
     .history-panel.open {
       right: 0;
     }
+
     .history-item {
       border: 1px solid var(--border-primary);
       border-radius: 8px;
@@ -287,11 +350,13 @@
       margin-bottom: 0.5rem;
       cursor: pointer;
     }
+
     .history-item img {
       width: 100%;
       border-radius: 4px;
       margin-bottom: 0.25rem;
     }
+
     .history-prompt {
       font-size: 0.75rem;
       color: var(--text-secondary);
@@ -299,6 +364,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .close-history {
       position: absolute;
       top: 10px;
@@ -307,14 +373,15 @@
       color: var(--text-secondary);
       cursor: pointer;
     }
+
     .open-history {
       position: fixed;
       bottom: 20px;
       right: 20px;
       width: 50px;
       height: 50px;
-      background: #2563eb;
-      color: white;
+      background: var(--btn-bg);
+      color: var(--btn-text);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -323,49 +390,53 @@
       z-index: 30;
       cursor: pointer;
     }
+
+    .dark .open-history {
+      background: #2563eb;
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-6">
-  <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden" id="appContainer">
+  <div class="w-full max-w-2xl mx-auto container" id="appContainer">
     <div class="p-6 sm:p-8">
       <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-center text-gray-800">✨ Kamuy</h1>
+        <h1 class="text-3xl font-bold text-center">✨ Kamuy</h1>
         <button id="darkModeToggle" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm">
           Dark Mode
         </button>
       </div>
-      <p class="text-center text-gray-600 mb-6">AI Image Editing, Powered by Qwen</p>
+      <p class="text-center mb-6">AI Image Editing, Powered by Qwen</p>
 
       <!-- Upload -->
       <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
+        <label class="block text-sm font-medium mb-2">Upload Image</label>
         <input type="file" id="imageInput" accept="image/*" class="hidden" />
         <div id="dropzone" class="dropzone w-full p-6 text-center cursor-pointer">
           <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
             <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <p class="mt-2 text-sm text-gray-600">Click to upload or drag and drop</p>
-          <p class="text-xs text-gray-500">PNG, JPG, GIF up to 50MB</p>
+          <p class="mt-2">Click to upload or drag and drop</p>
+          <p class="text-xs">PNG, JPG, GIF up to 50MB</p>
         </div>
         <!-- Preview -->
         <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
           <img id="previewImg" class="h-20 w-20 object-cover rounded" />
           <div class="ml-3">
-            <p id="previewName" class="text-sm font-medium text-gray-900"></p>
-            <p id="previewSize" class="text-sm text-gray-500"></p>
+            <p id="previewName" class="text-sm font-medium"></p>
+            <p id="previewSize" class="text-sm"></p>
           </div>
         </div>
       </div>
 
       <!-- Prompt -->
       <div class="mb-6">
-        <label for="prompt" class="block text-sm font-medium text-gray-700 mb-2">Edit Prompt</label>
+        <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
         <input type="text" id="prompt" placeholder="Change the car color to red" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
       </div>
 
       <!-- Style Presets -->
       <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Style Presets</label>
+        <label class="block text-sm font-medium mb-2">Style Presets</label>
         <div class="style-grid">
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'anime')">
             🎨 Anime
@@ -436,7 +507,7 @@
 
       <!-- Result -->
       <div id="result" class="hidden mt-6">
-        <h3 class="text-lg font-medium text-gray-800 mb-2">✨ Edited Image</h3>
+        <h3 class="text-lg font-medium mb-2">✨ Edited Image</h3>
         <div class="comparison-container relative">
           <img id="beforeImage" class="comparison-image" src="" alt="Original" />
           <div class="image-overlay" id="imageOverlay">
@@ -445,7 +516,7 @@
           <div class="slider-handle" id="sliderHandle"></div>
         </div>
         <p class="slider-instruction">Drag left/right to compare before/after</p>
-        
+
         <!-- Download Button -->
         <button id="downloadBtn" class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
           <i class="fas fa-download mr-2"></i> Download Image
@@ -459,7 +530,7 @@
 
   <!-- History Panel -->
   <div id="historyPanel" class="history-panel">
-    <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Recent Edits</h3>
+    <h3 class="text-lg font-semibold mb-4">Recent Edits</h3>
     <div id="historyList"></div>
     <div class="close-history" id="closeHistory">&times;</div>
   </div>
@@ -506,7 +577,7 @@
       { text: "Finalizing your masterpiece...", stage: 3 }
     ];
 
-    // Processing tips
+    // Processing tips (3 seconds each)
     const processingTips = [
       "Did you know? You can combine styles for unique results!",
       "Pro tip: Be specific in your prompt for better results.",
@@ -519,6 +590,7 @@
 
     let currentStage = 0;
     let loadingInterval;
+    let tipsInterval;
 
     function showToast(message) {
       toast.textContent = message;
@@ -533,15 +605,21 @@
       currentStage = 0;
       updateLoadingStage(currentStage);
       
-      // Cycle through stages
+      // Stage progression every 1.5s
       loadingInterval = setInterval(() => {
         if (currentStage < loadingStages.length - 1) {
           currentStage++;
           updateLoadingStage(currentStage);
         } else {
-          // Rotate tips after all stages
-          const randomTip = processingTips[Math.floor(Math.random() * processingTips.length)];
-          loadingText.textContent = randomTip;
+          // After all stages, switch to rotating tips every 3 seconds
+          clearInterval(loadingInterval);
+          let tipIndex = 0;
+          loadingText.textContent = processingTips[tipIndex];
+          
+          tipsInterval = setInterval(() => {
+            tipIndex = (tipIndex + 1) % processingTips.length;
+            loadingText.textContent = processingTips[tipIndex];
+          }, 3000);
         }
       }, 1500);
     }
@@ -561,6 +639,7 @@
 
     function stopLoadingAnimation() {
       clearInterval(loadingInterval);
+      clearInterval(tipsInterval);
       // Reset to first stage for next time
       updateLoadingStage(0);
     }
@@ -577,22 +656,21 @@
     }
 
     function toggleStyle(button, style) {
-      const isActive = button.style.backgroundColor === 'rgb(37, 99, 235)';
+      const isActive = button.classList.contains('style-active');
       if (isActive) {
+        button.classList.remove('style-active');
         button.style.backgroundColor = '';
-        button.style.borderColor = '#d1d5db';
-        button.style.color = '#1f2937';
-        button.style.transform = 'scale(1)';
+        button.style.borderColor = 'var(--border-primary)';
+        button.style.color = 'var(--text-primary)';
         selectedStyles.delete(style);
       } else {
+        button.classList.add('style-active');
         button.style.backgroundColor = '#2563eb';
         button.style.borderColor = '#2563eb';
         button.style.color = 'white';
-        button.style.transform = 'scale(1.05)';
         selectedStyles.add(style);
       }
       updatePlaceholder();
-      console.log("Toggled:", style, "Active:", Array.from(selectedStyles));
     }
 
     promptInput.addEventListener('focus', () => {
@@ -748,10 +826,8 @@
 
     // === Dark Mode Toggle ===
     const darkModeToggle = document.getElementById('darkModeToggle');
-    const appContainer = document.getElementById('appContainer');
     const body = document.body;
 
-    // Check user preference
     const prefersDark = localStorage.getItem('kamuy_dark_mode') === 'true';
     if (prefersDark) {
       body.classList.add('dark');
