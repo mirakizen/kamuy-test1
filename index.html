@@ -197,92 +197,35 @@
       opacity: 1;
     }
 
-    /* Enhanced Loading Screen */
+    /* Loading Screen */
     .loading-container {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 200px;
       padding: 1rem;
     }
 
-    .ai-loader {
-      position: relative;
-      width: 80px;
-      height: 80px;
-      margin-bottom: 1.5rem;
-    }
-
-    .loader-ring {
-      position: absolute;
+    .loading-progress {
       width: 100%;
-      height: 100%;
-      border: 3px solid transparent;
-      border-top-color: #2563eb;
-      border-radius: 50%;
-      animation: rotate 1.5s linear infinite;
-    }
-
-    .loader-ring:nth-child(2) {
-      border: 3px solid transparent;
-      border-right-color: #8b5cf6;
-      animation-delay: -0.375s;
-    }
-
-    .loader-ring:nth-child(3) {
-      border: 3px solid transparent;
-      border-bottom-color: #06b6d4;
-      animation-delay: -0.75s;
-    }
-
-    .loader-dot {
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      background-color: #2563eb;
-      border-radius: 50%;
-      top: 0;
-      left: 50%;
-      margin: -8px 0 0 -8px;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-
-    .loader-stages {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-
-    .stage {
-      width: 8px;
       height: 8px;
-      border-radius: 50%;
-      background-color: #cbd5e1;
-      transition: all 0.3s ease;
+      background-color: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 1rem 0;
     }
 
-    .stage.active {
+    .progress-bar {
+      height: 100%;
+      width: 0%;
       background-color: #2563eb;
-      transform: scale(1.3);
+      transition: width 0.3s ease;
     }
 
     .loading-text {
       font-size: 1.1rem;
       font-weight: 500;
       color: var(--text-primary);
-      min-height: 1.5rem;
-      text-align: center;
-    }
-
-    @keyframes rotate {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.5); opacity: 0.5; }
     }
 
     @keyframes spin {
@@ -765,18 +708,9 @@
       <!-- Loading -->
       <div id="loading" class="hidden mt-4 text-center text-gray-600">
         <div class="loading-container">
-          <div class="ai-loader">
-            <div class="loader-ring"></div>
-            <div class="loader-ring"></div>
-            <div class="loader-ring"></div>
-            <div class="loader-dot"></div>
-          </div>
-          <div class="loading-text" id="loadingText">Analyzing your image...</div>
-          <div class="loader-stages">
-            <div class="stage active" id="stage1"></div>
-            <div class="stage" id="stage2"></div>
-            <div class="stage" id="stage3"></div>
-            <div class="stage" id="stage4"></div>
+          <div class="loading-text">Processing: <span id="progressPercent">0</span>%</div>
+          <div class="loading-progress">
+            <div class="progress-bar" id="progressBar"></div>
           </div>
         </div>
       </div>
@@ -827,14 +761,16 @@
         imageUrl: null,
         editedImageUrl: null,
         prompt: '',
-        loading: false
+        loading: false,
+        progress: 0
       },
       maskEdit: {
         imageFile: null,
         imageUrl: null,
         editedImageUrl: null,
         maskData: null,
-        loading: false
+        loading: false,
+        progress: 0
       },
       styleTransfer: {
         imageFile: null,
@@ -842,11 +778,14 @@
         editedImageUrl: null,
         styles: [],
         intensity: 0.7,
-        loading: false
+        loading: false,
+        progress: 0
       }
     };
     
     let currentTab = 'promptEdit';
+    let maskCanvas = null;
+    let maskCtx = null;
     
     // Style placeholders
     const stylePlaceholders = {
@@ -862,14 +801,6 @@
       'desert mirage': "with desert mirage effect, heat haze"
     };
     
-    // Loading stages
-    const loadingStages = [
-      { text: "Analyzing your image...", stage: 0 },
-      { text: "Understanding visual elements...", stage: 1 },
-      { text: "Applying AI magic...", stage: 2 },
-      { text: "Finalizing your masterpiece...", stage: 3 }
-    ];
-    
     // Initialize the app when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
       // DOM elements
@@ -881,10 +812,8 @@
       function initTabState() {
         const state = tabStates[currentTab];
         
-        // Reset loading text
-        if (document.getElementById('loadingText')) {
-          document.getElementById('loadingText').textContent = "Analyzing your image...";
-        }
+        // Reset UI elements
+        resetUI();
         
         // Handle Prompt Edit tab
         if (currentTab === 'promptEdit') {
@@ -896,12 +825,6 @@
           const previewSize = document.getElementById("previewSize");
           const promptInput = document.getElementById("prompt");
           const editBtn = document.getElementById("editBtn");
-          
-          // Clear style presets from Prompt Edit tab (they don't belong here)
-          const stylePresets = document.getElementById("promptStyleGrid");
-          if (stylePresets) {
-            stylePresets.innerHTML = '';
-          }
           
           // Restore image preview if exists
           if (state.imageUrl && imagePreview && previewImg) {
@@ -961,7 +884,9 @@
               }
               
               state.prompt = prompt;
-              saveTabState();
+              state.loading = true;
+              state.progress = 0;
+              updateLoadingState();
               
               try {
                 if (editBtn) editBtn.classList.add("hidden");
@@ -970,8 +895,8 @@
                 const resultDiv = document.getElementById("result");
                 if (resultDiv) resultDiv.classList.add("hidden");
                 
-                // Start loading animation
-                startLoadingAnimation();
+                // Start processing
+                startProcessing(0, 100);
                 
                 // Compress and process the image
                 const compressionResult = await compressForServer(state.imageFile);
@@ -1001,12 +926,21 @@
                   })
                 });
                 
-                // Stop loading animation
-                stopLoadingAnimation();
+                // Stop processing
+                stopProcessing();
                 
                 // Error handling
                 if (!response.ok) {
-                  throw new Error(`Server error: ${response.status}`);
+                  let errorMessage = `Server error: ${response.status}`;
+                  try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                      errorMessage += ` - ${errorData.error}`;
+                    }
+                  } catch (e) {
+                    // Ignore
+                  }
+                  throw new Error(errorMessage);
                 }
                 
                 // Parse response
@@ -1021,7 +955,8 @@
                 if (data.edited_image_url) {
                   // Store edited image URL in tab state
                   state.editedImageUrl = data.edited_image_url;
-                  saveTabState();
+                  state.loading = false;
+                  updateLoadingState();
                   
                   showResult(data.edited_image_url);
                 } else {
@@ -1029,8 +964,11 @@
                 }
               } catch (err) {
                 console.error("Detailed error:", err);
-                // Stop loading animation on error
-                stopLoadingAnimation();
+                // Stop processing on error
+                stopProcessing();
+                state.loading = false;
+                updateLoadingState();
+                
                 const loading = document.getElementById("loading");
                 if (loading) loading.classList.add("hidden");
                 if (editBtn) editBtn.classList.remove("hidden");
@@ -1112,6 +1050,10 @@
                 return;
               }
               
+              state.loading = true;
+              state.progress = 0;
+              updateLoadingState();
+              
               try {
                 if (maskEditBtn) maskEditBtn.classList.add("hidden");
                 const loading = document.getElementById("loading");
@@ -1119,8 +1061,8 @@
                 const resultDiv = document.getElementById("result");
                 if (resultDiv) resultDiv.classList.add("hidden");
                 
-                // Start loading animation
-                startLoadingAnimation();
+                // Start processing
+                startProcessing(0, 100);
                 
                 // Compress and process the image
                 const compressionResult = await compressForServer(state.imageFile);
@@ -1151,8 +1093,8 @@
                   })
                 });
                 
-                // Stop loading animation
-                stopLoadingAnimation();
+                // Stop processing
+                stopProcessing();
                 
                 // Error handling
                 if (!response.ok) {
@@ -1180,7 +1122,8 @@
                 if (data.edited_image_url) {
                   // Store edited image URL in tab state
                   state.editedImageUrl = data.edited_image_url;
-                  saveTabState();
+                  state.loading = false;
+                  updateLoadingState();
                   
                   showResult(data.edited_image_url);
                 } else {
@@ -1188,8 +1131,11 @@
                 }
               } catch (err) {
                 console.error("Detailed error:", err);
-                // Stop loading animation on error
-                stopLoadingAnimation();
+                // Stop processing on error
+                stopProcessing();
+                state.loading = false;
+                updateLoadingState();
+                
                 const loading = document.getElementById("loading");
                 if (loading) loading.classList.add("hidden");
                 if (maskEditBtn) maskEditBtn.classList.remove("hidden");
@@ -1297,6 +1243,10 @@
                 return;
               }
               
+              state.loading = true;
+              state.progress = 0;
+              updateLoadingState();
+              
               try {
                 if (styleEditBtn) styleEditBtn.classList.add("hidden");
                 const loading = document.getElementById("loading");
@@ -1304,8 +1254,8 @@
                 const resultDiv = document.getElementById("result");
                 if (resultDiv) resultDiv.classList.add("hidden");
                 
-                // Start loading animation
-                startLoadingAnimation();
+                // Start processing
+                startProcessing(0, 100);
                 
                 // Compress and process the image
                 const compressionResult = await compressForServer(state.imageFile);
@@ -1353,12 +1303,21 @@
                   })
                 });
                 
-                // Stop loading animation
-                stopLoadingAnimation();
+                // Stop processing
+                stopProcessing();
                 
                 // Error handling
                 if (!response.ok) {
-                  throw new Error(`Server error: ${response.status}`);
+                  let errorMessage = `Server error: ${response.status}`;
+                  try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                      errorMessage += ` - ${errorData.error}`;
+                    }
+                  } catch (e) {
+                    // Ignore
+                  }
+                  throw new Error(errorMessage);
                 }
                 
                 // Parse response
@@ -1373,7 +1332,8 @@
                 if (data.edited_image_url) {
                   // Store edited image URL in tab state
                   state.editedImageUrl = data.edited_image_url;
-                  saveTabState();
+                  state.loading = false;
+                  updateLoadingState();
                   
                   showResult(data.edited_image_url);
                 } else {
@@ -1381,8 +1341,11 @@
                 }
               } catch (err) {
                 console.error("Detailed error:", err);
-                // Stop loading animation on error
-                stopLoadingAnimation();
+                // Stop processing on error
+                stopProcessing();
+                state.loading = false;
+                updateLoadingState();
+                
                 const loading = document.getElementById("loading");
                 if (loading) loading.classList.add("hidden");
                 if (styleEditBtn) styleEditBtn.classList.remove("hidden");
@@ -1390,6 +1353,28 @@
               }
             });
           }
+        }
+      }
+      
+      // Reset UI elements to ensure no cross-contamination
+      function resetUI() {
+        // Hide all previews
+        document.querySelectorAll('.hidden').forEach(el => {
+          if (el.classList.contains('image-preview')) {
+            el.classList.add('hidden');
+          }
+        });
+        
+        // Reset mask editor
+        const maskEditor = document.getElementById('maskEditor');
+        if (maskEditor) {
+          maskEditor.classList.add('hidden');
+        }
+        
+        // Reset result
+        const resultDiv = document.getElementById('result');
+        if (resultDiv) {
+          resultDiv.classList.add('hidden');
         }
       }
       
@@ -1424,6 +1409,46 @@
             state.intensity = parseFloat(intensitySlider.value);
           }
         }
+      }
+      
+      // Update loading state
+      function updateLoadingState() {
+        const state = tabStates[currentTab];
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        
+        if (progressBar && progressPercent) {
+          progressBar.style.width = `${state.progress}%`;
+          progressPercent.textContent = Math.round(state.progress);
+        }
+      }
+      
+      // Start processing
+      function startProcessing(start, end) {
+        const state = tabStates[currentTab];
+        let current = start;
+        const interval = setInterval(() => {
+          if (current >= end) {
+            clearInterval(interval);
+          } else {
+            current += 1;
+            state.progress = current;
+            updateLoadingState();
+          }
+        }, 50);
+      }
+      
+      // Stop processing
+      function stopProcessing() {
+        const state = tabStates[currentTab];
+        state.progress = 100;
+        updateLoadingState();
+        
+        // Hide loading after a short delay
+        setTimeout(() => {
+          const loading = document.getElementById("loading");
+          if (loading) loading.classList.add("hidden");
+        }, 500);
       }
       
       // Tab functionality
@@ -1469,10 +1494,11 @@
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         
-        const ctx = canvas.getContext('2d');
+        maskCanvas = canvas;
+        maskCtx = canvas.getContext('2d');
         
         // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        maskCtx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Set up drawing tools
         setupDrawingTools();
@@ -1490,10 +1516,8 @@
       }
       
       function setupDrawingTools() {
-        const canvas = document.getElementById('maskCanvas');
-        if (!canvas) return;
+        if (!maskCanvas || !maskCtx) return;
         
-        const ctx = canvas.getContext('2d');
         let isDrawing = false;
         
         // Tool selection
@@ -1517,20 +1541,20 @@
         }
         
         // Drawing events
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
+        maskCanvas.addEventListener('mousedown', startDrawing);
+        maskCanvas.addEventListener('mousemove', draw);
+        maskCanvas.addEventListener('mouseup', stopDrawing);
+        maskCanvas.addEventListener('mouseleave', stopDrawing);
         
-        canvas.addEventListener('touchstart', (e) => {
+        maskCanvas.addEventListener('touchstart', (e) => {
           e.preventDefault();
           startDrawing({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
         });
-        canvas.addEventListener('touchmove', (e) => {
+        maskCanvas.addEventListener('touchmove', (e) => {
           e.preventDefault();
           draw({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
         });
-        canvas.addEventListener('touchend', stopDrawing);
+        maskCanvas.addEventListener('touchend', stopDrawing);
         
         // Undo/Redo
         const undoTool = document.querySelector('[data-tool="undo"]');
@@ -1553,37 +1577,37 @@
         function draw(e) {
           if (!isDrawing) return;
           
-          const rect = canvas.getBoundingClientRect();
+          const rect = maskCanvas.getBoundingClientRect();
           const x = e.clientX - rect.left;
           const y = e.clientY - rect.top;
           
-          ctx.beginPath();
+          maskCtx.beginPath();
           
           // Check current tool
           const currentTool = document.querySelector('.mask-tool.active').getAttribute('data-tool');
           
           if (currentTool === 'brush') {
             // Blue for keep areas
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+            maskCtx.globalCompositeOperation = 'source-over';
+            maskCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
           } else if (currentTool === 'eraser') {
             // Red for remove areas (with transparency)
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            maskCtx.globalCompositeOperation = 'source-over';
+            maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
           }
           
           const brushSize = parseInt(document.getElementById('brushSize').value);
-          ctx.lineWidth = brushSize;
-          ctx.lineCap = 'round';
-          ctx.lineTo(x, y);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(x, y);
+          maskCtx.lineWidth = brushSize;
+          maskCtx.lineCap = 'round';
+          maskCtx.lineTo(x, y);
+          maskCtx.stroke();
+          maskCtx.beginPath();
+          maskCtx.moveTo(x, y);
         }
         
         function stopDrawing() {
           isDrawing = false;
-          ctx.beginPath();
+          maskCtx.beginPath();
         }
         
         // Mask history for undo/redo
@@ -1592,7 +1616,7 @@
         
         function saveState() {
           maskHistory.length = historyIndex + 1;
-          maskHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+          maskHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
           historyIndex = maskHistory.length - 1;
         }
         
@@ -1600,23 +1624,22 @@
           if (historyIndex <= 0) return;
           
           historyIndex--;
-          ctx.putImageData(maskHistory[historyIndex], 0, 0);
+          maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
         }
         
         function redo() {
           if (historyIndex >= maskHistory.length - 1) return;
           
           historyIndex++;
-          ctx.putImageData(maskHistory[historyIndex], 0, 0);
+          maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
         }
       }
       
       // Function to get mask data as base64
       function getMaskData() {
-        const canvas = document.getElementById('maskCanvas');
-        if (!canvas) return null;
+        if (!maskCanvas) return null;
         
-        return canvas.toDataURL('image/png');
+        return maskCanvas.toDataURL('image/png');
       }
       
       // === Toast Notification System ===
@@ -1681,6 +1704,11 @@
             const maskBaseImage = document.getElementById('maskBaseImage');
             if (maskEditor) maskEditor.classList.remove('hidden');
             if (maskBaseImage) maskBaseImage.src = reader.result;
+            
+            // Initialize mask editor immediately
+            setTimeout(() => {
+              initMaskEditor();
+            }, 100);
           }
           else if (type === 'style') {
             const styleImagePreview = document.getElementById("styleImagePreview");
@@ -1779,52 +1807,6 @@
         saveTabState();
       }
 
-      // === Loading Screen Animation ===
-      let currentStage = 0;
-      let loadingInterval;
-      
-      function startLoadingAnimation() {
-        currentStage = 0;
-        updateLoadingStage(currentStage);
-        
-        // Stage progression every 1.5s
-        loadingInterval = setInterval(() => {
-          if (currentStage < loadingStages.length - 1) {
-            currentStage++;
-            updateLoadingStage(currentStage);
-          }
-        }, 1500);
-      }
-
-      function updateLoadingStage(stageIndex) {
-        const loadingText = document.getElementById('loadingText');
-        if (loadingText) {
-          loadingText.textContent = loadingStages[stageIndex].text;
-        }
-        
-        // Update stage indicators
-        const stages = [
-          document.getElementById('stage1'),
-          document.getElementById('stage2'),
-          document.getElementById('stage3'),
-          document.getElementById('stage4')
-        ];
-        
-        stages.forEach((stage, i) => {
-          if (stage && i <= stageIndex) {
-            stage.classList.add('active');
-          } else if (stage) {
-            stage.classList.remove('active');
-          }
-        });
-      }
-
-      function stopLoadingAnimation() {
-        clearInterval(loadingInterval);
-        // Reset to first stage for next time
-        updateLoadingStage(0);
-      }
-      
       // Show result image
       function showResult(editedImageUrl) {
         const beforeImage = document.getElementById('beforeImage');
@@ -1853,6 +1835,14 @@
           
           // Set up download functionality
           setupDownload(editedImageUrl);
+          
+          // Smooth scroll to result
+          setTimeout(() => {
+            resultDiv.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            });
+          }, 300);
         }
       }
 
