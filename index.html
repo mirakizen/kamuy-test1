@@ -97,26 +97,68 @@
 
   <script>
     const selectedStyles = new Set();
+    const promptInput = document.getElementById("prompt");
+    const defaultPlaceholder = "Change the car color to red";
+    const stylePlaceholders = {
+      anime: "Make it anime-style with vibrant colors",
+      'studio ghibli': "Transform into a Studio Ghibli scene",
+      vintage: "Add vintage film grain and warm tones",
+      cyberpunk: "Cyberpunk neon lights and rain effects",
+      'van gogh': "Paint in Van Gogh's expressive brushstroke style",
+      lego: "Recreate as a detailed LEGO diorama",
+      'pixel art': "Convert to 16-bit pixel art with dithering",
+      sketch: "Turn into a pencil sketch with cross-hatching",
+      glitchcore: "Add digital glitches and RGB splits",
+      'desert mirage': "Create a desert mirage with heat haze"
+    };
+
+    function updatePlaceholder() {
+      if (promptInput.value) return;
+      
+      const activeStyles = Array.from(selectedStyles);
+      if (activeStyles.length === 0) {
+        promptInput.placeholder = defaultPlaceholder;
+      } else {
+        // Use placeholder from the first selected style
+        promptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+      }
+    }
 
     function toggleStyle(button, style) {
-      const isActive = button.style.backgroundColor === 'rgb(37, 99, 235)'; // Check if blue
+      const isActive = button.style.backgroundColor === 'rgb(37, 99, 235)';
       if (isActive) {
-        // Deactivate
         button.style.backgroundColor = '';
         button.style.borderColor = '#d1d5db';
         button.style.color = '#1f2937';
         button.style.transform = 'scale(1)';
         selectedStyles.delete(style);
       } else {
-        // Activate
-        button.style.backgroundColor = '#2563eb'; // blue-600
+        button.style.backgroundColor = '#2563eb';
         button.style.borderColor = '#2563eb';
         button.style.color = 'white';
         button.style.transform = 'scale(1.05)';
         selectedStyles.add(style);
       }
+      updatePlaceholder();
       console.log("Toggled:", style, "Active:", Array.from(selectedStyles));
     }
+
+    // Update placeholder when user focuses on input
+    promptInput.addEventListener('focus', () => {
+      if (!promptInput.value) {
+        const activeStyles = Array.from(selectedStyles);
+        if (activeStyles.length > 0) {
+          promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
+        }
+      }
+    });
+
+    // Reset to smart placeholder when user leaves input empty
+    promptInput.addEventListener('blur', () => {
+      if (!promptInput.value) {
+        updatePlaceholder();
+      }
+    });
 
     // === Rest of the JS remains the same ===
     const dropzone = document.getElementById("dropzone");
@@ -255,6 +297,9 @@
         editBtn.classList.remove("hidden");
       }
     });
+
+    // Initialize placeholder
+    updatePlaceholder();
   </script>
 </body>
 </html>
