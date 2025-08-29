@@ -8,7 +8,7 @@
   <style>
     body { 
       font-family: 'Inter', sans-serif; 
-      touch-action: pan-y; /* Allow vertical scroll, control horizontal */
+      touch-action: pan-y; 
     }
     .dropzone { 
       border: 3px dashed #adb5bd; 
@@ -72,7 +72,7 @@
       overflow: hidden;
       border-radius: 0.5rem;
       border: 1px solid #e5e7eb;
-      touch-action: none; /* Prevent default touch behavior */
+      touch-action: none;
     }
     .comparison-image {
       display: block;
@@ -162,13 +162,13 @@
         <div class="style-grid">
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'anime')">🎨 Anime</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'studio ghibli')">🎬 Ghibli</button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'vintage')">📻 Vintage</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'picasso')">🎨 Picasso</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'cyberpunk')">🕹️ Cyberpunk</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'van gogh')">🖼️ Van Gogh</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'lego')">🧱 LEGO</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixel art')">🎮 Pixel</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'sketch')">🖋️ Sketch</button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'glitchcore')">🌌 Glitch</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixar')">🧸 Pixar</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'desert mirage')">🏜️ Mirage</button>
         </div>
       </div>
@@ -213,13 +213,13 @@
     const stylePlaceholders = {
       anime: "Make it anime-style with vibrant colors",
       'studio ghibli': "Transform into a Studio Ghibli scene",
-      vintage: "Add vintage film grain and warm tones",
+      picasso: "in Picasso's cubist style, abstract forms",
       cyberpunk: "Cyberpunk neon lights and rain effects",
       'van gogh': "in the style of Van Gogh, expressive brushstrokes",
       lego: "as a LEGO diorama, plastic texture",
       'pixel art': "in 16-bit pixel art style",
       sketch: "as a pencil sketch, hand-drawn lines",
-      glitchcore: "with digital glitch effects, distorted colors",
+      pixar: "in Pixar 3D animation style, soft lighting",
       'desert mirage': "with desert mirage effect, heat haze"
     };
 
@@ -377,13 +377,13 @@
       const styles = {
         anime: "in anime style",
         'studio ghibli': "in Studio Ghibli style",
-        vintage: "with vintage film effect",
+        picasso: "in Picasso's cubist style, abstract forms",
         cyberpunk: "with cyberpunk neon lighting",
         'van gogh': "in the style of Van Gogh, expressive brushstrokes",
         lego: "as a LEGO diorama, plastic texture",
         'pixel art': "in 16-bit pixel art style",
         sketch: "as a pencil sketch, hand-drawn lines",
-        glitchcore: "with digital glitch effects, distorted colors",
+        pixar: "in Pixar 3D animation style, soft lighting",
         'desert mirage': "with desert mirage effect, heat haze"
       };
       return Array.from(selectedStyles)
