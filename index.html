@@ -23,7 +23,6 @@
     }
     .share-twitter { @apply bg-black hover:bg-gray-800 text-white; }
     .share-facebook { @apply bg-blue-600 hover:bg-blue-700 text-white; }
-    .share-instagram { @apply bg-gradient-to-r from-purple-600 to-orange-400 text-white; }
     .share-telegram { @apply bg-blue-500 hover:bg-blue-600 text-white; }
     .share-whatsapp { @apply bg-green-500 hover:bg-green-600 text-white; }
     .modal {
@@ -224,12 +223,6 @@
           </svg>
           Facebook
         </button>
-        <button onclick="shareTo('instagram')" class="share-btn share-instagram text-white text-sm">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.647.001 12.017 0zm9.545 11.987c0 5.294-4.305 9.599-9.545 9.599s-9.599-4.305-9.599-9.599 4.305-9.599 9.599-9.599 9.545 4.305 9.545 9.599zm-15.46-3.823c-.743 0-1.347.604-1.347 1.347s.604 1.347 1.347 1.347 1.347-.604 1.347-1.347-.604-1.347-1.347-1.347zm5.432 11.661c-2.978 0-5.393-2.415-5.393-5.393 0-.9 0-3.208 1.347-4.561.546-.546 1.278-.9 2.178-.9.9 0 1.632.354 2.178.9 1.353 1.353 1.353 3.661 1.353 4.561 0 2.978-2.415 5.393-5.393 5.393zm9.85-5.432c0 2.978-2.415 5.393-5.393 5.393s-5.393-2.415-5.393-5.393 2.415-5.393 5.393-5.393 5.393 2.415 5.393 5.393z"/>
-          </svg>
-          Instagram
-        </button>
         <button onclick="shareTo('telegram')" class="share-btn share-telegram text-white text-sm">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <path d="M9.78 18.65l.28-3.49L21.6 3.93c.39-.39.59-.91.55-1.42-.04-.57-.39-1.09-.91-1.31-.23-.1-.47-.15-.72-.15-.08 0-.16.01-.24.03L3.05 7.05C1.84 7.39 1 8.43 1 9.65v.14c0 .29.11.57.3.78L13.6 23.07c.27.22.6.33.94.33.22 0 .44-.06.64-.18.22-.14.37-.36.43-.61.07-.29.01-.59-.16-.84L9.78 18.65z"/>
@@ -308,7 +301,7 @@
       }
     });
 
-    // === Vertical Reveal Slider ===
+    // === Vertical Reveal Slider (Mobile Fixed) ===
     const beforeImage = document.getElementById('beforeImage');
     const afterImage = document.getElementById('afterImage');
     const imageOverlay = document.getElementById('imageOverlay');
@@ -320,16 +313,15 @@
       
       const container = sliderHandle.parentElement;
       const rect = container.getBoundingClientRect();
-      let x = e.clientX - rect.left;
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      if (!clientX) return;
       
-      // Clamp x to account for handle width (40px)
+      let x = clientX - rect.left;
       const maxLeft = rect.width - 40;
       const clampedX = Math.max(0, Math.min(maxLeft, x));
       const percent = (clampedX / rect.width) * 100;
       
-      // Move handle
       sliderHandle.style.left = clampedX + 'px';
-      // Clip overlay: reveal original from left
       imageOverlay.style.clipPath = `inset(0 ${100 - (clampedX / rect.width) * 100}% 0 0)`;
     }
 
@@ -381,25 +373,22 @@
 
     function shareTo(platform) {
       const text = "I just edited my image with Kamuy - the AI magic is real! ✨";
-      const url = encodeURIComponent(sharedImageUrl);
+      const url = encodeURIComponent(window.location.href);
+      const imageLink = encodeURIComponent(sharedImageUrl);
       let shareUrl = '';
 
       switch (platform) {
         case 'twitter':
-          shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${url}`;
+          shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${imageLink}`;
           break;
         case 'facebook':
-          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${imageLink}`;
           break;
-        case 'instagram':
-          // Instagram doesn't support direct sharing, so we open the image
-          window.open(sharedImageUrl, '_blank');
-          return;
         case 'telegram':
-          shareUrl = `https://t.me/share/url?url=${url}&text=${encodeURIComponent(text)}`;
+          shareUrl = `https://t.me/share/url?url=${imageLink}&text=${encodeURIComponent(text)}`;
           break;
         case 'whatsapp':
-          shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + decodeURIComponent(url))}`;
+          shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + decodeURIComponent(imageLink))}`;
           break;
       }
 
@@ -516,11 +505,10 @@
         if (data.edited_image_url) {
           beforeImage.src = URL.createObjectURL(imageFile);
           afterImage.src = data.edited_image_url;
-          sharedImageUrl = data.edited_image_url; // Store for sharing
+          sharedImageUrl = data.edited_image_url;
           
           resultDiv.classList.remove("hidden");
 
-          // Reset to 50%
           const container = sliderHandle.parentElement;
           const midPoint = (container.offsetWidth - 40) / 2;
           sliderHandle.style.left = midPoint + 'px';
