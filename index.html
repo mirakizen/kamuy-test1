@@ -394,6 +394,17 @@
     .dark .open-history {
       background: #2563eb;
     }
+    
+    /* Facebook WebView Warning */
+    .fb-warning {
+      display: none;
+      background-color: #fff1e6;
+      border: 1px solid #fed7aa;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-top: 1rem;
+      color: #7c2d12;
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-6">
@@ -406,6 +417,13 @@
         </button>
       </div>
       <p class="text-center mb-6">AI Image Editing, Powered by Qwen</p>
+      
+      <!-- Facebook WebView Warning -->
+      <div id="fbWarning" class="fb-warning">
+        <strong>Facebook Browser Detected</strong>
+        <p class="mt-1">For best results, open this link in Chrome or Safari browser.</p>
+        <p class="mt-1 text-sm">Facebook's in-app browser has limitations that may cause issues.</p>
+      </div>
 
       <!-- Upload -->
       <div class="mb-6">
@@ -416,7 +434,7 @@
             <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <p class="mt-2">Click to upload or drag and drop</p>
-          <p class="text-xs">PNG, JPG, GIF up to 10MB</p>
+          <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
         </div>
         <!-- Preview -->
         <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
@@ -769,15 +787,27 @@
     const previewName = document.getElementById("previewName");
     const previewSize = document.getElementById("previewSize");
 
-    function showPreview(file) {
+    function showPreview(file, originalSize) {
       const reader = new FileReader();
       reader.onload = () => {
         previewImg.src = reader.result;
         previewName.textContent = file.name;
-        previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+        previewSize.textContent = (originalSize / (1024*1024)).toFixed(1) + " MB";
         imagePreview.classList.remove("hidden");
       };
       reader.readAsDataURL(file);
+    }
+
+    // Detect Facebook WebView
+    function isFacebookWebView() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      return (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || 
+             (ua.indexOf("FB_IAB") > -1) || (ua.indexOf("FB4A") > -1);
+    }
+
+    // Show Facebook warning if needed
+    if (isFacebookWebView()) {
+      document.getElementById('fbWarning').style.display = 'block';
     }
 
     function handleImageUpload(file) {
@@ -787,15 +817,14 @@
         return;
       }
       
-      // Check size (10MB limit)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        alert(`File is too large (${(file.size/(1024*1024)).toFixed(1)} MB). Please upload an image under 10MB.`);
-        return;
-      }
+      // Show preview with original size
+      showPreview(file, file.size);
       
-      // Show preview
-      showPreview(file);
+      // Store the original file for later processing
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      imageInput.files = dataTransfer.files;
+      
       showToast("Image uploaded successfully");
     }
 
@@ -817,11 +846,103 @@
         .join(", ");
     }
 
+    // Smart compression function - the key fix
+    async function compressForServer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.src = e.target.result;
+          
+          img.onload = function() {
+            let width = img.width;
+            let height = img.height;
+            
+            // Calculate aspect ratio
+            const aspectRatio = width / height;
+            
+            // Maximum dimensions for good quality
+            const maxDimension = 1920;
+            
+            // Scale down if needed, but maintain aspect ratio
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                width = maxDimension;
+                height = Math.round(width / aspectRatio);
+              } else {
+                height = maxDimension;
+                width = Math.round(height * aspectRatio);
+              }
+            }
+            
+            // Create canvas and draw image
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Start with high quality
+            let quality = 0.9;
+            const mime = file.type || 'image/jpeg';
+            
+            function tryCompression() {
+              // Convert to blob with current quality
+              canvas.toBlob(blob => {
+                if (!blob) {
+                  reject(new Error('Canvas toBlob failed'));
+                  return;
+                }
+                
+                // Calculate expected base64 size (rough estimate)
+                const base64Size = blob.size * 1.33; // Base64 adds ~33% overhead
+                
+                // For Facebook WebView, be more conservative
+                const maxSize = isFacebookWebView() ? 3.0 * 1024 * 1024 : 3.5 * 1024 * 1024;
+                
+                // Check if size is acceptable
+                if (base64Size <= maxSize || quality <= 0.3) {
+                  const compressedFile = new File([blob], file.name, {
+                    type: file.type,
+                    lastModified: file.lastModified
+                  });
+                  
+                  resolve({
+                    file: compressedFile,
+                    originalSize: file.size,
+                    compressedSize: blob.size,
+                    quality: quality,
+                    dimensions: `${width}x${height}`
+                  });
+                } else {
+                  // Reduce quality and try again
+                  quality -= 0.1;
+                  tryCompression();
+                }
+              }, mime, quality);
+            }
+            
+            tryCompression();
+          };
+          
+          img.onerror = function() {
+            reject(new Error('Image load error'));
+          };
+        };
+        
+        reader.onerror = function() {
+          reject(new Error('File reader error'));
+        };
+        
+        reader.readAsDataURL(file);
+      });
+    }
+
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          // Remove the data URL prefix (e.g., "data:image/png;base64,")
+          // Remove the data URL prefix (e.g., "image/png;base64,")
           const base64 = reader.result.split(',')[1];
           resolve(base64);
         };
@@ -936,13 +1057,6 @@
         return;
       }
 
-      // Check size (10MB limit)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (imageFile.size > maxSize) {
-        alert(`Image too large! (${(imageFile.size/(1024*1024)).toFixed(1)} MB). Please upload an image under 10MB.`);
-        return;
-      }
-
       try {
         editBtn.classList.add("hidden");
         loading.classList.remove("hidden");
@@ -950,10 +1064,26 @@
         
         // Start loading animation
         startLoadingAnimation();
+        loadingText.textContent = "Optimizing image for processing...";
 
         const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
 
-        const base64Image = await fileToBase64(imageFile);
+        // Critical fix: Smart compression that targets the right base64 size
+        const compressionResult = await compressForServer(imageFile);
+        const compressedFile = compressionResult.file;
+        
+        // Show compression info
+        const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+        const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+        const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+        showToast(qualityMsg);
+
+        // Convert to base64
+        const base64Image = await fileToBase64(compressedFile);
+
+        // Check base64 size (should be safe now)
+        const base64SizeMB = (base64Image.length * 0.75 / (1024*1024)).toFixed(2);
+        console.log(`Base64 size: ${base64SizeMB}MB`);
 
         // Critical fix: Use POST with proper error handling
         const response = await fetch("/api/edit", {
@@ -977,6 +1107,8 @@
             const errorData = await response.json();
             if (errorData.error) {
               errorMessage += ` - ${errorData.error}`;
+            } else if (errorData.detail) {
+              errorMessage += ` - ${errorData.detail}`;
             }
           } catch (e) {
             // If response is not JSON, try to get text
@@ -987,6 +1119,12 @@
               errorMessage += " - Failed to parse error response";
             }
           }
+          
+          // Special handling for Facebook WebView issues
+          if (isFacebookWebView() && response.status === 413) {
+            errorMessage = "Image too large for Facebook browser. Please open in Chrome or Safari and try again.";
+          }
+          
           throw new Error(errorMessage);
         }
 
@@ -1038,7 +1176,7 @@
         }
       } catch (err) {
         console.error("Detailed error:", err);
-        alert("Error: " + err.message + "\\n\\nPlease try a smaller image or contact support.");
+        alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
       } finally {
         loading.classList.add("hidden");
         editBtn.classList.remove("hidden");
