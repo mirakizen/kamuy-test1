@@ -44,7 +44,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      pointer-events: none; /* Let events go through to slider handle */
+      pointer-events: none;
     }
     .image-overlay img {
       width: 100%;
@@ -167,9 +167,9 @@
       'studio ghibli': "Transform into a Studio Ghibli scene",
       vintage: "Add vintage film grain and warm tones",
       cyberpunk: "Cyberpunk neon lights and rain effects",
-      'van gogh': "Paint in Van Gogh's expressive brushstroke style",
+      'van gogh': "Paint in Van Gogh's expressive brushstrokes",
       lego: "Recreate as a detailed LEGO diorama",
-      'pixel art': "Convert to 16-bit pixel art style",
+      'pixel art': "Convert to 16-bit pixel art with dithering",
       sketch: "Turn into a pencil sketch with cross-hatching",
       glitchcore: "Add digital glitches and RGB splits",
       'desert mirage': "Create a desert mirage with heat haze"
@@ -233,14 +233,18 @@
       const container = sliderHandle.parentElement;
       const rect = container.getBoundingClientRect();
       let x = e.clientX - rect.left;
-      // Clamp x to container bounds
-      x = Math.max(0, Math.min(rect.width, x));
-      const percent = (x / rect.width) * 100;
+      
+      // Clamp x to account for handle width (40px)
+      // Left edge: handle starts at 0
+      // Right edge: handle ends at container width (so left = container width - 40)
+      const maxLeft = rect.width - 40;
+      const clampedX = Math.max(0, Math.min(maxLeft, x));
+      const percent = (clampedX / rect.width) * 100;
       
       // Move handle
-      sliderHandle.style.left = percent + '%';
+      sliderHandle.style.left = clampedX + 'px';
       // Clip overlay: reveal original from left
-      imageOverlay.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+      imageOverlay.style.clipPath = `inset(0 ${100 - (clampedX / rect.width) * 100}% 0 0)`;
     }
 
     function stopDragging() {
@@ -378,7 +382,9 @@
           resultDiv.classList.remove("hidden");
 
           // Reset to 50%
-          sliderHandle.style.left = '50%';
+          const container = sliderHandle.parentElement;
+          const midPoint = (container.offsetWidth - 40) / 2;
+          sliderHandle.style.left = midPoint + 'px';
           imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
 
           downloadBtn.onclick = () => {
