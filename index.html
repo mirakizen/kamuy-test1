@@ -102,23 +102,25 @@
   </div>
 
   <script>
-    const imageInput = document.getElementById("imageInput");
-    const dropzone = document.getElementById("dropzone");
-    const promptInput = document.getElementById("prompt");
-    const editBtn = document.getElementById("editBtn");
-    const loading = document.getElementById("loading");
-    const resultDiv = document.getElementById("result");
-    const resultImage = document.getElementById("resultImage");
-    const downloadBtn = document.getElementById("downloadBtn");
-    const imagePreview = document.getElementById("imagePreview");
-    const previewImg = document.getElementById("previewImg");
-    const previewName = document.getElementById("previewName");
-    const previewSize = document.getElementById("previewSize");
-
     // Selected styles
     const selectedStyles = new Set();
 
+    // Toggle style button
+    function toggleStyle(button, style) {
+      const isActive = button.classList.contains("active");
+      if (isActive) {
+        button.classList.remove("active");
+        selectedStyles.delete(style);
+      } else {
+        button.classList.add("active");
+        selectedStyles.add(style);
+      }
+      console.log("Toggled:", style, "Active:", Array.from(selectedStyles));
+    }
+
     // Open file picker
+    const dropzone = document.getElementById("dropzone");
+    const imageInput = document.getElementById("imageInput");
     dropzone.addEventListener("click", () => imageInput.click());
 
     // Drag & drop
@@ -145,6 +147,12 @@
       }
     });
 
+    // Show preview
+    const imagePreview = document.getElementById("imagePreview");
+    const previewImg = document.getElementById("previewImg");
+    const previewName = document.getElementById("previewName");
+    const previewSize = document.getElementById("previewSize");
+
     function showPreview(file) {
       const reader = new FileReader();
       reader.onload = () => {
@@ -156,18 +164,7 @@
       reader.readAsDataURL(file);
     }
 
-    function toggleStyle(button, style) {
-      const isActive = button.classList.contains("active");
-      if (isActive) {
-        button.classList.remove("active");
-        selectedStyles.delete(style);
-      } else {
-        button.classList.add("active");
-        selectedStyles.add(style);
-      }
-      console.log("Selected styles:", Array.from(selectedStyles)); // Debug
-    }
-
+    // Get style prompt
     function getStylePrompt() {
       const styles = {
         anime: "in anime style",
@@ -186,6 +183,7 @@
         .join(", ");
     }
 
+    // Convert file to base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -195,9 +193,16 @@
       });
     }
 
+    // Edit button
+    const editBtn = document.getElementById("editBtn");
+    const loading = document.getElementById("loading");
+    const resultDiv = document.getElementById("result");
+    const resultImage = document.getElementById("resultImage");
+    const downloadBtn = document.getElementById("downloadBtn");
+
     editBtn.addEventListener("click", async () => {
       const imageFile = imageInput.files[0];
-      const prompt = promptInput.value.trim();
+      const prompt = document.getElementById("prompt").value.trim();
       const stylePrompt = getStylePrompt();
 
       if (!imageFile || (!prompt && selectedStyles.size === 0)) {
