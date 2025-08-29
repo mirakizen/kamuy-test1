@@ -44,6 +44,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      pointer-events: none; /* Let events go through to slider handle */
     }
     .image-overlay img {
       width: 100%;
@@ -231,12 +232,14 @@
       
       const container = sliderHandle.parentElement;
       const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      let x = e.clientX - rect.left;
+      // Clamp x to container bounds
+      x = Math.max(0, Math.min(rect.width, x));
+      const percent = (x / rect.width) * 100;
       
       // Move handle
       sliderHandle.style.left = percent + '%';
-      // Reveal original image from left
+      // Clip overlay: reveal original from left
       imageOverlay.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
     }
 
