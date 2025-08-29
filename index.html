@@ -11,10 +11,10 @@
     .dropzone:hover { border-color: #0d6efd; background: #f1f3f5; }
     .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid #f3f3f3; border-top: 2px solid #fff; border-radius: 50%; animation: spin 1s linear infinite; }
     .style-btn {
-      @apply px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-pointer;
+      @apply px-3 py-1 text-xs font-medium rounded-full border border-gray-300 transition-all duration-200 cursor-pointer;
     }
     .style-btn.active {
-      @apply bg-blue-600 text-white border-blue-600;
+      @apply bg-blue-600 text-white border-blue-600 shadow-md transform scale-105;
     }
     .style-btn:not(.active):hover {
       @apply border-blue-500 bg-blue-50;
@@ -67,16 +67,16 @@
       <div class="mb-6">
         <label class="block text-sm font-medium text-gray-700 mb-2">Style Presets</label>
         <div class="style-grid">
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'anime')">🎨 Anime</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'studio ghibli')">🎬 Ghibli</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'vintage')">📻 Vintage</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'cyberpunk')">🕹️ Cyberpunk</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'van gogh')">🖼️ Van Gogh</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'lego')">🧱 LEGO</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'pixel art')">🎮 Pixel</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'sketch')">🖋️ Sketch</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'glitchcore')">🌌 Glitch</button>
-          <button type="button" class="style-btn border-gray-300" onclick="toggleStyle(this, 'desert mirage')">🏜️ Mirage</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'anime')">🎨 Anime</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'studio ghibli')">🎬 Ghibli</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'vintage')">📻 Vintage</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'cyberpunk')">🕹️ Cyberpunk</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'van gogh')">🖼️ Van Gogh</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'lego')">🧱 LEGO</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixel art')">🎮 Pixel</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'sketch')">🖋️ Sketch</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'glitchcore')">🌌 Glitch</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'desert mirage')">🏜️ Mirage</button>
         </div>
       </div>
 
@@ -102,10 +102,8 @@
   </div>
 
   <script>
-    // Selected styles
     const selectedStyles = new Set();
 
-    // Toggle style button
     function toggleStyle(button, style) {
       const isActive = button.classList.contains("active");
       if (isActive) {
@@ -118,12 +116,11 @@
       console.log("Toggled:", style, "Active:", Array.from(selectedStyles));
     }
 
-    // Open file picker
+    // === All other JS remains the same ===
     const dropzone = document.getElementById("dropzone");
     const imageInput = document.getElementById("imageInput");
     dropzone.addEventListener("click", () => imageInput.click());
 
-    // Drag & drop
     dropzone.addEventListener("dragover", (e) => {
       e.preventDefault();
       dropzone.classList.add("border-blue-500", "bg-blue-50");
@@ -140,14 +137,12 @@
       }
     });
 
-    // File select
     imageInput.addEventListener("change", () => {
       if (imageInput.files[0]) {
         showPreview(imageInput.files[0]);
       }
     });
 
-    // Show preview
     const imagePreview = document.getElementById("imagePreview");
     const previewImg = document.getElementById("previewImg");
     const previewName = document.getElementById("previewName");
@@ -164,7 +159,6 @@
       reader.readAsDataURL(file);
     }
 
-    // Get style prompt
     function getStylePrompt() {
       const styles = {
         anime: "in anime style",
@@ -183,7 +177,6 @@
         .join(", ");
     }
 
-    // Convert file to base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -193,7 +186,6 @@
       });
     }
 
-    // Edit button
     const editBtn = document.getElementById("editBtn");
     const loading = document.getElementById("loading");
     const resultDiv = document.getElementById("result");
