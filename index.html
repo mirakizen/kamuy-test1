@@ -19,24 +19,44 @@
       <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">✨ Kamuy</h1>
       <p class="text-center text-gray-600 mb-6">AI Image Editing, Powered by Qwen</p>
 
+      <!-- Upload -->
       <div class="mb-6">
         <label class="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
-        <input type="file" id="imageInput" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+        <input type="file" id="imageInput" accept="image/*" class="hidden" />
+        <div id="dropzone" class="dropzone w-full p-6 text-center cursor-pointer">
+          <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+            <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="mt-2 text-sm text-gray-600">Click to upload or drag and drop</p>
+          <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+        </div>
+        <!-- Preview -->
+        <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50">
+          <img id="previewImg" class="h-20 w-20 object-cover rounded" />
+          <div class="ml-3">
+            <p id="previewName" class="text-sm font-medium text-gray-900"></p>
+            <p id="previewSize" class="text-sm text-gray-500"></p>
+          </div>
+        </div>
       </div>
 
+      <!-- Prompt -->
       <div class="mb-6">
         <label for="prompt" class="block text-sm font-medium text-gray-700 mb-2">Edit Prompt</label>
         <input type="text" id="prompt" placeholder="Change the car color to red" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
       </div>
 
+      <!-- Edit Button -->
       <button id="editBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
         <i class="fas fa-magic mr-2"></i> Edit Image
       </button>
 
+      <!-- Loading -->
       <div id="loading" class="hidden mt-4 text-center text-gray-600">
         <div class="spinner mr-2"></div> Editing your image...
       </div>
 
+      <!-- Result -->
       <div id="result" class="hidden mt-6">
         <h3 class="text-lg font-medium text-gray-800 mb-2">✨ Edited Image</h3>
         <img id="resultImage" class="w-full rounded-lg border shadow-sm"/>
@@ -49,18 +69,63 @@
 
   <script>
     const imageInput = document.getElementById("imageInput");
+    const dropzone = document.getElementById("dropzone");
     const promptInput = document.getElementById("prompt");
     const editBtn = document.getElementById("editBtn");
     const loading = document.getElementById("loading");
     const resultDiv = document.getElementById("result");
     const resultImage = document.getElementById("resultImage");
     const downloadBtn = document.getElementById("downloadBtn");
+    const imagePreview = document.getElementById("imagePreview");
+    const previewImg = document.getElementById("previewImg");
+    const previewName = document.getElementById("previewName");
+    const previewSize = document.getElementById("previewSize");
+
+    // Open file picker when dropzone is clicked
+    dropzone.addEventListener("click", () => imageInput.click());
+
+    // Handle file drop
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("border-blue-500", "bg-blue-50");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("border-blue-500", "bg-blue-50");
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("border-blue-500", "bg-blue-50");
+      if (e.dataTransfer.files.length) {
+        imageInput.files = e.dataTransfer.files;
+        showPreview(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Handle file select
+    imageInput.addEventListener("change", () => {
+      if (imageInput.files[0]) {
+        showPreview(imageInput.files[0]);
+      }
+    });
+
+    function showPreview(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        previewImg.src = reader.result;
+        previewName.textContent = file.name;
+        previewSize.textContent = (file.size / 1024).toFixed(1) + " KB";
+        imagePreview.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    }
 
     // Function to convert file to base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]); // Remove data URL prefix
+        reader.onload = () => resolve(reader.result.split(',')[1]);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
@@ -80,15 +145,11 @@
         loading.classList.remove("hidden");
         resultDiv.classList.add("hidden");
 
-        // Convert image to base64
         const base64Image = await fileToBase64(imageFile);
 
-        // Send JSON to our API
         const response = await fetch("/api/edit", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             image: base64Image,
             imageName: imageFile.name,
