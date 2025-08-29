@@ -942,9 +942,13 @@
 
         const base64Image = await fileToBase64(imageFile);
 
+        // Critical fix: Use POST with proper error handling
         const response = await fetch("/api/edit", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
           body: JSON.stringify({
             image: base64Image,
             imageName: imageFile.name,
@@ -953,7 +957,21 @@
           })
         });
 
-        const data = await response.json();
+        // Critical fix: Check if response is OK
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Server error: ${response.status} - ${errorText.substring(0, 100)}...`);
+        }
+
+        // Critical fix: Check if response is JSON
+        const contentType = response.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+          data = await response.json();
+        } else {
+          const text = await response.text();
+          throw new Error(`Expected JSON response but got: ${text.substring(0, 100)}...`);
+        }
 
         if (data.edited_image_url) {
           const originalUrl = URL.createObjectURL(imageFile);
@@ -990,10 +1008,11 @@
 
           showToast("Edit completed! 🎉");
         } else {
-          alert("Error: " + (data.error || "Unknown error"));
+          throw new Error("Invalid response format: missing edited_image_url");
         }
       } catch (err) {
-        alert("Request failed: " + err.message);
+        console.error("Detailed error:", err);
+        alert("Error: " + err.message + "\\n\\nPlease try again or contact support.");
       } finally {
         loading.classList.add("hidden");
         editBtn.classList.remove("hidden");
