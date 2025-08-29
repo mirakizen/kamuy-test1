@@ -57,6 +57,95 @@
       transform: translateX(0);
       opacity: 1;
     }
+    
+    /* Enhanced Loading Screen */
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      padding: 1rem;
+    }
+    
+    .ai-loader {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .loader-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 3px solid transparent;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: rotate 1.5s linear infinite;
+    }
+    
+    .loader-ring:nth-child(2) {
+      border: 3px solid transparent;
+      border-right-color: #8b5cf6;
+      animation-delay: -0.375s;
+    }
+    
+    .loader-ring:nth-child(3) {
+      border: 3px solid transparent;
+      border-bottom-color: #06b6d4;
+      animation-delay: -0.75s;
+    }
+    
+    .loader-dot {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background-color: #2563eb;
+      border-radius: 50%;
+      top: 0;
+      left: 50%;
+      margin: -8px 0 0 -8px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    .loader-stages {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .stage {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #cbd5e1;
+      transition: all 0.3s ease;
+    }
+    
+    .stage.active {
+      background-color: #2563eb;
+      transform: scale(1.3);
+    }
+    
+    .loading-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #1e293b;
+      min-height: 1.5rem;
+      text-align: center;
+    }
+    
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.5; }
+    }
+    
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     @media (max-width: 640px) {
       .style-grid { grid-template-columns: repeat(3, 1fr); }
@@ -180,7 +269,21 @@
 
       <!-- Loading -->
       <div id="loading" class="hidden mt-4 text-center text-gray-600">
-        <div class="spinner mr-2"></div> Editing your image...
+        <div class="loading-container">
+          <div class="ai-loader">
+            <div class="loader-ring"></div>
+            <div class="loader-ring"></div>
+            <div class="loader-ring"></div>
+            <div class="loader-dot"></div>
+          </div>
+          <div class="loading-text" id="loadingText">Analyzing your image...</div>
+          <div class="loader-stages">
+            <div class="stage active" id="stage1"></div>
+            <div class="stage" id="stage2"></div>
+            <div class="stage" id="stage3"></div>
+            <div class="stage" id="stage4"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Result -->
@@ -225,6 +328,24 @@
 
     // === Toast Notification System ===
     const toast = document.getElementById('toast');
+    const loadingText = document.getElementById('loadingText');
+    const stages = [
+      document.getElementById('stage1'),
+      document.getElementById('stage2'),
+      document.getElementById('stage3'),
+      document.getElementById('stage4')
+    ];
+
+    // Loading stages
+    const loadingStages = [
+      { text: "Analyzing your image...", stage: 0 },
+      { text: "Understanding visual elements...", stage: 1 },
+      { text: "Applying AI magic...", stage: 2 },
+      { text: "Finalizing your masterpiece...", stage: 3 }
+    ];
+
+    let currentStage = 0;
+    let loadingInterval;
 
     function showToast(message) {
       toast.textContent = message;
@@ -233,6 +354,38 @@
       setTimeout(() => {
         toast.classList.remove('show');
       }, 3000);
+    }
+
+    function startLoadingAnimation() {
+      currentStage = 0;
+      updateLoadingStage(currentStage);
+      
+      // Cycle through stages
+      loadingInterval = setInterval(() => {
+        if (currentStage < loadingStages.length - 1) {
+          currentStage++;
+          updateLoadingStage(currentStage);
+        }
+      }, 1500);
+    }
+
+    function updateLoadingStage(stageIndex) {
+      loadingText.textContent = loadingStages[stageIndex].text;
+      
+      // Update stage indicators
+      stages.forEach((stage, i) => {
+        if (i <= stageIndex) {
+          stage.classList.add('active');
+        } else {
+          stage.classList.remove('active');
+        }
+      });
+    }
+
+    function stopLoadingAnimation() {
+      clearInterval(loadingInterval);
+      // Reset to first stage for next time
+      updateLoadingStage(0);
     }
 
     function updatePlaceholder() {
@@ -419,6 +572,9 @@
         editBtn.classList.add("hidden");
         loading.classList.remove("hidden");
         resultDiv.classList.add("hidden");
+        
+        // Start loading animation
+        startLoadingAnimation();
 
         const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
 
@@ -475,6 +631,8 @@
       } finally {
         loading.classList.add("hidden");
         editBtn.classList.remove("hidden");
+        // Stop loading animation
+        stopLoadingAnimation();
       }
     });
 
