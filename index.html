@@ -615,6 +615,12 @@
           </div>
         </div>
         
+        <!-- Mask Prompt -->
+        <div class="mb-6">
+          <label for="maskPrompt" class="block text-sm font-medium mb-2">What would you like to change?</label>
+          <input type="text" id="maskPrompt" placeholder="Remove the background" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+        </div>
+        
         <!-- Edit Button -->
         <button id="maskEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
           <i class="fas fa-paint-brush mr-2"></i> Apply Mask Edit
@@ -769,6 +775,7 @@
         imageUrl: null,
         editedImageUrl: null,
         maskData: null,
+        prompt: '',
         loading: false,
         progress: 0
       },
@@ -848,7 +855,11 @@
           
           // Set up events
           if (dropzone && imageInput) {
-            dropzone.addEventListener("click", () => imageInput.click());
+            dropzone.addEventListener("click", () => {
+              // Clear previous file input to allow re-uploading the same file
+              imageInput.value = '';
+              imageInput.click();
+            });
             dropzone.addEventListener("dragover", (e) => {
               e.preventDefault();
               dropzone.classList.add("border-blue-500", "bg-blue-50");
@@ -865,7 +876,11 @@
               }
             });
             
-            imageInput.addEventListener("change", () => {
+            imageInput.addEventListener("change", (e) => {
+              // Prevent double event triggering
+              e.stopPropagation();
+              e.preventDefault();
+              
               const file = imageInput.files[0];
               if (file) {
                 handleImageUpload(file, 'prompt');
@@ -986,6 +1001,7 @@
           const maskPreviewImg = document.getElementById("maskPreviewImg");
           const maskPreviewName = document.getElementById("maskPreviewName");
           const maskPreviewSize = document.getElementById("maskPreviewSize");
+          const maskPromptInput = document.getElementById("maskPrompt");
           const maskEditBtn = document.getElementById("maskEditBtn");
           
           // Restore image preview if exists
@@ -1003,6 +1019,11 @@
             initMaskEditor();
           }
           
+          // Restore prompt
+          if (maskPromptInput) {
+            maskPromptInput.value = state.prompt;
+          }
+          
           // Restore result if exists
           if (state.editedImageUrl) {
             showResult(state.editedImageUrl);
@@ -1010,7 +1031,11 @@
           
           // Set up events
           if (maskDropzone && maskImageInput) {
-            maskDropzone.addEventListener("click", () => maskImageInput.click());
+            maskDropzone.addEventListener("click", () => {
+              // Clear previous file input to allow re-uploading the same file
+              maskImageInput.value = '';
+              maskImageInput.click();
+            });
             maskDropzone.addEventListener("dragover", (e) => {
               e.preventDefault();
               maskDropzone.classList.add("border-blue-500", "bg-blue-50");
@@ -1027,7 +1052,11 @@
               }
             });
             
-            maskImageInput.addEventListener("change", () => {
+            maskImageInput.addEventListener("change", (e) => {
+              // Prevent double event triggering
+              e.stopPropagation();
+              e.preventDefault();
+              
               const file = maskImageInput.files[0];
               if (file) {
                 handleImageUpload(file, 'mask');
@@ -1038,6 +1067,8 @@
           // Mask Edit button
           if (maskEditBtn) {
             maskEditBtn.addEventListener("click", async () => {
+              const prompt = maskPromptInput ? maskPromptInput.value.trim() : '';
+              
               if (!state.imageFile) {
                 alert("Please upload an image first.");
                 return;
@@ -1050,6 +1081,13 @@
                 return;
               }
               
+              // Prompt is required for mask editing (to describe what to put in the masked area)
+              if (!prompt) {
+                alert("Please enter a prompt describing what to change in the masked area.");
+                return;
+              }
+              
+              state.prompt = prompt;
               state.loading = true;
               state.progress = 0;
               updateLoadingState();
@@ -1077,7 +1115,7 @@
                 // Convert to base64
                 const base64Image = await fileToBase64(compressedFile);
                 
-                // API call - use mask data directly
+                // API call - use mask data and prompt
                 const response = await fetch("/api/edit", {
                   method: "POST",
                   headers: { 
@@ -1088,7 +1126,7 @@
                     image: base64Image,
                     imageName: state.imageFile.name,
                     imageType: state.imageFile.type,
-                    // No prompt needed - using mask directly
+                    prompt: prompt,
                     mask: maskData
                   })
                 });
@@ -1210,7 +1248,11 @@
           
           // Set up events
           if (styleDropzone && styleImageInput) {
-            styleDropzone.addEventListener("click", () => styleImageInput.click());
+            styleDropzone.addEventListener("click", () => {
+              // Clear previous file input to allow re-uploading the same file
+              styleImageInput.value = '';
+              styleImageInput.click();
+            });
             styleDropzone.addEventListener("dragover", (e) => {
               e.preventDefault();
               styleDropzone.classList.add("border-blue-500", "bg-blue-50");
@@ -1227,7 +1269,11 @@
               }
             });
             
-            styleImageInput.addEventListener("change", () => {
+            styleImageInput.addEventListener("change", (e) => {
+              // Prevent double event triggering
+              e.stopPropagation();
+              e.preventDefault();
+              
               const file = styleImageInput.files[0];
               if (file) {
                 handleImageUpload(file, 'style');
@@ -1389,6 +1435,11 @@
           }
         } 
         else if (currentTab === 'maskEdit') {
+          const maskPromptInput = document.getElementById("maskPrompt");
+          if (maskPromptInput) {
+            state.prompt = maskPromptInput.value;
+          }
+          
           // Save mask data
           state.maskData = getMaskData();
         }
@@ -1489,13 +1540,16 @@
         const canvasWidth = Math.min(rect.width, 1000);
         const canvasHeight = Math.min(rect.height, 1000);
         
+        // Fix for canvas performance warning
+        canvas.setAttribute('willReadFrequently', 'true');
+        
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         
         maskCanvas = canvas;
-        maskCtx = canvas.getContext('2d');
+        maskCtx = canvas.getContext('2d', { willReadFrequently: true });
         
         // Clear canvas
         maskCtx.clearRect(0, 0, canvas.width, canvas.height);
