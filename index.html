@@ -10,6 +10,8 @@
     .dropzone { border: 3px dashed #adb5bd; border-radius: 12px; background: #f8f9fa; }
     .dropzone:hover { border-color: #0d6efd; background: #f1f3f5; }
     .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid #f3f3f3; border-top: 2px solid #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+    .style-btn { @apply px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200; }
+    .style-btn:hover { @apply border-blue-500 bg-blue-50; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
@@ -44,6 +46,17 @@
       <div class="mb-6">
         <label for="prompt" class="block text-sm font-medium text-gray-700 mb-2">Edit Prompt</label>
         <input type="text" id="prompt" placeholder="Change the car color to red" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+      </div>
+
+      <!-- Style Presets -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Style Presets</label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="style-btn border-gray-300" onclick="applyStyle('anime')">🎨 Anime</button>
+          <button type="button" class="style-btn border-gray-300" onclick="applyStyle('studio ghibli')">🎬 Ghibli</button>
+          <button type="button" class="style-btn border-gray-300" onclick="applyStyle('vintage')">📻 Vintage</button>
+          <button type="button" class="style-btn border-gray-300" onclick="applyStyle('cyberpunk')">🕹️ Cyberpunk</button>
+        </div>
       </div>
 
       <!-- Edit Button -->
@@ -81,19 +94,17 @@
     const previewName = document.getElementById("previewName");
     const previewSize = document.getElementById("previewSize");
 
-    // Open file picker when dropzone is clicked
+    // Open file picker
     dropzone.addEventListener("click", () => imageInput.click());
 
-    // Handle file drop
+    // Drag & drop
     dropzone.addEventListener("dragover", (e) => {
       e.preventDefault();
       dropzone.classList.add("border-blue-500", "bg-blue-50");
     });
-
     dropzone.addEventListener("dragleave", () => {
       dropzone.classList.remove("border-blue-500", "bg-blue-50");
     });
-
     dropzone.addEventListener("drop", (e) => {
       e.preventDefault();
       dropzone.classList.remove("border-blue-500", "bg-blue-50");
@@ -103,7 +114,7 @@
       }
     });
 
-    // Handle file select
+    // File select
     imageInput.addEventListener("change", () => {
       if (imageInput.files[0]) {
         showPreview(imageInput.files[0]);
@@ -121,7 +132,17 @@
       reader.readAsDataURL(file);
     }
 
-    // Function to convert file to base64
+    function applyStyle(style) {
+      const styles = {
+        anime: "in anime style",
+        'studio ghibli': "in Studio Ghibli style",
+        vintage: "with vintage film effect",
+        cyberpunk: "with cyberpunk neon lighting"
+      };
+      const current = promptInput.value.trim();
+      promptInput.value = current ? `${current}, ${styles[style]}` : styles[style];
+    }
+
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -164,7 +185,6 @@
           resultImage.src = data.edited_image_url;
           resultDiv.classList.remove("hidden");
 
-          // Fix: Download button
           downloadBtn.onclick = () => {
             fetch(data.edited_image_url)
               .then(res => res.blob())
