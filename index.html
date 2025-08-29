@@ -227,7 +227,7 @@
             <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <p class="mt-2 text-sm text-gray-600">Click to upload or drag and drop</p>
-          <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+          <p class="text-xs text-gray-500">PNG, JPG, GIF up to 50MB</p>
         </div>
         <!-- Preview -->
         <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
@@ -497,15 +497,26 @@
       e.preventDefault();
       dropzone.classList.remove("border-blue-500", "bg-blue-50");
       if (e.dataTransfer.files.length) {
+        const file = e.dataTransfer.files[0];
+        if (file.size > 50 * 1024 * 1024) {
+          alert("File is too large. Please upload an image under 50MB.");
+          return;
+        }
         imageInput.files = e.dataTransfer.files;
-        showPreview(e.dataTransfer.files[0]);
+        showPreview(file);
         showToast("Image uploaded successfully");
       }
     });
 
     imageInput.addEventListener("change", () => {
-      if (imageInput.files[0]) {
-        showPreview(imageInput.files[0]);
+      const file = imageInput.files[0];
+      if (file) {
+        if (file.size > 50 * 1024 * 1024) {
+          alert("File is too large. Please upload an image under 50MB.");
+          imageInput.value = ""; // Clear input
+          return;
+        }
+        showPreview(file);
         showToast("Image uploaded successfully");
       }
     });
@@ -520,7 +531,7 @@
       reader.onload = () => {
         previewImg.src = reader.result;
         previewName.textContent = file.name;
-        previewSize.textContent = (file.size / 1024).toFixed(1) + " KB";
+        previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
         imagePreview.classList.remove("hidden");
       };
       reader.readAsDataURL(file);
@@ -565,6 +576,11 @@
 
       if (!imageFile || (!prompt && selectedStyles.size === 0)) {
         alert("Please upload an image and enter a prompt or select a style.");
+        return;
+      }
+
+      if (imageFile.size > 50 * 1024 * 1024) {
+        alert("Image too large! Please upload an image under 50MB.");
         return;
       }
 
