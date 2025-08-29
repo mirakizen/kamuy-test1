@@ -827,677 +827,574 @@
   </div>
 
   <script>
-    // Tab functionality
-    const tabs = document.querySelectorAll('.tab');
-    const tabContents = document.querySelectorAll('.tab-content');
-    
-    // Style sets for each tab
-    const promptSelectedStyles = new Set();
-    const maskSelectedStyles = new Set();
-    const styleTransferSelectedStyles = new Set();
-    
-    // Current active tab
-    let currentTab = 'promptEdit';
-    
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        // Remove active class from all tabs and content
-        tabs.forEach(t => t.classList.remove('active'));
-        tabContents.forEach(c => c.classList.remove('active'));
-        
-        // Add active class to clicked tab and corresponding content
-        tab.classList.add('active');
-        const tabName = tab.getAttribute('data-tab');
-        currentTab = tabName;
-        const contentElement = document.getElementById(`${tabName}Tab`);
-        
-        // Critical fix: Check if content element exists before accessing classList
-        if (contentElement) {
-          contentElement.classList.add('active');
+    // Wait for DOM to be fully loaded before executing JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+      // Style sets for each tab
+      const promptSelectedStyles = new Set();
+      const maskSelectedStyles = new Set();
+      const styleTransferSelectedStyles = new Set();
+      
+      // Current active tab
+      let currentTab = 'promptEdit';
+      
+      // DOM elements - declared at the top to avoid TDZ errors
+      const tabs = document.querySelectorAll('.tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+      const toast = document.getElementById('toast');
+      const dropzone = document.getElementById("dropzone");
+      const imageInput = document.getElementById("imageInput");
+      const maskDropzone = document.getElementById("maskDropzone");
+      const maskImageInput = document.getElementById("maskImageInput");
+      const styleDropzone = document.getElementById("styleDropzone");
+      const styleImageInput = document.getElementById("styleImageInput");
+      
+      // Prompt elements
+      const imagePreview = document.getElementById("imagePreview");
+      const previewImg = document.getElementById("previewImg");
+      const previewName = document.getElementById("previewName");
+      const previewSize = document.getElementById("previewSize");
+      const promptInput = document.getElementById("prompt");
+      const editBtn = document.getElementById("editBtn");
+      
+      // Mask elements
+      const maskImagePreview = document.getElementById("maskImagePreview");
+      const maskPreviewImg = document.getElementById("maskPreviewImg");
+      const maskPreviewName = document.getElementById("maskPreviewName");
+      const maskPreviewSize = document.getElementById("maskPreviewSize");
+      const maskPromptInput = document.getElementById("maskPrompt");
+      const maskEditBtn = document.getElementById("maskEditBtn");
+      
+      // Style elements
+      const styleImagePreview = document.getElementById("styleImagePreview");
+      const stylePreviewImg = document.getElementById("stylePreviewImg");
+      const stylePreviewName = document.getElementById("stylePreviewName");
+      const stylePreviewSize = document.getElementById("stylePreviewSize");
+      const styleEditBtn = document.getElementById("styleEditBtn");
+      
+      // Result elements
+      const loading = document.getElementById("loading");
+      const resultDiv = document.getElementById("result");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const downloadInstructions = document.getElementById("downloadInstructions");
+      const beforeImage = document.getElementById('beforeImage');
+      const afterImage = document.getElementById('afterImage');
+      const imageOverlay = document.getElementById('imageOverlay');
+      const sliderHandle = document.getElementById('sliderHandle');
+      
+      // Mask editor variables - declared but not initialized yet
+      let maskCanvas = null;
+      let maskCtx = null;
+      
+      // Loading screen elements
+      const loadingText = document.getElementById('loadingText');
+      const stages = [
+        document.getElementById('stage1'),
+        document.getElementById('stage2'),
+        document.getElementById('stage3'),
+        document.getElementById('stage4')
+      ];
+
+      // Loading stages
+      const loadingStages = [
+        { text: "Analyzing your image...", stage: 0 },
+        { text: "Understanding visual elements...", stage: 1 },
+        { text: "Applying AI magic...", stage: 2 },
+        { text: "Finalizing your masterpiece...", stage: 3 }
+      ];
+
+      let currentStage = 0;
+      let loadingInterval;
+      
+      // Style intensity elements
+      const intensitySlider = document.getElementById('styleIntensity');
+      const intensityValue = document.getElementById('intensityValue');
+      
+      // Tab functionality
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Remove active class from all tabs and content
+          tabs.forEach(t => t.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
           
-          // Initialize tab-specific functionality
-          if (tabName === 'maskEdit') {
-            initMaskEditor();
-          } else if (tabName === 'styleTransfer') {
-            setupStyleTransferTab();
+          // Add active class to clicked tab and corresponding content
+          tab.classList.add('active');
+          const tabName = tab.getAttribute('data-tab');
+          currentTab = tabName;
+          const contentElement = document.getElementById(`${tabName}Tab`);
+          
+          // Critical fix: Check if content element exists before accessing classList
+          if (contentElement) {
+            contentElement.classList.add('active');
+            
+            // Initialize tab-specific functionality
+            if (tabName === 'maskEdit') {
+              initMaskEditor();
+            } else if (tabName === 'styleTransfer') {
+              setupStyleTransferTab();
+            }
+            
+            // Update placeholder based on current tab
+            updatePlaceholder();
           }
-          
-          // Update placeholder based on current tab
-          updatePlaceholder();
-        }
-      });
-    });
-    
-    // Initialize the current tab
-    updatePlaceholder();
-    
-    // Style intensity slider
-    const intensitySlider = document.getElementById('styleIntensity');
-    const intensityValue = document.getElementById('intensityValue');
-    
-    intensitySlider.addEventListener('input', () => {
-      const value = Math.round(intensitySlider.value * 100);
-      intensityValue.textContent = `${value}%`;
-    });
-    
-    // Mask editor functionality
-    let maskCanvas = null;
-    let maskCtx = null;
-    let isDrawing = false;
-    let currentTool = 'brush';
-    let brushSize = 10;
-    let maskHistory = [];
-    let historyIndex = -1;
-    
-    function initMaskEditor() {
-      const canvas = document.getElementById('maskCanvas');
-      const img = document.getElementById('maskBaseImage');
-      const overlay = document.getElementById('maskOverlay');
-      
-      if (!img || !img.src) return;
-      
-      // Set canvas dimensions to match image
-      const rect = img.getBoundingClientRect();
-      const canvasWidth = Math.min(rect.width, 1000);
-      const canvasHeight = Math.min(rect.height, 1000);
-      
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
-      
-      maskCanvas = canvas;
-      maskCtx = canvas.getContext('2d');
-      
-      // Clear canvas
-      maskCtx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Set up drawing tools
-      setupDrawingTools();
-      
-      // Initialize overlay
-      if (overlay) {
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.position = 'absolute';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.pointerEvents = 'none';
-        overlay.style.zIndex = '2';
-      }
-    }
-    
-    function setupDrawingTools() {
-      if (!maskCanvas || !maskCtx) return;
-      
-      // Tool selection
-      document.querySelectorAll('.mask-tool').forEach(tool => {
-        tool.addEventListener('click', () => {
-          document.querySelectorAll('.mask-tool').forEach(t => t.classList.remove('active'));
-          tool.classList.add('active');
-          currentTool = tool.getAttribute('data-tool');
         });
       });
       
-      // Brush size
-      const brushSizeInput = document.getElementById('brushSize');
-      const brushPreview = document.querySelector('.brush-size-preview');
-      
-      if (brushSizeInput && brushPreview) {
-        brushSizeInput.addEventListener('input', () => {
-          brushSize = parseInt(brushSizeInput.value);
-          brushPreview.style.width = `${brushSize/2}px`;
-          brushPreview.style.height = `${brushSize/2}px`;
-        });
-      }
-      
-      // Drawing events
-      maskCanvas.addEventListener('mousedown', startDrawing);
-      maskCanvas.addEventListener('mousemove', draw);
-      maskCanvas.addEventListener('mouseup', stopDrawing);
-      maskCanvas.addEventListener('mouseleave', stopDrawing);
-      
-      maskCanvas.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        startDrawing({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-      });
-      maskCanvas.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        draw({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-      });
-      maskCanvas.addEventListener('touchend', stopDrawing);
-      
-      // Undo/Redo
-      const undoTool = document.querySelector('[data-tool="undo"]');
-      const redoTool = document.querySelector('[data-tool="redo"]');
-      
-      if (undoTool) {
-        undoTool.addEventListener('click', undo);
-      }
-      
-      if (redoTool) {
-        redoTool.addEventListener('click', redo);
-      }
-    }
-    
-    function startDrawing(e) {
-      if (!maskCanvas || !maskCtx) return;
-      
-      isDrawing = true;
-      saveState();
-      draw(e);
-    }
-    
-    function draw(e) {
-      if (!isDrawing || !maskCanvas || !maskCtx) return;
-      
-      const rect = maskCanvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      maskCtx.beginPath();
-      
-      if (currentTool === 'brush') {
-        // Blue for keep areas
-        maskCtx.globalCompositeOperation = 'source-over';
-        maskCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-      } else if (currentTool === 'eraser') {
-        // Red for remove areas (with transparency)
-        maskCtx.globalCompositeOperation = 'source-over';
-        maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-      } else if (currentTool === 'fill') {
-        // Fill implementation would go here
-        return;
-      }
-      
-      maskCtx.lineWidth = brushSize;
-      maskCtx.lineCap = 'round';
-      maskCtx.lineTo(x, y);
-      maskCtx.stroke();
-      maskCtx.beginPath();
-      maskCtx.moveTo(x, y);
-    }
-    
-    function stopDrawing() {
-      isDrawing = false;
-      if (maskCtx) {
-        maskCtx.beginPath();
-      }
-    }
-    
-    function saveState() {
-      if (!maskCtx || !maskCanvas) return;
-      
-      // Save current state to history
-      maskHistory = maskHistory.slice(0, historyIndex + 1);
-      maskHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
-      historyIndex = maskHistory.length - 1;
-    }
-    
-    function undo() {
-      if (historyIndex <= 0 || !maskCtx) return;
-      
-      historyIndex--;
-      maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
-    }
-    
-    function redo() {
-      if (historyIndex >= maskHistory.length - 1 || !maskCtx) return;
-      
-      historyIndex++;
-      maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
-    }
-    
-    // Function to get mask data as base64
-    function getMaskData() {
-      if (!maskCanvas || !maskCtx) return null;
-      
-      // Create a new canvas to process the mask
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = maskCanvas.width;
-      tempCanvas.height = maskCanvas.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      
-      // Copy the mask data
-      tempCtx.drawImage(maskCanvas, 0, 0);
-      
-      // Process the mask to make it more defined
-      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-      const data = imageData.data;
-      
-      // Convert to binary mask (keep areas = blue, remove areas = red)
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i+1];
-        const b = data[i+2];
-        const a = data[i+3];
-        
-        // If it's blue (keep area), make it fully opaque blue
-        if (b > r && b > g && a > 50) {
-          data[i] = 0;
-          data[i+1] = 0;
-          data[i+2] = 255;
-          data[i+3] = 255;
-        } 
-        // If it's red (remove area), make it fully opaque red
-        else if (r > g && r > b && a > 50) {
-          data[i] = 255;
-          data[i+1] = 0;
-          data[i+2] = 0;
-          data[i+3] = 255;
-        }
-        // Otherwise, make it transparent
-        else {
-          data[i+3] = 0;
-        }
-      }
-      
-      tempCtx.putImageData(imageData, 0, 0);
-      
-      // Return as base64
-      return tempCanvas.toDataURL('image/png');
-    }
-    
-    // === Toast Notification System ===
-    const toast = document.getElementById('toast');
-    
-    function showToast(message) {
-      toast.textContent = message;
-      toast.classList.add('show');
-      
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
-    }
-
-    // Detect Facebook WebView
-    function isFacebookWebView() {
-      const ua = navigator.userAgent || navigator.vendor || window.opera;
-      return (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || 
-             (ua.indexOf("FB_IAB") > -1) || (ua.indexOf("FB4A") > -1);
-    }
-
-    // Show Facebook warning if needed
-    if (isFacebookWebView()) {
-      document.getElementById('fbWarning').style.display = 'block';
-    }
-
-    // === Rest of the JS ===
-    const dropzone = document.getElementById("dropzone");
-    const imageInput = document.getElementById("imageInput");
-    const maskDropzone = document.getElementById("maskDropzone");
-    const maskImageInput = document.getElementById("maskImageInput");
-    const styleDropzone = document.getElementById("styleDropzone");
-    const styleImageInput = document.getElementById("styleImageInput");
-    
-    // Prompt Edit Tab
-    dropzone.addEventListener("click", () => imageInput.click());
-    dropzone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dropzone.classList.add("border-blue-500", "bg-blue-50");
-    });
-    dropzone.addEventListener("dragleave", () => {
-      dropzone.classList.remove("border-blue-500", "bg-blue-50");
-    });
-    dropzone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      dropzone.classList.remove("border-blue-500", "bg-blue-50");
-      if (e.dataTransfer.files.length) {
-        const file = e.dataTransfer.files[0];
-        handleImageUpload(file, 'prompt');
-      }
-    });
-    
-    imageInput.addEventListener("change", () => {
-      const file = imageInput.files[0];
-      if (file) {
-        handleImageUpload(file, 'prompt');
-      }
-    });
-    
-    // Mask Edit Tab
-    maskDropzone.addEventListener("click", () => maskImageInput.click());
-    maskDropzone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      maskDropzone.classList.add("border-blue-500", "bg-blue-50");
-    });
-    maskDropzone.addEventListener("dragleave", () => {
-      maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
-    });
-    maskDropzone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
-      if (e.dataTransfer.files.length) {
-        const file = e.dataTransfer.files[0];
-        handleImageUpload(file, 'mask');
-      }
-    });
-    
-    maskImageInput.addEventListener("change", () => {
-      const file = maskImageInput.files[0];
-      if (file) {
-        handleImageUpload(file, 'mask');
-      }
-    });
-    
-    // Style Transfer Tab
-    styleDropzone.addEventListener("click", () => styleImageInput.click());
-    styleDropzone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      styleDropzone.classList.add("border-blue-500", "bg-blue-50");
-    });
-    styleDropzone.addEventListener("dragleave", () => {
-      styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
-    });
-    styleDropzone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
-      if (e.dataTransfer.files.length) {
-        const file = e.dataTransfer.files[0];
-        handleImageUpload(file, 'style');
-      }
-    });
-    
-    styleImageInput.addEventListener("change", () => {
-      const file = styleImageInput.files[0];
-      if (file) {
-        handleImageUpload(file, 'style');
-      }
-    });
-    
-    const imagePreview = document.getElementById("imagePreview");
-    const previewImg = document.getElementById("previewImg");
-    const previewName = document.getElementById("previewName");
-    const previewSize = document.getElementById("previewSize");
-    
-    const maskImagePreview = document.getElementById("maskImagePreview");
-    const maskPreviewImg = document.getElementById("maskPreviewImg");
-    const maskPreviewName = document.getElementById("maskPreviewName");
-    const maskPreviewSize = document.getElementById("maskPreviewSize");
-    
-    const styleImagePreview = document.getElementById("styleImagePreview");
-    const stylePreviewImg = document.getElementById("stylePreviewImg");
-    const stylePreviewName = document.getElementById("stylePreviewName");
-    const stylePreviewSize = document.getElementById("stylePreviewSize");
-    
-    function showPreview(file, type) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (type === 'prompt') {
-          previewImg.src = reader.result;
-          previewName.textContent = file.name;
-          previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-          imagePreview.classList.remove("hidden");
-        } else if (type === 'mask') {
-          maskPreviewImg.src = reader.result;
-          maskPreviewName.textContent = file.name;
-          maskPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-          maskImagePreview.classList.remove("hidden");
-          
-          // Show mask editor
-          document.getElementById('maskEditor').classList.remove('hidden');
-          document.getElementById('maskBaseImage').src = reader.result;
-        } else if (type === 'style') {
-          stylePreviewImg.src = reader.result;
-          stylePreviewName.textContent = file.name;
-          stylePreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-          styleImagePreview.classList.remove("hidden");
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function handleImageUpload(file, type) {
-      // Check if file is an image
-      if (!file.type.match('image.*')) {
-        alert('Please select an image file (PNG, JPG, GIF)');
-        return;
-      }
-      
-      // Show preview with original size
-      showPreview(file, type);
-      
-      // Store the original file for later processing
-      if (type === 'prompt') {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        imageInput.files = dataTransfer.files;
-      } else if (type === 'mask') {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        maskImageInput.files = dataTransfer.files;
-      } else if (type === 'style') {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        styleImageInput.files = dataTransfer.files;
-      }
-      
-      showToast("Image uploaded successfully");
-    }
-
-    // === Vertical Reveal Slider (Mobile-Fixed) ===
-    const beforeImage = document.getElementById('beforeImage');
-    const afterImage = document.getElementById('afterImage');
-    const imageOverlay = document.getElementById('imageOverlay');
-    const sliderHandle = document.getElementById('sliderHandle');
-    let isDragging = false;
-
-    function handleMove(e) {
-      if (!isDragging) return;
-      
-      e.preventDefault(); // Prevent scrolling while dragging
-      
-      const container = sliderHandle.parentElement;
-      const rect = container.getBoundingClientRect();
-      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-      if (!clientX) return;
-      
-      let x = clientX - rect.left;
-      const maxLeft = rect.width - 40;
-      const clampedX = Math.max(0, Math.min(maxLeft, x));
-      const percent = (clampedX / rect.width) * 100;
-      
-      sliderHandle.style.left = clampedX + 'px';
-      imageOverlay.style.clipPath = `inset(0 ${100 - (clampedX / rect.width) * 100}% 0 0)`;
-    }
-
-    function stopDragging() {
-      isDragging = false;
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', stopDragging);
-      document.removeEventListener('touchmove', handleMove);
-      document.removeEventListener('touchend', stopDragging);
-    }
-
-    sliderHandle.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      document.addEventListener('mousemove', handleMove);
-      document.addEventListener('mouseup', stopDragging);
-      e.preventDefault();
-    });
-
-    sliderHandle.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      document.addEventListener('touchmove', handleMove, { passive: false });
-      document.addEventListener('touchend', stopDragging);
-      e.preventDefault();
-    });
-
-    // === Style Presets ===
-    const promptInput = document.getElementById("prompt");
-    const maskPromptInput = document.getElementById("maskPrompt");
-    const stylePromptInput = document.getElementById("prompt"); // Reusing the same prompt input for style tab
-    
-    const defaultPlaceholder = "Change the car color to red";
-    const stylePlaceholders = {
-      anime: "Make it anime-style with vibrant colors",
-      'studio ghibli': "Transform into a Studio Ghibli scene",
-      picasso: "in Picasso's cubist style, abstract forms",
-      cyberpunk: "Cyberpunk neon lights and rain effects",
-      'van gogh': "in the style of Van Gogh, expressive brushstrokes",
-      lego: "as a LEGO diorama, plastic texture",
-      'pixel art': "in 16-bit pixel art style",
-      sketch: "as a pencil sketch, hand-drawn lines",
-      pixar: "in Pixar 3D animation style, soft lighting",
-      'desert mirage': "with desert mirage effect, heat haze"
-    };
-
-    function updatePlaceholder() {
-      if (currentTab === 'promptEdit' && promptInput) {
-        if (promptInput.value) return;
-        
-        const activeStyles = Array.from(promptSelectedStyles);
-        if (activeStyles.length === 0) {
-          promptInput.placeholder = defaultPlaceholder;
-        } else {
-          promptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
-        }
-      } else if (currentTab === 'maskEdit' && maskPromptInput) {
-        if (maskPromptInput.value) return;
-        maskPromptInput.placeholder = "Remove the background";
-      } else if (currentTab === 'styleTransfer' && stylePromptInput) {
-        if (stylePromptInput.value) return;
-        
-        const activeStyles = Array.from(styleTransferSelectedStyles);
-        if (activeStyles.length === 0) {
-          stylePromptInput.placeholder = defaultPlaceholder;
-        } else {
-          stylePromptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
-        }
-      }
-    }
-
-    function toggleStyle(button, style) {
-      let selectedStyles;
-      
-      if (currentTab === 'promptEdit') {
-        selectedStyles = promptSelectedStyles;
-      } else if (currentTab === 'maskEdit') {
-        selectedStyles = maskSelectedStyles;
-      } else {
-        selectedStyles = styleTransferSelectedStyles;
-      }
-      
-      const isActive = button.classList.contains('style-active');
-      if (isActive) {
-        button.classList.remove('style-active');
-        button.style.backgroundColor = '';
-        button.style.borderColor = 'var(--border-primary)';
-        button.style.color = 'var(--text-primary)';
-        selectedStyles.delete(style);
-      } else {
-        button.classList.add('style-active');
-        button.style.backgroundColor = '#2563eb';
-        button.style.borderColor = '#2563eb';
-        button.style.color = 'white';
-        selectedStyles.add(style);
-      }
-      
+      // Initialize the current tab
       updatePlaceholder();
-    }
-
-    promptInput?.addEventListener('focus', () => {
-      if (promptInput && !promptInput.value) {
-        const activeStyles = Array.from(promptSelectedStyles);
-        if (activeStyles.length > 0) {
-          promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
-        }
-      }
-    });
-
-    promptInput?.addEventListener('blur', () => {
-      if (promptInput) {
-        updatePlaceholder();
-      }
-    });
-
-    maskPromptInput?.addEventListener('focus', () => {
-      if (maskPromptInput && !maskPromptInput.value) {
-        maskPromptInput.placeholder = "Describe what to add/remove";
-      }
-    });
-
-    maskPromptInput?.addEventListener('blur', () => {
-      if (maskPromptInput && !maskPromptInput.value) {
-        maskPromptInput.placeholder = "Remove the background";
-      }
-    });
-
-    stylePromptInput?.addEventListener('focus', () => {
-      if (stylePromptInput && !stylePromptInput.value) {
-        const activeStyles = Array.from(styleTransferSelectedStyles);
-        if (activeStyles.length > 0) {
-          stylePromptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
-        }
-      }
-    });
-
-    stylePromptInput?.addEventListener('blur', () => {
-      if (stylePromptInput) {
-        updatePlaceholder();
-      }
-    });
-
-    // === Loading Screen Animation ===
-    const loadingText = document.getElementById('loadingText');
-    const stages = [
-      document.getElementById('stage1'),
-      document.getElementById('stage2'),
-      document.getElementById('stage3'),
-      document.getElementById('stage4')
-    ];
-
-    // Loading stages
-    const loadingStages = [
-      { text: "Analyzing your image...", stage: 0 },
-      { text: "Understanding visual elements...", stage: 1 },
-      { text: "Applying AI magic...", stage: 2 },
-      { text: "Finalizing your masterpiece...", stage: 3 }
-    ];
-
-    let currentStage = 0;
-    let loadingInterval;
-    let tipsInterval;
-
-    function startLoadingAnimation() {
-      currentStage = 0;
-      updateLoadingStage(currentStage);
       
-      // Stage progression every 1.5s
-      loadingInterval = setInterval(() => {
-        if (currentStage < loadingStages.length - 1) {
-          currentStage++;
-          updateLoadingStage(currentStage);
-        }
-      }, 1500);
-    }
-
-    function updateLoadingStage(stageIndex) {
-      loadingText.textContent = loadingStages[stageIndex].text;
+      // Style intensity slider
+      if (intensitySlider && intensityValue) {
+        intensitySlider.addEventListener('input', () => {
+          const value = Math.round(intensitySlider.value * 100);
+          intensityValue.textContent = `${value}%`;
+        });
+      }
       
-      // Update stage indicators
-      stages.forEach((stage, i) => {
-        if (i <= stageIndex) {
-          stage.classList.add('active');
-        } else {
-          stage.classList.remove('active');
+      // Initialize style transfer tab functionality
+      function setupStyleTransferTab() {
+        if (intensitySlider && intensityValue) {
+          intensitySlider.addEventListener('input', () => {
+            const value = Math.round(intensitySlider.value * 100);
+            intensityValue.textContent = `${value}%`;
+          });
         }
-      });
-    }
+      }
+      
+      // Mask editor functionality
+      function initMaskEditor() {
+        const canvas = document.getElementById('maskCanvas');
+        const img = document.getElementById('maskBaseImage');
+        const overlay = document.getElementById('maskOverlay');
+        
+        if (!img || !img.src || !canvas) return;
+        
+        // Set canvas dimensions to match image
+        const rect = img.getBoundingClientRect();
+        const canvasWidth = Math.min(rect.width, 1000);
+        const canvasHeight = Math.min(rect.height, 1000);
+        
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        
+        maskCanvas = canvas;
+        maskCtx = canvas.getContext('2d');
+        
+        // Clear canvas
+        maskCtx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Set up drawing tools
+        setupDrawingTools();
+        
+        // Initialize overlay
+        if (overlay) {
+          overlay.style.width = '100%';
+          overlay.style.height = '100%';
+          overlay.style.position = 'absolute';
+          overlay.style.top = '0';
+          overlay.style.left = '0';
+          overlay.style.pointerEvents = 'none';
+          overlay.style.zIndex = '2';
+        }
+      }
+      
+      function setupDrawingTools() {
+        if (!maskCanvas || !maskCtx) return;
+        
+        // Tool selection
+        document.querySelectorAll('.mask-tool').forEach(tool => {
+          tool.addEventListener('click', () => {
+            document.querySelectorAll('.mask-tool').forEach(t => t.classList.remove('active'));
+            tool.classList.add('active');
+            currentTool = tool.getAttribute('data-tool');
+          });
+        });
+        
+        // Brush size
+        const brushSizeInput = document.getElementById('brushSize');
+        const brushPreview = document.querySelector('.brush-size-preview');
+        
+        if (brushSizeInput && brushPreview) {
+          brushSizeInput.addEventListener('input', () => {
+            brushSize = parseInt(brushSizeInput.value);
+            brushPreview.style.width = `${brushSize/2}px`;
+            brushPreview.style.height = `${brushSize/2}px`;
+          });
+        }
+        
+        // Drawing events
+        maskCanvas.addEventListener('mousedown', startDrawing);
+        maskCanvas.addEventListener('mousemove', draw);
+        maskCanvas.addEventListener('mouseup', stopDrawing);
+        maskCanvas.addEventListener('mouseleave', stopDrawing);
+        
+        maskCanvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          startDrawing({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+        });
+        maskCanvas.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          draw({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+        });
+        maskCanvas.addEventListener('touchend', stopDrawing);
+        
+        // Undo/Redo
+        const undoTool = document.querySelector('[data-tool="undo"]');
+        const redoTool = document.querySelector('[data-tool="redo"]');
+        
+        if (undoTool) {
+          undoTool.addEventListener('click', undo);
+        }
+        
+        if (redoTool) {
+          redoTool.addEventListener('click', redo);
+        }
+      }
+      
+      let isDrawing = false;
+      let currentTool = 'brush';
+      let brushSize = 10;
+      let maskHistory = [];
+      let historyIndex = -1;
+      
+      function startDrawing(e) {
+        if (!maskCanvas || !maskCtx) return;
+        
+        isDrawing = true;
+        saveState();
+        draw(e);
+      }
+      
+      function draw(e) {
+        if (!isDrawing || !maskCanvas || !maskCtx) return;
+        
+        const rect = maskCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        maskCtx.beginPath();
+        
+        if (currentTool === 'brush') {
+          // Blue for keep areas
+          maskCtx.globalCompositeOperation = 'source-over';
+          maskCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+        } else if (currentTool === 'eraser') {
+          // Red for remove areas (with transparency)
+          maskCtx.globalCompositeOperation = 'source-over';
+          maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        } else if (currentTool === 'fill') {
+          // Fill implementation would go here
+          return;
+        }
+        
+        maskCtx.lineWidth = brushSize;
+        maskCtx.lineCap = 'round';
+        maskCtx.lineTo(x, y);
+        maskCtx.stroke();
+        maskCtx.beginPath();
+        maskCtx.moveTo(x, y);
+      }
+      
+      function stopDrawing() {
+        isDrawing = false;
+        if (maskCtx) {
+          maskCtx.beginPath();
+        }
+      }
+      
+      function saveState() {
+        if (!maskCtx || !maskCanvas) return;
+        
+        // Save current state to history
+        maskHistory = maskHistory.slice(0, historyIndex + 1);
+        maskHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
+        historyIndex = maskHistory.length - 1;
+      }
+      
+      function undo() {
+        if (historyIndex <= 0 || !maskCtx) return;
+        
+        historyIndex--;
+        maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
+      }
+      
+      function redo() {
+        if (historyIndex >= maskHistory.length - 1 || !maskCtx) return;
+        
+        historyIndex++;
+        maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
+      }
+      
+      // Function to get mask data as base64
+      function getMaskData() {
+        if (!maskCanvas || !maskCtx) return null;
+        
+        // Create a new canvas to process the mask
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = maskCanvas.width;
+        tempCanvas.height = maskCanvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Copy the mask data
+        tempCtx.drawImage(maskCanvas, 0, 0);
+        
+        // Process the mask to make it more defined
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const data = imageData.data;
+        
+        // Convert to binary mask (keep areas = blue, remove areas = red)
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i+1];
+          const b = data[i+2];
+          const a = data[i+3];
+          
+          // If it's blue (keep area), make it fully opaque blue
+          if (b > r && b > g && a > 50) {
+            data[i] = 0;
+            data[i+1] = 0;
+            data[i+2] = 255;
+            data[i+3] = 255;
+          } 
+          // If it's red (remove area), make it fully opaque red
+          else if (r > g && r > b && a > 50) {
+            data[i] = 255;
+            data[i+1] = 0;
+            data[i+2] = 0;
+            data[i+3] = 255;
+          }
+          // Otherwise, make it transparent
+          else {
+            data[i+3] = 0;
+          }
+        }
+        
+        tempCtx.putImageData(imageData, 0, 0);
+        
+        // Return as base64
+        return tempCanvas.toDataURL('image/png');
+      }
+      
+      // === Toast Notification System ===
+      function showToast(message) {
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 3000);
+      }
 
-    function stopLoadingAnimation() {
-      clearInterval(loadingInterval);
-      // Reset to first stage for next time
-      updateLoadingStage(0);
-    }
+      // Detect Facebook WebView
+      function isFacebookWebView() {
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        return (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || 
+               (ua.indexOf("FB_IAB") > -1) || (ua.indexOf("FB4A") > -1);
+      }
 
-    // === Processing Functions ===
-    function getStylePrompt(tab) {
-      const styles = {
-        anime: "in anime style",
-        'studio ghibli': "in Studio Ghibli style",
+      // Show Facebook warning if needed
+      if (document.getElementById('fbWarning')) {
+        if (isFacebookWebView()) {
+          document.getElementById('fbWarning').style.display = 'block';
+        }
+      }
+
+      // === Rest of the JS ===
+      if (dropzone && imageInput) {
+        // Prompt Edit Tab
+        dropzone.addEventListener("click", () => imageInput.click());
+        dropzone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          dropzone.classList.add("border-blue-500", "bg-blue-50");
+        });
+        dropzone.addEventListener("dragleave", () => {
+          dropzone.classList.remove("border-blue-500", "bg-blue-50");
+        });
+        dropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("border-blue-500", "bg-blue-50");
+          if (e.dataTransfer.files.length) {
+            const file = e.dataTransfer.files[0];
+            handleImageUpload(file, 'prompt');
+          }
+        });
+        
+        imageInput.addEventListener("change", () => {
+          const file = imageInput.files[0];
+          if (file) {
+            handleImageUpload(file, 'prompt');
+          }
+        });
+      }
+      
+      if (maskDropzone && maskImageInput) {
+        // Mask Edit Tab
+        maskDropzone.addEventListener("click", () => maskImageInput.click());
+        maskDropzone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          maskDropzone.classList.add("border-blue-500", "bg-blue-50");
+        });
+        maskDropzone.addEventListener("dragleave", () => {
+          maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
+        });
+        maskDropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
+          if (e.dataTransfer.files.length) {
+            const file = e.dataTransfer.files[0];
+            handleImageUpload(file, 'mask');
+          }
+        });
+        
+        maskImageInput.addEventListener("change", () => {
+          const file = maskImageInput.files[0];
+          if (file) {
+            handleImageUpload(file, 'mask');
+          }
+        });
+      }
+      
+      if (styleDropzone && styleImageInput) {
+        // Style Transfer Tab
+        styleDropzone.addEventListener("click", () => styleImageInput.click());
+        styleDropzone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          styleDropzone.classList.add("border-blue-500", "bg-blue-50");
+        });
+        styleDropzone.addEventListener("dragleave", () => {
+          styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
+        });
+        styleDropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
+          if (e.dataTransfer.files.length) {
+            const file = e.dataTransfer.files[0];
+            handleImageUpload(file, 'style');
+          }
+        });
+        
+        styleImageInput.addEventListener("change", () => {
+          const file = styleImageInput.files[0];
+          if (file) {
+            handleImageUpload(file, 'style');
+          }
+        });
+      }
+      
+      function showPreview(file, type) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (type === 'prompt' && imagePreview && previewImg && previewName && previewSize) {
+            previewImg.src = reader.result;
+            previewName.textContent = file.name;
+            previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+            imagePreview.classList.remove("hidden");
+          } else if (type === 'mask' && maskImagePreview && maskPreviewImg && maskPreviewName && maskPreviewSize) {
+            maskPreviewImg.src = reader.result;
+            maskPreviewName.textContent = file.name;
+            maskPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+            maskImagePreview.classList.remove("hidden");
+            
+            // Show mask editor
+            if (document.getElementById('maskEditor')) {
+              document.getElementById('maskEditor').classList.remove('hidden');
+              if (document.getElementById('maskBaseImage')) {
+                document.getElementById('maskBaseImage').src = reader.result;
+              }
+            }
+          } else if (type === 'style' && styleImagePreview && stylePreviewImg && stylePreviewName && stylePreviewSize) {
+            stylePreviewImg.src = reader.result;
+            stylePreviewName.textContent = file.name;
+            stylePreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+            styleImagePreview.classList.remove("hidden");
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function handleImageUpload(file, type) {
+        // Check if file is an image
+        if (!file.type.match('image.*')) {
+          alert('Please select an image file (PNG, JPG, GIF)');
+          return;
+        }
+        
+        // Show preview with original size
+        showPreview(file, type);
+        
+        // Store the original file for later processing
+        if (type === 'prompt' && imageInput) {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          imageInput.files = dataTransfer.files;
+        } else if (type === 'mask' && maskImageInput) {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          maskImageInput.files = dataTransfer.files;
+        } else if (type === 'style' && styleImageInput) {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          styleImageInput.files = dataTransfer.files;
+        }
+        
+        showToast("Image uploaded successfully");
+      }
+
+      // === Vertical Reveal Slider (Mobile-Fixed) ===
+      if (sliderHandle && imageOverlay && beforeImage && afterImage) {
+        let isDragging = false;
+
+        function handleMove(e) {
+          if (!isDragging) return;
+          
+          e.preventDefault(); // Prevent scrolling while dragging
+          
+          const container = sliderHandle.parentElement;
+          const rect = container.getBoundingClientRect();
+          const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+          if (!clientX) return;
+          
+          let x = clientX - rect.left;
+          const maxLeft = rect.width - 40;
+          const clampedX = Math.max(0, Math.min(maxLeft, x));
+          const percent = (clampedX / rect.width) * 100;
+          
+          sliderHandle.style.left = clampedX + 'px';
+          imageOverlay.style.clipPath = `inset(0 ${100 - (clampedX / rect.width) * 100}% 0 0)`;
+        }
+
+        function stopDragging() {
+          isDragging = false;
+          document.removeEventListener('mousemove', handleMove);
+          document.removeEventListener('mouseup', stopDragging);
+          document.removeEventListener('touchmove', handleMove);
+          document.removeEventListener('touchend', stopDragging);
+        }
+
+        sliderHandle.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          document.addEventListener('mousemove', handleMove);
+          document.addEventListener('mouseup', stopDragging);
+          e.preventDefault();
+        });
+
+        sliderHandle.addEventListener('touchstart', (e) => {
+          isDragging = true;
+          document.addEventListener('touchmove', handleMove, { passive: false });
+          document.addEventListener('touchend', stopDragging);
+          e.preventDefault();
+        });
+      }
+
+      // === Style Presets ===
+      const defaultPlaceholder = "Change the car color to red";
+      const stylePlaceholders = {
+        anime: "Make it anime-style with vibrant colors",
+        'studio ghibli': "Transform into a Studio Ghibli scene",
         picasso: "in Picasso's cubist style, abstract forms",
-        cyberpunk: "with cyberpunk neon lighting",
+        cyberpunk: "Cyberpunk neon lights and rain effects",
         'van gogh': "in the style of Van Gogh, expressive brushstrokes",
         lego: "as a LEGO diorama, plastic texture",
         'pixel art': "in 16-bit pixel art style",
@@ -1505,648 +1402,800 @@
         pixar: "in Pixar 3D animation style, soft lighting",
         'desert mirage': "with desert mirage effect, heat haze"
       };
-      
-      let selectedStyles;
-      
-      if (tab === 'promptEdit') {
-        selectedStyles = promptSelectedStyles;
-      } else if (tab === 'maskEdit') {
-        selectedStyles = maskSelectedStyles;
-      } else {
-        selectedStyles = styleTransferSelectedStyles;
-      }
-      
-      return Array.from(selectedStyles)
-        .map(s => styles[s] || s)
-        .join(", ");
-    }
 
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          // Remove the data URL prefix (e.g., "image/png;base64,")
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    // Smart compression function
-    async function compressForServer(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const img = new Image();
-          img.src = e.target.result;
+      function updatePlaceholder() {
+        if (currentTab === 'promptEdit' && promptInput) {
+          if (promptInput.value) return;
           
-          img.onload = function() {
-            let width = img.width;
-            let height = img.height;
-            
-            // Calculate aspect ratio
-            const aspectRatio = width / height;
-            
-            // Maximum dimensions for good quality
-            const maxDimension = 1920;
-            
-            // Scale down if needed, but maintain aspect ratio
-            if (width > maxDimension || height > maxDimension) {
-              if (width > height) {
-                width = maxDimension;
-                height = Math.round(width / aspectRatio);
-              } else {
-                height = maxDimension;
-                width = Math.round(height * aspectRatio);
-              }
+          const activeStyles = Array.from(promptSelectedStyles);
+          if (activeStyles.length === 0) {
+            promptInput.placeholder = defaultPlaceholder;
+          } else {
+            promptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+          }
+        } else if (currentTab === 'maskEdit' && maskPromptInput) {
+          if (maskPromptInput.value) return;
+          maskPromptInput.placeholder = "Remove the background";
+        } else if (currentTab === 'styleTransfer' && promptInput) {
+          if (promptInput.value) return;
+          
+          const activeStyles = Array.from(styleTransferSelectedStyles);
+          if (activeStyles.length === 0) {
+            promptInput.placeholder = defaultPlaceholder;
+          } else {
+            promptInput.placeholder = stylePlaceholders[activeStyles[0]] || defaultPlaceholder;
+          }
+        }
+      }
+
+      function toggleStyle(button, style) {
+        let selectedStyles;
+        
+        if (currentTab === 'promptEdit') {
+          selectedStyles = promptSelectedStyles;
+        } else if (currentTab === 'maskEdit') {
+          selectedStyles = maskSelectedStyles;
+        } else {
+          selectedStyles = styleTransferSelectedStyles;
+        }
+        
+        const isActive = button.classList.contains('style-active');
+        if (isActive) {
+          button.classList.remove('style-active');
+          button.style.backgroundColor = '';
+          button.style.borderColor = 'var(--border-primary)';
+          button.style.color = 'var(--text-primary)';
+          selectedStyles.delete(style);
+        } else {
+          button.classList.add('style-active');
+          button.style.backgroundColor = '#2563eb';
+          button.style.borderColor = '#2563eb';
+          button.style.color = 'white';
+          selectedStyles.add(style);
+        }
+        
+        updatePlaceholder();
+      }
+
+      if (promptInput) {
+        promptInput.addEventListener('focus', () => {
+          if (promptInput && !promptInput.value) {
+            const activeStyles = Array.from(promptSelectedStyles);
+            if (activeStyles.length > 0) {
+              promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
             }
-            
-            // Create canvas and draw image
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Start with high quality
-            let quality = 0.9;
-            const mime = file.type || 'image/jpeg';
-            
-            function tryCompression() {
-              // Convert to blob with current quality
-              canvas.toBlob(blob => {
-                if (!blob) {
-                  reject(new Error('Canvas toBlob failed'));
-                  return;
-                }
-                
-                // Calculate expected base64 size (rough estimate)
-                const base64Size = blob.size * 1.33; // Base64 adds ~33% overhead
-                
-                // For Facebook WebView, be more conservative
-                const maxSize = isFacebookWebView() ? 3.0 * 1024 * 1024 : 3.5 * 1024 * 1024;
-                
-                // Check if size is acceptable
-                if (base64Size <= maxSize || quality <= 0.3) {
-                  const compressedFile = new File([blob], file.name, {
-                    type: file.type,
-                    lastModified: file.lastModified
-                  });
-                  
-                  resolve({
-                    file: compressedFile,
-                    originalSize: file.size,
-                    compressedSize: blob.size,
-                    quality: quality,
-                    dimensions: `${width}x${height}`
-                  });
-                } else {
-                  // Reduce quality and try again
-                  quality -= 0.1;
-                  tryCompression();
-                }
-              }, mime, quality);
+          }
+        });
+
+        promptInput.addEventListener('blur', () => {
+          if (promptInput) {
+            updatePlaceholder();
+          }
+        });
+      }
+
+      if (maskPromptInput) {
+        maskPromptInput.addEventListener('focus', () => {
+          if (maskPromptInput && !maskPromptInput.value) {
+            maskPromptInput.placeholder = "Describe what to add/remove";
+          }
+        });
+
+        maskPromptInput.addEventListener('blur', () => {
+          if (maskPromptInput && !maskPromptInput.value) {
+            maskPromptInput.placeholder = "Remove the background";
+          }
+        });
+      }
+
+      if (promptInput) {
+        promptInput.addEventListener('focus', () => {
+          if (promptInput && !promptInput.value) {
+            const activeStyles = Array.from(styleTransferSelectedStyles);
+            if (activeStyles.length > 0) {
+              promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
             }
-            
-            tryCompression();
+          }
+        });
+
+        promptInput.addEventListener('blur', () => {
+          if (promptInput) {
+            updatePlaceholder();
+          }
+        });
+      }
+
+      // === Loading Screen Animation ===
+      function startLoadingAnimation() {
+        currentStage = 0;
+        updateLoadingStage(currentStage);
+        
+        // Stage progression every 1.5s
+        loadingInterval = setInterval(() => {
+          if (currentStage < loadingStages.length - 1) {
+            currentStage++;
+            updateLoadingStage(currentStage);
+          }
+        }, 1500);
+      }
+
+      function updateLoadingStage(stageIndex) {
+        if (loadingText) {
+          loadingText.textContent = loadingStages[stageIndex].text;
+        }
+        
+        // Update stage indicators
+        stages.forEach((stage, i) => {
+          if (stage && i <= stageIndex) {
+            stage.classList.add('active');
+          } else if (stage) {
+            stage.classList.remove('active');
+          }
+        });
+      }
+
+      function stopLoadingAnimation() {
+        clearInterval(loadingInterval);
+        // Reset to first stage for next time
+        updateLoadingStage(0);
+      }
+
+      // === Processing Functions ===
+      function getStylePrompt(tab) {
+        const styles = {
+          anime: "in anime style",
+          'studio ghibli': "in Studio Ghibli style",
+          picasso: "in Picasso's cubist style, abstract forms",
+          cyberpunk: "with cyberpunk neon lighting",
+          'van gogh': "in the style of Van Gogh, expressive brushstrokes",
+          lego: "as a LEGO diorama, plastic texture",
+          'pixel art': "in 16-bit pixel art style",
+          sketch: "as a pencil sketch, hand-drawn lines",
+          pixar: "in Pixar 3D animation style, soft lighting",
+          'desert mirage': "with desert mirage effect, heat haze"
+        };
+        
+        let selectedStyles;
+        
+        if (tab === 'promptEdit') {
+          selectedStyles = promptSelectedStyles;
+        } else if (tab === 'maskEdit') {
+          selectedStyles = maskSelectedStyles;
+        } else {
+          selectedStyles = styleTransferSelectedStyles;
+        }
+        
+        return Array.from(selectedStyles)
+          .map(s => styles[s] || s)
+          .join(", ");
+      }
+
+      function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            // Remove the data URL prefix (e.g., "image/png;base64,")
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
           };
-          
-          img.onerror = function() {
-            reject(new Error('Image load error'));
-          };
-        };
-        
-        reader.onerror = function() {
-          reject(new Error('File reader error'));
-        };
-        
-        reader.readAsDataURL(file);
-      });
-    }
-
-    // === API Functions ===
-    const editBtn = document.getElementById("editBtn");
-    const maskEditBtn = document.getElementById("maskEditBtn");
-    const styleEditBtn = document.getElementById("styleEditBtn");
-    const loading = document.getElementById("loading");
-    const resultDiv = document.getElementById("result");
-    const downloadBtn = document.getElementById("downloadBtn");
-    const downloadInstructions = document.getElementById("downloadInstructions");
-
-    // === Dark Mode Toggle ===
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const body = document.body;
-
-    const prefersDark = localStorage.getItem('kamuy_dark_mode') === 'true';
-    if (prefersDark) {
-      body.classList.add('dark');
-      darkModeToggle.textContent = 'Light Mode';
-    }
-
-    darkModeToggle.addEventListener('click', () => {
-      body.classList.toggle('dark');
-      if (body.classList.contains('dark')) {
-        darkModeToggle.textContent = 'Light Mode';
-        localStorage.setItem('kamuy_dark_mode', 'true');
-      } else {
-        darkModeToggle.textContent = 'Dark Mode';
-        localStorage.setItem('kamuy_dark_mode', 'false');
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
       }
-    });
 
-    // === History Panel ===
-    const historyPanel = document.getElementById('historyPanel');
-    const openHistory = document.getElementById('openHistory');
-    const closeHistory = document.getElementById('closeHistory');
-    const historyList = document.getElementById('historyList');
-
-    openHistory.addEventListener('click', () => {
-      historyPanel.classList.add('open');
-    });
-
-    closeHistory.addEventListener('click', () => {
-      historyPanel.classList.remove('open');
-    });
-
-    // Load history from localStorage
-    function loadHistory() {
-      const history = JSON.parse(localStorage.getItem('kamuy_edit_history') || '[]');
-      historyList.innerHTML = '';
-      if (history.length === 0) {
-        historyList.innerHTML = '<p class="text-sm text-gray-500">No edits yet</p>';
-      }
-      history.forEach((item, index) => {
-        const div = document.createElement('div');
-        div.className = 'history-item';
-        div.innerHTML = `
-          <img src="${item.thumbnail}" alt="Edit" />
-          <div class="history-prompt">${item.prompt}</div>
-          <small class="text-xs text-gray-500">${new Date(item.date).toLocaleString()}</small>
-        `;
-        div.onclick = () => {
-          beforeImage.src = item.original;
-          afterImage.src = item.edited;
-          resultDiv.classList.remove('hidden');
-          historyPanel.classList.remove('open');
-          showToast("Loaded from history!");
-        };
-        historyList.appendChild(div);
-      });
-    }
-
-    // Save to history
-    function saveToHistory(original, edited, prompt) {
-      const history = JSON.parse(localStorage.getItem('kamuy_edit_history') || '[]');
-      const canvas = document.createElement('canvas');
-      const img = new Image();
-      img.onload = () => {
-        canvas.width = 100;
-        canvas.height = 100;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, 100, 100);
-        const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
-
-        const newItem = {
-          original,
-          edited,
-          thumbnail,
-          prompt,
-          date: new Date().toISOString()
-        };
-        history.unshift(newItem);
-        // Keep only last 5
-        localStorage.setItem('kamuy_edit_history', JSON.stringify(history.slice(0, 5)));
-        loadHistory();
-      };
-      img.src = edited;
-    }
-
-    // Initialize history
-    loadHistory();
-
-    // === Prompt Edit Functionality ===
-    if (editBtn) {
-      editBtn.addEventListener("click", async () => {
-        const imageFile = imageInput.files[0];
-        const prompt = document.getElementById("prompt").value.trim();
-        const stylePrompt = getStylePrompt('promptEdit');
-
-        if (!imageFile || (!prompt && promptSelectedStyles.size === 0)) {
-          alert("Please upload an image and enter a prompt or select a style.");
-          return;
-        }
-
-        try {
-          editBtn.classList.add("hidden");
-          loading.classList.remove("hidden");
-          resultDiv.classList.add("hidden");
-          
-          // Start loading animation
-          startLoadingAnimation();
-          
-          const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
-          const compressionResult = await compressForServer(imageFile);
-          const compressedFile = compressionResult.file;
-          
-          // Show compression info
-          const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
-          const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-          const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-          showToast(qualityMsg);
-
-          // Convert to base64
-          const base64Image = await fileToBase64(compressedFile);
-
-          // API call
-          const response = await fetch("/api/edit", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify({
-              image: base64Image,
-              imageName: imageFile.name,
-              imageType: imageFile.type,
-              prompt: finalPrompt
-            })
-          });
-
-          // Stop loading animation
-          stopLoadingAnimation();
-
-          // Error handling
-          if (!response.ok) {
-            let errorMessage = `Server error: ${response.status}`;
-            try {
-              const errorData = await response.json();
-              if (errorData.error) {
-                errorMessage += ` - ${errorData.error}`;
-              } else if (errorData.detail) {
-                errorMessage += ` - ${errorData.detail}`;
-              }
-            } catch (e) {
-              try {
-                const errorText = await response.text();
-                errorMessage += ` - ${errorText.substring(0, 100)}...`;
-              } catch (e2) {
-                errorMessage += " - Failed to parse error response";
-              }
-            }
+      // Smart compression function
+      async function compressForServer(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const img = new Image();
+            img.src = e.target.result;
             
-            // Special handling for Facebook WebView issues
-            if (isFacebookWebView() && response.status === 413) {
-              errorMessage = "Image too large for Facebook browser. Please open in Chrome or Safari and try again.";
-            }
-            
-            throw new Error(errorMessage);
-          }
-
-          // Parse response
-          const contentType = response.headers.get("content-type");
-          let data;
-          if (contentType && contentType.includes("application/json")) {
-            data = await response.json();
-          } else {
-            throw new Error("Expected JSON response but received different content type");
-          }
-
-          if (data.edited_image_url) {
-            const originalUrl = URL.createObjectURL(imageFile);
-            beforeImage.src = originalUrl;
-            afterImage.src = data.edited_image_url;
-            
-            resultDiv.classList.remove("hidden");
-
-            // Reset slider to 50%
-            const container = sliderHandle.parentElement;
-            const midPoint = (container.offsetWidth - 40) / 2;
-            sliderHandle.style.left = midPoint + 'px';
-            imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
-
-            // Set up download functionality
-            setupDownload(data.edited_image_url);
-            showToast("Edit completed! 🎉");
-          } else {
-            throw new Error("Invalid response format: missing edited_image_url");
-          }
-        } catch (err) {
-          console.error("Detailed error:", err);
-          // Stop loading animation on error
-          stopLoadingAnimation();
-          loading.classList.add("hidden");
-          editBtn.classList.remove("hidden");
-          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-        }
-      });
-    }
-    
-    // === Mask Edit Functionality ===
-    if (maskEditBtn) {
-      maskEditBtn.addEventListener("click", async () => {
-        const imageFile = maskImageInput.files[0];
-        const prompt = document.getElementById("maskPrompt").value.trim();
-        
-        if (!imageFile || !prompt) {
-          alert("Please upload an image and enter a prompt for the mask edit.");
-          return;
-        }
-        
-        try {
-          maskEditBtn.classList.add("hidden");
-          loading.classList.remove("hidden");
-          resultDiv.classList.add("hidden");
-          
-          // Start loading animation
-          startLoadingAnimation();
-          
-          // For mask editing, we'll use the same compression as prompt editing
-          const compressionResult = await compressForServer(imageFile);
-          const compressedFile = compressionResult.file;
-          
-          // Show compression info
-          const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
-          const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-          const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-          showToast(qualityMsg);
-
-          // Convert to base64
-          const base64Image = await fileToBase64(compressedFile);
-          
-          // Get mask data if available
-          const maskData = getMaskData();
-
-          // API call - same endpoint but with mask information
-          const response = await fetch("/api/edit", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify({
-              image: base64Image,
-              imageName: imageFile.name,
-              imageType: imageFile.type,
-              prompt: prompt,
-              // Include mask data
-              mask: maskData
-            })
-          });
-
-          // Stop loading animation
-          stopLoadingAnimation();
-
-          // Error handling
-          if (!response.ok) {
-            let errorMessage = `Server error: ${response.status}`;
-            try {
-              const errorData = await response.json();
-              if (errorData.error) {
-                errorMessage += ` - ${errorData.error}`;
-              } else if (errorData.detail) {
-                errorMessage += ` - ${errorData.detail}`;
-              }
-            } catch (e) {
-              try {
-                const errorText = await response.text();
-                errorMessage += ` - ${errorText.substring(0, 100)}...`;
-              } catch (e2) {
-                errorMessage += " - Failed to parse error response";
-              }
-            }
-            
-            throw new Error(errorMessage);
-          }
-
-          // Parse response
-          const contentType = response.headers.get("content-type");
-          let data;
-          if (contentType && contentType.includes("application/json")) {
-            data = await response.json();
-          } else {
-            throw new Error("Expected JSON response but received different content type");
-          }
-
-          if (data.edited_image_url) {
-            const originalUrl = URL.createObjectURL(imageFile);
-            beforeImage.src = originalUrl;
-            afterImage.src = data.edited_image_url;
-            
-            resultDiv.classList.remove("hidden");
-
-            // Reset slider to 50%
-            const container = sliderHandle.parentElement;
-            const midPoint = (container.offsetWidth - 40) / 2;
-            sliderHandle.style.left = midPoint + 'px';
-            imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
-
-            // Set up download functionality
-            setupDownload(data.edited_image_url);
-            showToast("Mask edit completed! 🎉");
-          } else {
-            throw new Error("Invalid response format: missing edited_image_url");
-          }
-        } catch (err) {
-          console.error("Detailed error:", err);
-          // Stop loading animation on error
-          stopLoadingAnimation();
-          loading.classList.add("hidden");
-          maskEditBtn.classList.remove("hidden");
-          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-        }
-      });
-    }
-    
-    // === Style Transfer Functionality ===
-    if (styleEditBtn) {
-      styleEditBtn.addEventListener("click", async () => {
-        const imageFile = styleImageInput.files[0];
-        const prompt = document.getElementById("prompt").value.trim();
-        const stylePrompt = getStylePrompt('styleTransfer');
-        const intensity = document.getElementById('styleIntensity') ? document.getElementById('styleIntensity').value : 0.7;
-        
-        if (!imageFile || styleTransferSelectedStyles.size === 0) {
-          alert("Please upload an image and select at least one style.");
-          return;
-        }
-        
-        try {
-          styleEditBtn.classList.add("hidden");
-          loading.classList.remove("hidden");
-          resultDiv.classList.add("hidden");
-          
-          // Start loading animation
-          startLoadingAnimation();
-          
-          // For style transfer, we'll use the same compression
-          const compressionResult = await compressForServer(imageFile);
-          const compressedFile = compressionResult.file;
-          
-          // Show compression info
-          const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
-          const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-          const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-          showToast(qualityMsg);
-
-          // Convert to base64
-          const base64Image = await fileToBase64(compressedFile);
-
-          // Construct prompt with style information
-          let finalPrompt = stylePrompt;
-          if (prompt) {
-            finalPrompt = `${prompt}, ${stylePrompt}`;
-          }
-          
-          // API call
-          const response = await fetch("/api/edit", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify({
-              image: base64Image,
-              imageName: imageFile.name,
-              imageType: imageFile.type,
-              prompt: finalPrompt,
-              // In a real implementation, we'd use intensity parameter
-              style_intensity: intensity
-            })
-          });
-
-          // Stop loading animation
-          stopLoadingAnimation();
-
-          // Error handling
-          if (!response.ok) {
-            let errorMessage = `Server error: ${response.status}`;
-            try {
-              const errorData = await response.json();
-              if (errorData.error) {
-                errorMessage += ` - ${errorData.error}`;
-              } else if (errorData.detail) {
-                errorMessage += ` - ${errorData.detail}`;
-              }
-            } catch (e) {
-              try {
-                const errorText = await response.text();
-                errorMessage += ` - ${errorText.substring(0, 100)}...`;
-              } catch (e2) {
-                errorMessage += " - Failed to parse error response";
-              }
-            }
-            
-            throw new Error(errorMessage);
-          }
-
-          // Parse response
-          const contentType = response.headers.get("content-type");
-          let data;
-          if (contentType && contentType.includes("application/json")) {
-            data = await response.json();
-          } else {
-            throw new Error("Expected JSON response but received different content type");
-          }
-
-          if (data.edited_image_url) {
-            const originalUrl = URL.createObjectURL(imageFile);
-            beforeImage.src = originalUrl;
-            afterImage.src = data.edited_image_url;
-            
-            resultDiv.classList.remove("hidden");
-
-            // Reset slider to 50%
-            const container = sliderHandle.parentElement;
-            const midPoint = (container.offsetWidth - 40) / 2;
-            sliderHandle.style.left = midPoint + 'px';
-            imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
-
-            // Set up download functionality
-            setupDownload(data.edited_image_url);
-            showToast("Style transfer completed! 🎨");
-          } else {
-            throw new Error("Invalid response format: missing edited_image_url");
-          }
-        } catch (err) {
-          console.error("Detailed error:", err);
-          // Stop loading animation on error
-          stopLoadingAnimation();
-          loading.classList.add("hidden");
-          styleEditBtn.classList.remove("hidden");
-          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-        }
-      });
-    }
-
-    // Setup download functionality with Facebook WebView compatibility
-    function setupDownload(imageUrl) {
-      // Clear previous instructions
-      if (downloadInstructions) {
-        downloadInstructions.textContent = '';
-      }
-      
-      // For Facebook WebView, use a different approach
-      if (isFacebookWebView()) {
-        downloadBtn.onclick = async () => {
-          try {
-            // Fetch the image as blob
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            
-            // Create object URL
-            const url = URL.createObjectURL(blob);
-            
-            // For mobile devices, open in new tab
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (isMobile) {
-              // Open in new window/tab
-              window.open(url, '_blank');
+            img.onload = function() {
+              let width = img.width;
+              let height = img.height;
               
-              // Show instructions
-              if (downloadInstructions) {
-                downloadInstructions.textContent = 'Tap and hold the image to save it to your device';
+              // Calculate aspect ratio
+              const aspectRatio = width / height;
+              
+              // Maximum dimensions for good quality
+              const maxDimension = 1920;
+              
+              // Scale down if needed, but maintain aspect ratio
+              if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                  width = maxDimension;
+                  height = Math.round(width / aspectRatio);
+                } else {
+                  height = maxDimension;
+                  width = Math.round(height * aspectRatio);
+                }
               }
-              showToast('Image opened in new tab - tap and hold to save');
+              
+              // Create canvas and draw image
+              const canvas = document.createElement('canvas');
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              // Start with high quality
+              let quality = 0.9;
+              const mime = file.type || 'image/jpeg';
+              
+              function tryCompression() {
+                // Convert to blob with current quality
+                canvas.toBlob(blob => {
+                  if (!blob) {
+                    reject(new Error('Canvas toBlob failed'));
+                    return;
+                  }
+                  
+                  // Calculate expected base64 size (rough estimate)
+                  const base64Size = blob.size * 1.33; // Base64 adds ~33% overhead
+                  
+                  // For Facebook WebView, be more conservative
+                  const maxSize = isFacebookWebView() ? 3.0 * 1024 * 1024 : 3.5 * 1024 * 1024;
+                  
+                  // Check if size is acceptable
+                  if (base64Size <= maxSize || quality <= 0.3) {
+                    const compressedFile = new File([blob], file.name, {
+                      type: file.type,
+                      lastModified: file.lastModified
+                    });
+                    
+                    resolve({
+                      file: compressedFile,
+                      originalSize: file.size,
+                      compressedSize: blob.size,
+                      quality: quality,
+                      dimensions: `${width}x${height}`
+                    });
+                  } else {
+                    // Reduce quality and try again
+                    quality -= 0.1;
+                    tryCompression();
+                  }
+                }, mime, quality);
+              }
+              
+              tryCompression();
+            };
+            
+            img.onerror = function() {
+              reject(new Error('Image load error'));
+            };
+          };
+          
+          reader.onerror = function() {
+            reject(new Error('File reader error'));
+          };
+          
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // === API Functions ===
+      // === Dark Mode Toggle ===
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      const body = document.body;
+
+      const prefersDark = localStorage.getItem('kamuy_dark_mode') === 'true';
+      if (prefersDark) {
+        body.classList.add('dark');
+        darkModeToggle.textContent = 'Light Mode';
+      }
+
+      if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', () => {
+          body.classList.toggle('dark');
+          if (body.classList.contains('dark')) {
+            darkModeToggle.textContent = 'Light Mode';
+            localStorage.setItem('kamuy_dark_mode', 'true');
+          } else {
+            darkModeToggle.textContent = 'Dark Mode';
+            localStorage.setItem('kamuy_dark_mode', 'false');
+          }
+        });
+      }
+
+      // === History Panel ===
+      const historyPanel = document.getElementById('historyPanel');
+      const openHistory = document.getElementById('openHistory');
+      const closeHistory = document.getElementById('closeHistory');
+      const historyList = document.getElementById('historyList');
+
+      if (openHistory) {
+        openHistory.addEventListener('click', () => {
+          historyPanel.classList.add('open');
+        });
+      }
+
+      if (closeHistory) {
+        closeHistory.addEventListener('click', () => {
+          historyPanel.classList.remove('open');
+        });
+      }
+
+      // Load history from localStorage
+      function loadHistory() {
+        const history = JSON.parse(localStorage.getItem('kamuy_edit_history') || '[]');
+        if (!historyList) return;
+        historyList.innerHTML = '';
+        if (history.length === 0) {
+          historyList.innerHTML = '<p class="text-sm text-gray-500">No edits yet</p>';
+        }
+        history.forEach((item, index) => {
+          const div = document.createElement('div');
+          div.className = 'history-item';
+          div.innerHTML = `
+            <img src="${item.thumbnail}" alt="Edit" />
+            <div class="history-prompt">${item.prompt}</div>
+            <small class="text-xs text-gray-500">${new Date(item.date).toLocaleString()}</small>
+          `;
+          div.onclick = () => {
+            beforeImage.src = item.original;
+            afterImage.src = item.edited;
+            resultDiv.classList.remove('hidden');
+            historyPanel.classList.remove('open');
+            showToast("Loaded from history!");
+          };
+          historyList.appendChild(div);
+        });
+      }
+
+      // Save to history
+      function saveToHistory(original, edited, prompt) {
+        const history = JSON.parse(localStorage.getItem('kamuy_edit_history') || '[]');
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = 100;
+          canvas.height = 100;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, 100, 100);
+          const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+
+          const newItem = {
+            original,
+            edited,
+            thumbnail,
+            prompt,
+            date: new Date().toISOString()
+          };
+          history.unshift(newItem);
+          // Keep only last 5
+          localStorage.setItem('kamuy_edit_history', JSON.stringify(history.slice(0, 5)));
+          loadHistory();
+        };
+        img.src = edited;
+      }
+
+      // Initialize history
+      loadHistory();
+
+      // === Prompt Edit Functionality ===
+      if (editBtn) {
+        editBtn.addEventListener("click", async () => {
+          const imageFile = imageInput.files[0];
+          const prompt = promptInput.value.trim();
+          const stylePrompt = getStylePrompt('promptEdit');
+
+          if (!imageFile || (!prompt && promptSelectedStyles.size === 0)) {
+            alert("Please upload an image and enter a prompt or select a style.");
+            return;
+          }
+
+          try {
+            editBtn.classList.add("hidden");
+            if (loading) loading.classList.remove("hidden");
+            if (resultDiv) resultDiv.classList.add("hidden");
+            
+            // Start loading animation
+            startLoadingAnimation();
+            
+            const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
+            const compressionResult = await compressForServer(imageFile);
+            const compressedFile = compressionResult.file;
+            
+            // Show compression info
+            const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+            const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+            const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+            showToast(qualityMsg);
+
+            // Convert to base64
+            const base64Image = await fileToBase64(compressedFile);
+
+            // API call
+            const response = await fetch("/api/edit", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              body: JSON.stringify({
+                image: base64Image,
+                imageName: imageFile.name,
+                imageType: imageFile.type,
+                prompt: finalPrompt
+              })
+            });
+
+            // Stop loading animation
+            stopLoadingAnimation();
+
+            // Error handling
+            if (!response.ok) {
+              let errorMessage = `Server error: ${response.status}`;
+              try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                  errorMessage += ` - ${errorData.error}`;
+                } else if (errorData.detail) {
+                  errorMessage += ` - ${errorData.detail}`;
+                }
+              } catch (e) {
+                try {
+                  const errorText = await response.text();
+                  errorMessage += ` - ${errorText.substring(0, 100)}...`;
+                } catch (e2) {
+                  errorMessage += " - Failed to parse error response";
+                }
+              }
+              
+              // Special handling for Facebook WebView issues
+              if (isFacebookWebView() && response.status === 413) {
+                errorMessage = "Image too large for Facebook browser. Please open in Chrome or Safari and try again.";
+              }
+              
+              throw new Error(errorMessage);
+            }
+
+            // Parse response
+            const contentType = response.headers.get("content-type");
+            let data;
+            if (contentType && contentType.includes("application/json")) {
+              data = await response.json();
             } else {
-              // For desktop Facebook WebView (rare), try normal download
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "kamuy-edited.png";
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-              showToast("Download started");
+              throw new Error("Expected JSON response but received different content type");
+            }
+
+            if (data.edited_image_url) {
+              const originalUrl = URL.createObjectURL(imageFile);
+              beforeImage.src = originalUrl;
+              afterImage.src = data.edited_image_url;
+              
+              if (resultDiv) resultDiv.classList.remove("hidden");
+
+              // Reset slider to 50%
+              const container = sliderHandle.parentElement;
+              const midPoint = (container.offsetWidth - 40) / 2;
+              sliderHandle.style.left = midPoint + 'px';
+              imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+              // Set up download functionality
+              setupDownload(data.edited_image_url);
+              showToast("Edit completed! 🎉");
+            } else {
+              throw new Error("Invalid response format: missing edited_image_url");
             }
           } catch (err) {
-            alert("Download failed: " + err.message);
+            console.error("Detailed error:", err);
+            // Stop loading animation on error
+            stopLoadingAnimation();
+            if (loading) loading.classList.add("hidden");
+            if (editBtn) editBtn.classList.remove("hidden");
+            alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
           }
-        };
-      } else {
-        // Standard download for regular browsers
-        downloadBtn.onclick = () => {
-          fetch(imageUrl)
-            .then(res => res.blob())
-            .then(blob => {
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "kamuy-edited.png";
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-              showToast("Download started");
-            })
-            .catch(err => alert("Download failed: " + err.message));
-        };
+        });
       }
-    }
+      
+      // === Mask Edit Functionality ===
+      if (maskEditBtn) {
+        maskEditBtn.addEventListener("click", async () => {
+          const imageFile = maskImageInput.files[0];
+          const prompt = document.getElementById("maskPrompt").value.trim();
+          
+          if (!imageFile || !prompt) {
+            alert("Please upload an image and enter a prompt for the mask edit.");
+            return;
+          }
+          
+          try {
+            maskEditBtn.classList.add("hidden");
+            if (loading) loading.classList.remove("hidden");
+            if (resultDiv) resultDiv.classList.add("hidden");
+            
+            // Start loading animation
+            startLoadingAnimation();
+            
+            // For mask editing, we'll use the same compression as prompt editing
+            const compressionResult = await compressForServer(imageFile);
+            const compressedFile = compressionResult.file;
+            
+            // Show compression info
+            const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+            const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+            const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+            showToast(qualityMsg);
 
-    // Initialize placeholder
-    updatePlaceholder();
+            // Convert to base64
+            const base64Image = await fileToBase64(compressedFile);
+            
+            // Get mask data if available
+            const maskData = getMaskData();
+
+            // API call - same endpoint but with mask information
+            const response = await fetch("/api/edit", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              body: JSON.stringify({
+                image: base64Image,
+                imageName: imageFile.name,
+                imageType: imageFile.type,
+                prompt: prompt,
+                // Include mask data
+                mask: maskData
+              })
+            });
+
+            // Stop loading animation
+            stopLoadingAnimation();
+
+            // Error handling
+            if (!response.ok) {
+              let errorMessage = `Server error: ${response.status}`;
+              try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                  errorMessage += ` - ${errorData.error}`;
+                } else if (errorData.detail) {
+                  errorMessage += ` - ${errorData.detail}`;
+                }
+              } catch (e) {
+                try {
+                  const errorText = await response.text();
+                  errorMessage += ` - ${errorText.substring(0, 100)}...`;
+                } catch (e2) {
+                  errorMessage += " - Failed to parse error response";
+                }
+              }
+              
+              throw new Error(errorMessage);
+            }
+
+            // Parse response
+            const contentType = response.headers.get("content-type");
+            let data;
+            if (contentType && contentType.includes("application/json")) {
+              data = await response.json();
+            } else {
+              throw new Error("Expected JSON response but received different content type");
+            }
+
+            if (data.edited_image_url) {
+              const originalUrl = URL.createObjectURL(imageFile);
+              beforeImage.src = originalUrl;
+              afterImage.src = data.edited_image_url;
+              
+              if (resultDiv) resultDiv.classList.remove("hidden");
+
+              // Reset slider to 50%
+              const container = sliderHandle.parentElement;
+              const midPoint = (container.offsetWidth - 40) / 2;
+              sliderHandle.style.left = midPoint + 'px';
+              imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+              // Set up download functionality
+              setupDownload(data.edited_image_url);
+              showToast("Mask edit completed! 🎉");
+            } else {
+              throw new Error("Invalid response format: missing edited_image_url");
+            }
+          } catch (err) {
+            console.error("Detailed error:", err);
+            // Stop loading animation on error
+            stopLoadingAnimation();
+            if (loading) loading.classList.add("hidden");
+            if (maskEditBtn) maskEditBtn.classList.remove("hidden");
+            alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
+          }
+        });
+      }
+      
+      // === Style Transfer Functionality ===
+      if (styleEditBtn) {
+        styleEditBtn.addEventListener("click", async () => {
+          const imageFile = styleImageInput.files[0];
+          const prompt = promptInput.value.trim();
+          const stylePrompt = getStylePrompt('styleTransfer');
+          const intensity = intensitySlider ? intensitySlider.value : 0.7;
+          
+          if (!imageFile || styleTransferSelectedStyles.size === 0) {
+            alert("Please upload an image and select at least one style.");
+            return;
+          }
+          
+          try {
+            styleEditBtn.classList.add("hidden");
+            if (loading) loading.classList.remove("hidden");
+            if (resultDiv) resultDiv.classList.add("hidden");
+            
+            // Start loading animation
+            startLoadingAnimation();
+            
+            // For style transfer, we'll use the same compression
+            const compressionResult = await compressForServer(imageFile);
+            const compressedFile = compressionResult.file;
+            
+            // Show compression info
+            const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+            const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+            const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+            showToast(qualityMsg);
+
+            // Convert to base64
+            const base64Image = await fileToBase64(compressedFile);
+
+            // Construct prompt with style information
+            let finalPrompt = stylePrompt;
+            if (prompt) {
+              finalPrompt = `${prompt}, ${stylePrompt}`;
+            }
+            
+            // API call
+            const response = await fetch("/api/edit", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              body: JSON.stringify({
+                image: base64Image,
+                imageName: imageFile.name,
+                imageType: imageFile.type,
+                prompt: finalPrompt,
+                // In a real implementation, we'd use intensity parameter
+                style_intensity: intensity
+              })
+            });
+
+            // Stop loading animation
+            stopLoadingAnimation();
+
+            // Error handling
+            if (!response.ok) {
+              let errorMessage = `Server error: ${response.status}`;
+              try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                  errorMessage += ` - ${errorData.error}`;
+                } else if (errorData.detail) {
+                  errorMessage += ` - ${errorData.detail}`;
+                }
+              } catch (e) {
+                try {
+                  const errorText = await response.text();
+                  errorMessage += ` - ${errorText.substring(0, 100)}...`;
+                } catch (e2) {
+                  errorMessage += " - Failed to parse error response";
+                }
+              }
+              
+              throw new Error(errorMessage);
+            }
+
+            // Parse response
+            const contentType = response.headers.get("content-type");
+            let data;
+            if (contentType && contentType.includes("application/json")) {
+              data = await response.json();
+            } else {
+              throw new Error("Expected JSON response but received different content type");
+            }
+
+            if (data.edited_image_url) {
+              const originalUrl = URL.createObjectURL(imageFile);
+              beforeImage.src = originalUrl;
+              afterImage.src = data.edited_image_url;
+              
+              if (resultDiv) resultDiv.classList.remove("hidden");
+
+              // Reset slider to 50%
+              const container = sliderHandle.parentElement;
+              const midPoint = (container.offsetWidth - 40) / 2;
+              sliderHandle.style.left = midPoint + 'px';
+              imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+              // Set up download functionality
+              setupDownload(data.edited_image_url);
+              showToast("Style transfer completed! 🎨");
+            } else {
+              throw new Error("Invalid response format: missing edited_image_url");
+            }
+          } catch (err) {
+            console.error("Detailed error:", err);
+            // Stop loading animation on error
+            stopLoadingAnimation();
+            if (loading) loading.classList.add("hidden");
+            if (styleEditBtn) styleEditBtn.classList.remove("hidden");
+            alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
+          }
+        });
+      }
+
+      // Setup download functionality with Facebook WebView compatibility
+      function setupDownload(imageUrl) {
+        // Clear previous instructions
+        if (downloadInstructions) {
+          downloadInstructions.textContent = '';
+        }
+        
+        // For Facebook WebView, use a different approach
+        if (isFacebookWebView()) {
+          downloadBtn.onclick = async () => {
+            try {
+              // Fetch the image as blob
+              const response = await fetch(imageUrl);
+              const blob = await response.blob();
+              
+              // Create object URL
+              const url = URL.createObjectURL(blob);
+              
+              // For mobile devices, open in new tab
+              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+              if (isMobile) {
+                // Open in new window/tab
+                window.open(url, '_blank');
+                
+                // Show instructions
+                if (downloadInstructions) {
+                  downloadInstructions.textContent = 'Tap and hold the image to save it to your device';
+                }
+                showToast('Image opened in new tab - tap and hold to save');
+              } else {
+                // For desktop Facebook WebView (rare), try normal download
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "kamuy-edited.png";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast("Download started");
+              }
+            } catch (err) {
+              alert("Download failed: " + err.message);
+            }
+          };
+        } else {
+          // Standard download for regular browsers
+          downloadBtn.onclick = () => {
+            fetch(imageUrl)
+              .then(res => res.blob())
+              .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "kamuy-edited.png";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast("Download started");
+              })
+              .catch(err => alert("Download failed: " + err.message));
+          };
+        }
+      }
+
+      // Initialize placeholder
+      updatePlaceholder();
+    });
   </script>
 </body>
 </html>
