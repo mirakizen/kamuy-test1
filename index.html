@@ -22,57 +22,39 @@
     @media (max-width: 640px) {
       .style-grid { grid-template-columns: repeat(3, 1fr); }
     }
-
-    /* Before/After Slider Styles */
-    .comparison-container {
-      position: relative;
-      width: 100%;
-      height: auto;
-      overflow: hidden;
-      border-radius: 0.5rem;
-      border: 1px solid #e5e7eb;
-      margin-bottom: 0.5rem;
-    }
-    .comparison-image {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
-    .image-after {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      clip: rect(0, 50%, 100%, 0);
-    }
-    .slider-handle {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      width: 40px;
-      height: 100%;
-      cursor: ew-resize;
-      z-index: 3;
+    /* Simple slider styles */
+    .slider-container {
+      margin-top: 0.5rem;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      background: linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent);
     }
-    .slider-handle::before {
-      content: "↔";
-      font-size: 28px;
-      color: #1f2937;
-      opacity: 0.9;
-      margin-bottom: 8px;
+    .slider {
+      width: 100%;
+      height: 6px;
+      background: #d1d5db;
+      border-radius: 3px;
+      position: relative;
     }
-    .slider-instruction {
-      text-align: center;
-      font-size: 0.875rem;
-      color: #4b5563;
-      margin-top: 0.25rem;
-      font-style: italic;
+    .slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #2563eb;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .slider-thumb::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #2563eb;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -119,7 +101,7 @@
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'cyberpunk')">🕹️ Cyberpunk</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'van gogh')">🖼️ Van Gogh</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'lego')">🧱 LEGO</button>
-          <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixel art')">�� Pixel</button>
+          <button type="button" class="style-btn" onclick="toggleStyle(this, 'pixel art')">🎮 Pixel</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'sketch')">🖋️ Sketch</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'glitchcore')">🌌 Glitch</button>
           <button type="button" class="style-btn" onclick="toggleStyle(this, 'desert mirage')">🏜️ Mirage</button>
@@ -139,12 +121,14 @@
       <!-- Result -->
       <div id="result" class="hidden mt-6">
         <h3 class="text-lg font-medium text-gray-800 mb-2">✨ Edited Image</h3>
-        <div class="comparison-container relative">
-          <img id="beforeImage" class="comparison-image" src="" alt="Original" />
-          <img id="afterImage" class="comparison-image image-after" src="" alt="Edited" />
-          <div class="slider-handle" id="sliderHandle"></div>
+        <div class="relative">
+          <img id="beforeImage" class="w-full rounded-lg border shadow-sm" src="" alt="Original" />
+          <img id="afterImage" class="w-full rounded-lg border shadow-sm absolute top-0 left-0" style="clip: rect(0,50%,100%,0); width:100%;" src="" alt="Edited" />
         </div>
-        <p class="slider-instruction">Drag the handle to compare before/after</p>
+        <div class="slider-container">
+          <input type="range" min="0" max="100" value="50" class="slider" id="compareSlider" />
+          <p class="text-xs text-gray-500 mt-1">Drag slider to compare</p>
+        </div>
         <button id="downloadBtn" class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
           <i class="fas fa-download mr-2"></i> Download Image
         </button>
@@ -163,7 +147,7 @@
       cyberpunk: "Cyberpunk neon lights and rain effects",
       'van gogh': "Paint in Van Gogh's expressive brushstroke style",
       lego: "Recreate as a detailed LEGO diorama",
-      'pixel art': "Convert to 16-bit pixel art with dithering",
+      'pixel art': "Convert to 16-bit pixel art style",
       sketch: "Turn into a pencil sketch with cross-hatching",
       glitchcore: "Add digital glitches and RGB splits",
       'desert mirage': "Create a desert mirage with heat haze"
@@ -214,44 +198,13 @@
       }
     });
 
-    // === Before/After Slider ===
+    // === Simple Bottom Slider ===
     const beforeImage = document.getElementById('beforeImage');
     const afterImage = document.getElementById('afterImage');
-    const sliderHandle = document.getElementById('sliderHandle');
-    let isDragging = false;
+    const slider = document.getElementById('compareSlider');
 
-    function handleMove(e) {
-      if (!isDragging) return;
-      
-      const container = sliderHandle.parentElement;
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-      
-      sliderHandle.style.left = percent + '%';
-      afterImage.style.clip = `rect(0, ${percent}%, 100%, 0)`;
-    }
-
-    function stopDragging() {
-      isDragging = false;
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', stopDragging);
-      document.removeEventListener('touchmove', handleMove);
-      document.removeEventListener('touchend', stopDragging);
-    }
-
-    sliderHandle.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      document.addEventListener('mousemove', handleMove);
-      document.addEventListener('mouseup', stopDragging);
-      e.preventDefault();
-    });
-
-    sliderHandle.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      document.addEventListener('touchmove', handleMove);
-      document.addEventListener('touchend', stopDragging);
-      e.preventDefault();
+    slider.addEventListener('input', () => {
+      afterImage.style.clip = `rect(0, ${slider.value}%, 100%, 0)`;
     });
 
     // === Rest of the JS ===
@@ -366,8 +319,8 @@
           
           resultDiv.classList.remove("hidden");
 
-          // Reset slider to middle
-          sliderHandle.style.left = '50%';
+          // Reset slider to 50%
+          slider.value = 50;
           afterImage.style.clip = 'rect(0, 50%, 100%, 0)';
 
           downloadBtn.onclick = () => {
