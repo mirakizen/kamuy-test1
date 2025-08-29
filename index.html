@@ -569,9 +569,9 @@
       
       <!-- Tab Navigation -->
       <div class="tabs-container mb-6">
-        <div class="tab active" data-tab="prompt-edit">Prompt Edit</div>
-        <div class="tab" data-tab="mask-edit">Remove/Add Mask</div>
-        <div class="tab" data-tab="style-transfer">Style Transfer</div>
+        <div class="tab active" data-tab="promptEdit">Prompt Edit</div>
+        <div class="tab" data-tab="maskEdit">Remove/Add Mask</div>
+        <div class="tab" data-tab="styleTransfer">Style Transfer</div>
       </div>
       
       <!-- Tab Content -->
@@ -828,23 +828,37 @@
         // Add active class to clicked tab and corresponding content
         tab.classList.add('active');
         const tabName = tab.getAttribute('data-tab');
-        document.getElementById(`${tabName}Tab`).classList.add('active');
+        const contentElement = document.getElementById(`${tabName}Tab`);
         
-        // Initialize tab-specific functionality
-        if (tabName === 'mask-edit') {
-          initMaskEditor();
+        // Critical fix: Check if content element exists before accessing classList
+        if (contentElement) {
+          contentElement.classList.add('active');
+          
+          // Initialize tab-specific functionality
+          if (tabName === 'maskEdit') {
+            initMaskEditor();
+          } else if (tabName === 'styleTransfer') {
+            setupStyleTransferTab();
+          }
         }
       });
     });
     
-    // Style intensity slider
-    const intensitySlider = document.getElementById('styleIntensity');
-    const intensityValue = document.getElementById('intensityValue');
+    // Initialize style transfer tab functionality
+    function setupStyleTransferTab() {
+      const intensitySlider = document.getElementById('styleIntensity');
+      const intensityValue = document.getElementById('intensityValue');
+      
+      if (intensitySlider && intensityValue) {
+        intensitySlider.addEventListener('input', () => {
+          const value = Math.round(intensitySlider.value * 100);
+          intensityValue.textContent = `${value}%`;
+        });
+      }
+    }
     
-    intensitySlider.addEventListener('input', () => {
-      const value = Math.round(intensitySlider.value * 100);
-      intensityValue.textContent = `${value}%`;
-    });
+    // Style intensity slider
+    setupStyleTransferTab();
     
     // Mask editor functionality
     let maskCanvas = null;
@@ -859,7 +873,7 @@
       const canvas = document.getElementById('maskCanvas');
       const img = document.getElementById('maskBaseImage');
       
-      if (!img.src) return;
+      if (!img || !img.src) return;
       
       // Set canvas dimensions to match image
       const rect = img.getBoundingClientRect();
@@ -894,11 +908,13 @@
       const brushSizeInput = document.getElementById('brushSize');
       const brushPreview = document.querySelector('.brush-size-preview');
       
-      brushSizeInput.addEventListener('input', () => {
-        brushSize = parseInt(brushSizeInput.value);
-        brushPreview.style.width = `${brushSize/2}px`;
-        brushPreview.style.height = `${brushSize/2}px`;
-      });
+      if (brushSizeInput && brushPreview) {
+        brushSizeInput.addEventListener('input', () => {
+          brushSize = parseInt(brushSizeInput.value);
+          brushPreview.style.width = `${brushSize/2}px`;
+          brushPreview.style.height = `${brushSize/2}px`;
+        });
+      }
       
       // Drawing events
       maskCanvas.addEventListener('mousedown', startDrawing);
@@ -917,18 +933,28 @@
       maskCanvas.addEventListener('touchend', stopDrawing);
       
       // Undo/Redo
-      document.querySelector('[data-tool="undo"]').addEventListener('click', undo);
-      document.querySelector('[data-tool="redo"]').addEventListener('click', redo);
+      const undoTool = document.querySelector('[data-tool="undo"]');
+      const redoTool = document.querySelector('[data-tool="redo"]');
+      
+      if (undoTool) {
+        undoTool.addEventListener('click', undo);
+      }
+      
+      if (redoTool) {
+        redoTool.addEventListener('click', redo);
+      }
     }
     
     function startDrawing(e) {
+      if (!maskCanvas || !maskCtx) return;
+      
       isDrawing = true;
       saveState();
       draw(e);
     }
     
     function draw(e) {
-      if (!isDrawing) return;
+      if (!isDrawing || !maskCanvas || !maskCtx) return;
       
       const rect = maskCanvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -957,24 +983,28 @@
     
     function stopDrawing() {
       isDrawing = false;
-      maskCtx.beginPath();
+      if (maskCtx) {
+        maskCtx.beginPath();
+      }
     }
     
     function saveState() {
+      if (!maskCtx || !maskCanvas) return;
+      
       maskHistory = maskHistory.slice(0, historyIndex + 1);
       maskHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
       historyIndex = maskHistory.length - 1;
     }
     
     function undo() {
-      if (historyIndex <= 0) return;
+      if (historyIndex <= 0 || !maskCtx) return;
       
       historyIndex--;
       maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
     }
     
     function redo() {
-      if (historyIndex >= maskHistory.length - 1) return;
+      if (historyIndex >= maskHistory.length - 1 || !maskCtx) return;
       
       historyIndex++;
       maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
@@ -1226,6 +1256,8 @@
     };
 
     function updatePlaceholder(input, styles) {
+      if (!input) return;
+      
       if (input.value) return;
       
       const activeStyles = Array.from(styles);
@@ -1259,7 +1291,7 @@
     }
 
     promptInput.addEventListener('focus', () => {
-      if (!promptInput.value) {
+      if (promptInput && !promptInput.value) {
         const activeStyles = Array.from(selectedStyles);
         if (activeStyles.length > 0) {
           promptInput.placeholder = "For example: " + stylePlaceholders[activeStyles[0]];
@@ -1268,7 +1300,7 @@
     });
 
     promptInput.addEventListener('blur', () => {
-      if (!promptInput.value) {
+      if (promptInput) {
         updatePlaceholder(promptInput, selectedStyles);
       }
     });
@@ -1498,333 +1530,341 @@
     loadHistory();
 
     // === Prompt Edit Functionality ===
-    editBtn.addEventListener("click", async () => {
-      const imageFile = imageInput.files[0];
-      const prompt = document.getElementById("prompt").value.trim();
-      const stylePrompt = getStylePrompt();
+    if (editBtn) {
+      editBtn.addEventListener("click", async () => {
+        const imageFile = imageInput.files[0];
+        const prompt = document.getElementById("prompt").value.trim();
+        const stylePrompt = getStylePrompt();
 
-      if (!imageFile || (!prompt && selectedStyles.size === 0)) {
-        alert("Please upload an image and enter a prompt or select a style.");
-        return;
-      }
+        if (!imageFile || (!prompt && selectedStyles.size === 0)) {
+          alert("Please upload an image and enter a prompt or select a style.");
+          return;
+        }
 
-      try {
-        editBtn.classList.add("hidden");
-        loading.classList.remove("hidden");
-        resultDiv.classList.add("hidden");
-        
-        const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
-        const compressionResult = await compressForServer(imageFile);
-        const compressedFile = compressionResult.file;
-        
-        // Show compression info
-        const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
-        const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-        const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-        showToast(qualityMsg);
+        try {
+          editBtn.classList.add("hidden");
+          loading.classList.remove("hidden");
+          resultDiv.classList.add("hidden");
+          
+          const finalPrompt = stylePrompt ? (prompt ? `${prompt}, ${stylePrompt}` : stylePrompt) : prompt;
+          const compressionResult = await compressForServer(imageFile);
+          const compressedFile = compressionResult.file;
+          
+          // Show compression info
+          const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+          const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+          const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+          showToast(qualityMsg);
 
-        // Convert to base64
-        const base64Image = await fileToBase64(compressedFile);
+          // Convert to base64
+          const base64Image = await fileToBase64(compressedFile);
 
-        // API call
-        const response = await fetch("/api/edit", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify({
-            image: base64Image,
-            imageName: imageFile.name,
-            imageType: imageFile.type,
-            prompt: finalPrompt
-          })
-        });
+          // API call
+          const response = await fetch("/api/edit", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify({
+              image: base64Image,
+              imageName: imageFile.name,
+              imageType: imageFile.type,
+              prompt: finalPrompt
+            })
+          });
 
-        // Error handling
-        if (!response.ok) {
-          let errorMessage = `Server error: ${response.status}`;
-          try {
-            const errorData = await response.json();
-            if (errorData.error) {
-              errorMessage += ` - ${errorData.error}`;
-            } else if (errorData.detail) {
-              errorMessage += ` - ${errorData.detail}`;
-            }
-          } catch (e) {
+          // Error handling
+          if (!response.ok) {
+            let errorMessage = `Server error: ${response.status}`;
             try {
-              const errorText = await response.text();
-              errorMessage += ` - ${errorText.substring(0, 100)}...`;
-            } catch (e2) {
-              errorMessage += " - Failed to parse error response";
+              const errorData = await response.json();
+              if (errorData.error) {
+                errorMessage += ` - ${errorData.error}`;
+              } else if (errorData.detail) {
+                errorMessage += ` - ${errorData.detail}`;
+              }
+            } catch (e) {
+              try {
+                const errorText = await response.text();
+                errorMessage += ` - ${errorText.substring(0, 100)}...`;
+              } catch (e2) {
+                errorMessage += " - Failed to parse error response";
+              }
             }
+            
+            // Special handling for Facebook WebView issues
+            if (isFacebookWebView() && response.status === 413) {
+              errorMessage = "Image too large for Facebook browser. Please open in Chrome or Safari and try again.";
+            }
+            
+            throw new Error(errorMessage);
           }
-          
-          // Special handling for Facebook WebView issues
-          if (isFacebookWebView() && response.status === 413) {
-            errorMessage = "Image too large for Facebook browser. Please open in Chrome or Safari and try again.";
+
+          // Parse response
+          const contentType = response.headers.get("content-type");
+          let data;
+          if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+          } else {
+            throw new Error("Expected JSON response but received different content type");
           }
-          
-          throw new Error(errorMessage);
+
+          if (data.edited_image_url) {
+            const originalUrl = URL.createObjectURL(imageFile);
+            beforeImage.src = originalUrl;
+            afterImage.src = data.edited_image_url;
+            
+            resultDiv.classList.remove("hidden");
+
+            // Reset slider to 50%
+            const container = sliderHandle.parentElement;
+            const midPoint = (container.offsetWidth - 40) / 2;
+            sliderHandle.style.left = midPoint + 'px';
+            imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+            // Set up download functionality
+            setupDownload(data.edited_image_url);
+            showToast("Edit completed! 🎉");
+          } else {
+            throw new Error("Invalid response format: missing edited_image_url");
+          }
+        } catch (err) {
+          console.error("Detailed error:", err);
+          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
+        } finally {
+          loading.classList.add("hidden");
+          editBtn.classList.remove("hidden");
         }
-
-        // Parse response
-        const contentType = response.headers.get("content-type");
-        let data;
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          throw new Error("Expected JSON response but received different content type");
-        }
-
-        if (data.edited_image_url) {
-          const originalUrl = URL.createObjectURL(imageFile);
-          beforeImage.src = originalUrl;
-          afterImage.src = data.edited_image_url;
-          
-          resultDiv.classList.remove("hidden");
-
-          // Reset slider to 50%
-          const container = sliderHandle.parentElement;
-          const midPoint = (container.offsetWidth - 40) / 2;
-          sliderHandle.style.left = midPoint + 'px';
-          imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
-
-          // Set up download functionality
-          setupDownload(data.edited_image_url);
-          showToast("Edit completed! 🎉");
-        } else {
-          throw new Error("Invalid response format: missing edited_image_url");
-        }
-      } catch (err) {
-        console.error("Detailed error:", err);
-        alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-      } finally {
-        loading.classList.add("hidden");
-        editBtn.classList.remove("hidden");
-      }
-    });
+      });
+    }
     
     // === Mask Edit Functionality ===
-    maskEditBtn.addEventListener("click", async () => {
-      const imageFile = maskImageInput.files[0];
-      const prompt = document.getElementById("maskPrompt").value.trim();
-      
-      if (!imageFile || !prompt) {
-        alert("Please upload an image and enter a prompt for the mask edit.");
-        return;
-      }
-      
-      try {
-        maskEditBtn.classList.add("hidden");
-        loading.classList.remove("hidden");
-        resultDiv.classList.add("hidden");
+    if (maskEditBtn) {
+      maskEditBtn.addEventListener("click", async () => {
+        const imageFile = maskImageInput.files[0];
+        const prompt = document.getElementById("maskPrompt").value.trim();
         
-        // For mask editing, we'll use the same compression as prompt editing
-        const compressionResult = await compressForServer(imageFile);
-        const compressedFile = compressionResult.file;
+        if (!imageFile || !prompt) {
+          alert("Please upload an image and enter a prompt for the mask edit.");
+          return;
+        }
         
-        // Show compression info
-        const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
-        const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-        const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-        showToast(qualityMsg);
+        try {
+          maskEditBtn.classList.add("hidden");
+          loading.classList.remove("hidden");
+          resultDiv.classList.add("hidden");
+          
+          // For mask editing, we'll use the same compression as prompt editing
+          const compressionResult = await compressForServer(imageFile);
+          const compressedFile = compressionResult.file;
+          
+          // Show compression info
+          const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+          const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+          const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+          showToast(qualityMsg);
 
-        // Convert to base64
-        const base64Image = await fileToBase64(compressedFile);
+          // Convert to base64
+          const base64Image = await fileToBase64(compressedFile);
 
-        // API call - same endpoint but with mask information
-        const response = await fetch("/api/edit", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify({
-            image: base64Image,
-            imageName: imageFile.name,
-            imageType: imageFile.type,
-            prompt: prompt,
-            // In a real implementation, we'd include mask data here
-            mask_data: null
-          })
-        });
+          // API call - same endpoint but with mask information
+          const response = await fetch("/api/edit", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify({
+              image: base64Image,
+              imageName: imageFile.name,
+              imageType: imageFile.type,
+              prompt: prompt,
+              // In a real implementation, we'd include mask data here
+              mask: null
+            })
+          });
 
-        // Error handling
-        if (!response.ok) {
-          let errorMessage = `Server error: ${response.status}`;
-          try {
-            const errorData = await response.json();
-            if (errorData.error) {
-              errorMessage += ` - ${errorData.error}`;
-            } else if (errorData.detail) {
-              errorMessage += ` - ${errorData.detail}`;
-            }
-          } catch (e) {
+          // Error handling
+          if (!response.ok) {
+            let errorMessage = `Server error: ${response.status}`;
             try {
-              const errorText = await response.text();
-              errorMessage += ` - ${errorText.substring(0, 100)}...`;
-            } catch (e2) {
-              errorMessage += " - Failed to parse error response";
+              const errorData = await response.json();
+              if (errorData.error) {
+                errorMessage += ` - ${errorData.error}`;
+              } else if (errorData.detail) {
+                errorMessage += ` - ${errorData.detail}`;
+              }
+            } catch (e) {
+              try {
+                const errorText = await response.text();
+                errorMessage += ` - ${errorText.substring(0, 100)}...`;
+              } catch (e2) {
+                errorMessage += " - Failed to parse error response";
+              }
             }
+            
+            throw new Error(errorMessage);
           }
-          
-          throw new Error(errorMessage);
+
+          // Parse response
+          const contentType = response.headers.get("content-type");
+          let data;
+          if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+          } else {
+            throw new Error("Expected JSON response but received different content type");
+          }
+
+          if (data.edited_image_url) {
+            const originalUrl = URL.createObjectURL(imageFile);
+            beforeImage.src = originalUrl;
+            afterImage.src = data.edited_image_url;
+            
+            resultDiv.classList.remove("hidden");
+
+            // Reset slider to 50%
+            const container = sliderHandle.parentElement;
+            const midPoint = (container.offsetWidth - 40) / 2;
+            sliderHandle.style.left = midPoint + 'px';
+            imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+            // Set up download functionality
+            setupDownload(data.edited_image_url);
+            showToast("Mask edit completed! 🎉");
+          } else {
+            throw new Error("Invalid response format: missing edited_image_url");
+          }
+        } catch (err) {
+          console.error("Detailed error:", err);
+          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
+        } finally {
+          loading.classList.add("hidden");
+          maskEditBtn.classList.remove("hidden");
         }
-
-        // Parse response
-        const contentType = response.headers.get("content-type");
-        let data;
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          throw new Error("Expected JSON response but received different content type");
-        }
-
-        if (data.edited_image_url) {
-          const originalUrl = URL.createObjectURL(imageFile);
-          beforeImage.src = originalUrl;
-          afterImage.src = data.edited_image_url;
-          
-          resultDiv.classList.remove("hidden");
-
-          // Reset slider to 50%
-          const container = sliderHandle.parentElement;
-          const midPoint = (container.offsetWidth - 40) / 2;
-          sliderHandle.style.left = midPoint + 'px';
-          imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
-
-          // Set up download functionality
-          setupDownload(data.edited_image_url);
-          showToast("Mask edit completed! 🎉");
-        } else {
-          throw new Error("Invalid response format: missing edited_image_url");
-        }
-      } catch (err) {
-        console.error("Detailed error:", err);
-        alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-      } finally {
-        loading.classList.add("hidden");
-        maskEditBtn.classList.remove("hidden");
-      }
-    });
+      });
+    }
     
     // === Style Transfer Functionality ===
-    styleEditBtn.addEventListener("click", async () => {
-      const imageFile = styleImageInput.files[0];
-      const prompt = document.getElementById("prompt").value.trim();
-      const stylePrompt = getStylePrompt();
-      const intensity = document.getElementById('styleIntensity').value;
-      
-      if (!imageFile || selectedStyles.size === 0) {
-        alert("Please upload an image and select at least one style.");
-        return;
-      }
-      
-      try {
-        styleEditBtn.classList.add("hidden");
-        loading.classList.remove("hidden");
-        resultDiv.classList.add("hidden");
+    if (styleEditBtn) {
+      styleEditBtn.addEventListener("click", async () => {
+        const imageFile = styleImageInput.files[0];
+        const prompt = document.getElementById("prompt").value.trim();
+        const stylePrompt = getStylePrompt();
+        const intensity = document.getElementById('styleIntensity') ? document.getElementById('styleIntensity').value : 0.7;
         
-        // For style transfer, we'll use the same compression
-        const compressionResult = await compressForServer(imageFile);
-        const compressedFile = compressionResult.file;
-        
-        // Show compression info
-        const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
-        const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-        const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-        showToast(qualityMsg);
-
-        // Convert to base64
-        const base64Image = await fileToBase64(compressedFile);
-
-        // Construct prompt with style information
-        let finalPrompt = stylePrompt;
-        if (prompt) {
-          finalPrompt = `${prompt}, ${stylePrompt}`;
+        if (!imageFile || selectedStyles.size === 0) {
+          alert("Please upload an image and select at least one style.");
+          return;
         }
         
-        // API call
-        const response = await fetch("/api/edit", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify({
-            image: base64Image,
-            imageName: imageFile.name,
-            imageType: imageFile.type,
-            prompt: finalPrompt,
-            // In a real implementation, we'd use intensity parameter
-            style_intensity: intensity
-          })
-        });
+        try {
+          styleEditBtn.classList.add("hidden");
+          loading.classList.remove("hidden");
+          resultDiv.classList.add("hidden");
+          
+          // For style transfer, we'll use the same compression
+          const compressionResult = await compressForServer(imageFile);
+          const compressedFile = compressionResult.file;
+          
+          // Show compression info
+          const originalMB = (imageFile.size / (1024*1024)).toFixed(1);
+          const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+          const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+          showToast(qualityMsg);
 
-        // Error handling
-        if (!response.ok) {
-          let errorMessage = `Server error: ${response.status}`;
-          try {
-            const errorData = await response.json();
-            if (errorData.error) {
-              errorMessage += ` - ${errorData.error}`;
-            } else if (errorData.detail) {
-              errorMessage += ` - ${errorData.detail}`;
-            }
-          } catch (e) {
-            try {
-              const errorText = await response.text();
-              errorMessage += ` - ${errorText.substring(0, 100)}...`;
-            } catch (e2) {
-              errorMessage += " - Failed to parse error response";
-            }
+          // Convert to base64
+          const base64Image = await fileToBase64(compressedFile);
+
+          // Construct prompt with style information
+          let finalPrompt = stylePrompt;
+          if (prompt) {
+            finalPrompt = `${prompt}, ${stylePrompt}`;
           }
           
-          throw new Error(errorMessage);
+          // API call
+          const response = await fetch("/api/edit", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify({
+              image: base64Image,
+              imageName: imageFile.name,
+              imageType: imageFile.type,
+              prompt: finalPrompt,
+              // In a real implementation, we'd use intensity parameter
+              style_intensity: intensity
+            })
+          });
+
+          // Error handling
+          if (!response.ok) {
+            let errorMessage = `Server error: ${response.status}`;
+            try {
+              const errorData = await response.json();
+              if (errorData.error) {
+                errorMessage += ` - ${errorData.error}`;
+              } else if (errorData.detail) {
+                errorMessage += ` - ${errorData.detail}`;
+              }
+            } catch (e) {
+              try {
+                const errorText = await response.text();
+                errorMessage += ` - ${errorText.substring(0, 100)}...`;
+              } catch (e2) {
+                errorMessage += " - Failed to parse error response";
+              }
+            }
+            
+            throw new Error(errorMessage);
+          }
+
+          // Parse response
+          const contentType = response.headers.get("content-type");
+          let data;
+          if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+          } else {
+            throw new Error("Expected JSON response but received different content type");
+          }
+
+          if (data.edited_image_url) {
+            const originalUrl = URL.createObjectURL(imageFile);
+            beforeImage.src = originalUrl;
+            afterImage.src = data.edited_image_url;
+            
+            resultDiv.classList.remove("hidden");
+
+            // Reset slider to 50%
+            const container = sliderHandle.parentElement;
+            const midPoint = (container.offsetWidth - 40) / 2;
+            sliderHandle.style.left = midPoint + 'px';
+            imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
+
+            // Set up download functionality
+            setupDownload(data.edited_image_url);
+            showToast("Style transfer completed! 🎨");
+          } else {
+            throw new Error("Invalid response format: missing edited_image_url");
+          }
+        } catch (err) {
+          console.error("Detailed error:", err);
+          alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
+        } finally {
+          loading.classList.add("hidden");
+          styleEditBtn.classList.remove("hidden");
         }
-
-        // Parse response
-        const contentType = response.headers.get("content-type");
-        let data;
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          throw new Error("Expected JSON response but received different content type");
-        }
-
-        if (data.edited_image_url) {
-          const originalUrl = URL.createObjectURL(imageFile);
-          beforeImage.src = originalUrl;
-          afterImage.src = data.edited_image_url;
-          
-          resultDiv.classList.remove("hidden");
-
-          // Reset slider to 50%
-          const container = sliderHandle.parentElement;
-          const midPoint = (container.offsetWidth - 40) / 2;
-          sliderHandle.style.left = midPoint + 'px';
-          imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
-
-          // Set up download functionality
-          setupDownload(data.edited_image_url);
-          showToast("Style transfer completed! 🎨");
-        } else {
-          throw new Error("Invalid response format: missing edited_image_url");
-        }
-      } catch (err) {
-        console.error("Detailed error:", err);
-        alert("Error: " + err.message + "\\n\\nPlease try a smaller image or open in Chrome/Safari browser.");
-      } finally {
-        loading.classList.add("hidden");
-        styleEditBtn.classList.remove("hidden");
-      }
-    });
+      });
+    }
 
     // Setup download functionality with Facebook WebView compatibility
     function setupDownload(imageUrl) {
       // Clear previous instructions
-      downloadInstructions.textContent = '';
+      if (downloadInstructions) {
+        downloadInstructions.textContent = '';
+      }
       
       // For Facebook WebView, use a different approach
       if (isFacebookWebView()) {
@@ -1844,7 +1884,9 @@
               window.open(url, '_blank');
               
               // Show instructions
-              downloadInstructions.textContent = 'Tap and hold the image to save it to your device';
+              if (downloadInstructions) {
+                downloadInstructions.textContent = 'Tap and hold the image to save it to your device';
+              }
               showToast('Image opened in new tab - tap and hold to save');
             } else {
               // For desktop Facebook WebView (rare), try normal download
@@ -1883,7 +1925,9 @@
     }
 
     // Initialize placeholder
-    updatePlaceholder(promptInput, selectedStyles);
+    if (promptInput) {
+      updatePlaceholder(promptInput, selectedStyles);
+    }
   </script>
 </body>
 </html>
