@@ -13,12 +13,6 @@
     .style-btn {
       @apply px-3 py-1 text-xs font-medium rounded-full border border-gray-300 transition-all duration-200 cursor-pointer;
     }
-    .style-btn.active {
-      @apply bg-blue-600 text-white border-blue-600 shadow-md transform scale-105;
-    }
-    .style-btn:not(.active):hover {
-      @apply border-blue-500 bg-blue-50;
-    }
     .style-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -105,18 +99,26 @@
     const selectedStyles = new Set();
 
     function toggleStyle(button, style) {
-      const isActive = button.classList.contains("active");
+      const isActive = button.style.backgroundColor === 'rgb(37, 99, 235)'; // Check if blue
       if (isActive) {
-        button.classList.remove("active");
+        // Deactivate
+        button.style.backgroundColor = '';
+        button.style.borderColor = '#d1d5db';
+        button.style.color = '#1f2937';
+        button.style.transform = 'scale(1)';
         selectedStyles.delete(style);
       } else {
-        button.classList.add("active");
+        // Activate
+        button.style.backgroundColor = '#2563eb'; // blue-600
+        button.style.borderColor = '#2563eb';
+        button.style.color = 'white';
+        button.style.transform = 'scale(1.05)';
         selectedStyles.add(style);
       }
       console.log("Toggled:", style, "Active:", Array.from(selectedStyles));
     }
 
-    // === All other JS remains the same ===
+    // === Rest of the JS remains the same ===
     const dropzone = document.getElementById("dropzone");
     const imageInput = document.getElementById("imageInput");
     dropzone.addEventListener("click", () => imageInput.click());
