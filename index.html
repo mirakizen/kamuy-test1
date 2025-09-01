@@ -761,16 +761,16 @@
               <span class="tooltip">Soft watercolor painting style</span>
             </button>
             <button type="button" class="style-btn">
-              🎨 Banksy
-              <span class="tooltip">Street art with stencils and social commentary</span>
+              🎨 Impressionist
+              <span class="tooltip">Visible brushstrokes with light effects</span>
             </button>
             <button type="button" class="style-btn">
-              🏰 Medieval
-              <span class="tooltip">Illuminated manuscript style with gold leaf details</span>
+              🎞️ Film Noir
+              <span class="tooltip">Classic black and white cinematic style with dramatic lighting</span>
             </button>
             <button type="button" class="style-btn">
-              🦸 1960s Comics
-              <span class="tooltip">Classic USA/Western comic book style with halftone dots</span>
+              💡 Neon Glow
+              <span class="tooltip">Vibrant neon glow effect with light trails</span>
             </button>
             <button type="button" class="style-btn">
               🔮 Kaleidoscope
@@ -906,9 +906,9 @@
       pixar: "in Pixar 3D animation style, soft lighting",
       'desert mirage': "with desert mirage effect, heat haze",
       watercolor: "in soft watercolor painting style",
-      banksy: "in Banksy street art style with stencils and social commentary",
-      medieval: "in medieval illuminated manuscript style with gold leaf details",
-      '1960s comics': "in classic USA/Western comic book style with halftone dots",
+      impressionist: "in impressionist style with visible brushstrokes and light effects",
+      'film noir': "in classic black and white film noir cinematic style with dramatic lighting",
+      'neon glow': "in vibrant neon glow effect with light trails and cyber atmosphere",
       kaleidoscope: "with symmetrical kaleidoscopic effect"
     };
     
@@ -1378,7 +1378,7 @@
                     image: base64Image,
                     imageName: state.imageFile.name,
                     imageType: state.imageFile.type,
-                    prompt: "Remove background, keep foreground object exactly as is"
+                    prompt: "Remove ONLY the background while keeping the foreground object exactly as it appears in the original image, with no changes to colors, lighting, textures, or details"
                   })
                 });
                 
@@ -1581,9 +1581,9 @@
                     pixar: "in Pixar 3D animation style, soft lighting",
                     'desert mirage': "with desert mirage effect, heat haze",
                     watercolor: "in soft watercolor painting style",
-                    banksy: "in Banksy street art style with stencils and social commentary",
-                    medieval: "in medieval illuminated manuscript style with gold leaf details",
-                    '1960s comics': "in classic USA/Western comic book style with halftone dots",
+                    impressionist: "in impressionist style with visible brushstrokes and light effects",
+                    'film noir': "in classic black and white film noir cinematic style with dramatic lighting",
+                    'neon glow': "in vibrant neon glow effect with light trails and cyber atmosphere",
                     kaleidoscope: "with symmetrical kaleidoscopic effect"
                   };
                   return styles[s] || s;
