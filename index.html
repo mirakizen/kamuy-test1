@@ -433,7 +433,7 @@
     .text-edit-preview {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 1rem;
       margin-top: 1rem;
     }
     
@@ -443,6 +443,7 @@
       padding: 0.5rem;
       cursor: pointer;
       transition: all 0.2s;
+      width: 150px;
     }
     
     .text-edit-example:hover {
@@ -451,10 +452,97 @@
     }
     
     .text-edit-example img {
-      width: 100px;
-      height: 100px;
+      width: 100%;
+      height: 150px;
       object-fit: cover;
       border-radius: 4px;
+    }
+    
+    .text-edit-example p {
+      margin-top: 0.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+    }
+    
+    /* Image Preview Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-content {
+      max-width: 90%;
+      max-height: 90%;
+    }
+    
+    .modal-content img {
+      max-width: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      font-size: 2rem;
+      cursor: pointer;
+    }
+    
+    /* Image Preview */
+    .image-preview {
+      width: 100%;
+      height: 200px;
+      object-fit: contain;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+    
+    /* Image upload preview */
+    .image-preview-container {
+      margin-top: 0.5rem;
+      width: 100%;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-primary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .image-preview-container img {
+      max-width: 100%;
+      max-height: 190px;
+      object-fit: contain;
+    }
+    
+    /* Mobile specific fixes */
+    @media (max-width: 768px) {
+      .comparison-container {
+        height: 300px;
+      }
+      
+      .comparison-image {
+        height: 300px;
+      }
+      
+      .image-overlay img {
+        height: 300px;
+      }
+      
+      .slider-handle {
+        width: 30px;
+      }
     }
   </style>
 </head>
@@ -492,9 +580,9 @@
             <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
           </div>
           <!-- Preview -->
-          <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
-            <img id="previewImg" class="h-20 w-20 object-cover rounded" />
-            <div class="ml-3">
+          <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
+            <img id="previewImg" class="image-preview" />
+            <div class="ml-3 mt-2 text-center w-full">
               <p id="previewName" class="text-sm font-medium"></p>
               <p id="previewSize" class="text-sm"></p>
             </div>
@@ -528,9 +616,9 @@
             <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
           </div>
           <!-- Preview -->
-          <div id="textImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
-            <img id="textPreviewImg" class="h-20 w-20 object-cover rounded" />
-            <div class="ml-3">
+          <div id="textImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
+            <img id="textPreviewImg" class="image-preview" />
+            <div class="ml-3 mt-2 text-center w-full">
               <p id="textPreviewName" class="text-sm font-medium"></p>
               <p id="textPreviewSize" class="text-sm"></p>
             </div>
@@ -551,15 +639,15 @@
           <div class="text-edit-preview mt-4">
             <div class="text-edit-example">
               <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8715.JPG" alt="Text editing example" />
-              <p class="text-xs mt-1">Edit English text</p>
+              <p>Edit English text</p>
             </div>
             <div class="text-edit-example">
               <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8717.JPG" alt="Chinese text editing example" />
-              <p class="text-xs mt-1">Edit Chinese text</p>
+              <p>Edit Chinese text</p>
             </div>
             <div class="text-edit-example">
               <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8718.JPG" alt="Calligraphy editing example" />
-              <p class="text-xs mt-1">Edit calligraphy</p>
+              <p>Edit calligraphy</p>
             </div>
           </div>
         </div>
@@ -571,7 +659,7 @@
       </div>
       
       <div id="backgroundRemoverTab" class="tab-content">
-        <p class="text-center mb-6 text-sm text-gray-500">Remove background with one click - no manual editing needed</p>
+        <p class="text-center mb-6 text-sm text-gray-500">Remove background while keeping the foreground object exactly as is</p>
         
         <!-- Upload -->
         <div class="mb-6">
@@ -585,9 +673,9 @@
             <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
           </div>
           <!-- Preview -->
-          <div id="bgImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
-            <img id="bgPreviewImg" class="h-20 w-20 object-cover rounded" />
-            <div class="ml-3">
+          <div id="bgImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
+            <img id="bgPreviewImg" class="image-preview" />
+            <div class="ml-3 mt-2 text-center w-full">
               <p id="bgPreviewName" class="text-sm font-medium"></p>
               <p id="bgPreviewSize" class="text-sm"></p>
             </div>
@@ -615,9 +703,9 @@
             <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
           </div>
           <!-- Preview -->
-          <div id="styleImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
-            <img id="stylePreviewImg" class="h-20 w-20 object-cover rounded" />
-            <div class="ml-3">
+          <div id="styleImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
+            <img id="stylePreviewImg" class="image-preview" />
+            <div class="ml-3 mt-2 text-center w-full">
               <p id="stylePreviewName" class="text-sm font-medium"></p>
               <p id="stylePreviewSize" class="text-sm"></p>
             </div>
@@ -645,7 +733,7 @@
               <span class="tooltip">Neon lights, rain, futuristic</span>
             </button>
             <button type="button" class="style-btn">
-              ��️ Van Gogh
+              🖼️ Van Gogh
               <span class="tooltip">Expressive brushstrokes, textured</span>
             </button>
             <button type="button" class="style-btn">
@@ -673,16 +761,16 @@
               <span class="tooltip">Soft watercolor painting style</span>
             </button>
             <button type="button" class="style-btn">
-              🎨 Dots Art
-              <span class="tooltip">Pointillism with colorful dots</span>
+              🎨 Banksy
+              <span class="tooltip">Street art with stencils and social commentary</span>
             </button>
             <button type="button" class="style-btn">
-              🗿 Marble
-              <span class="tooltip">Sculpted marble statue appearance</span>
+              🏰 Medieval
+              <span class="tooltip">Illuminated manuscript style with gold leaf details</span>
             </button>
             <button type="button" class="style-btn">
-              🏺 Clay
-              <span class="tooltip">Hand-sculpted clay texture</span>
+              🦸 1960s Comics
+              <span class="tooltip">Classic USA/Western comic book style with halftone dots</span>
             </button>
             <button type="button" class="style-btn">
               🔮 Kaleidoscope
@@ -757,6 +845,14 @@
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </svg>
   </div>
+  
+  <!-- Image Modal -->
+  <div id="imageModal" class="modal">
+    <div class="modal-content">
+      <img id="modalImage" src="" alt="Expanded view" />
+      <span class="modal-close">&times;</span>
+    </div>
+  </div>
 
   <script>
     // Tab state management
@@ -810,9 +906,9 @@
       pixar: "in Pixar 3D animation style, soft lighting",
       'desert mirage': "with desert mirage effect, heat haze",
       watercolor: "in soft watercolor painting style",
-      'dots art': "in pointillism style with colorful dots",
-      marble: "as a sculpted marble statue",
-      clay: "in hand-sculpted clay texture",
+      banksy: "in Banksy street art style with stencils and social commentary",
+      medieval: "in medieval illuminated manuscript style with gold leaf details",
+      '1960s comics': "in classic USA/Western comic book style with halftone dots",
       kaleidoscope: "with symmetrical kaleidoscopic effect"
     };
     
@@ -823,6 +919,9 @@
       const tabContents = document.querySelectorAll('.tab-content');
       const toast = document.getElementById('toast');
       const newEditBtn = document.getElementById('newEditBtn');
+      const imageModal = document.getElementById('imageModal');
+      const modalImage = document.getElementById('modalImage');
+      const modalClose = document.querySelector('.modal-close');
       
       // Initialize tab state based on current tab
       function initTabState() {
@@ -1268,7 +1367,7 @@
                 // Convert to base64
                 const base64Image = await fileToBase64(compressedFile);
                 
-                // API call - simplified background removal
+                // API call - using the optimal background removal prompt
                 const response = await fetch("/api/edit", {
                   method: "POST",
                   headers: { 
@@ -1279,7 +1378,7 @@
                     image: base64Image,
                     imageName: state.imageFile.name,
                     imageType: state.imageFile.type,
-                    prompt: "Remove the background while keeping the foreground object with high detail"
+                    prompt: "Remove background, keep foreground object exactly as is"
                   })
                 });
                 
@@ -1482,9 +1581,9 @@
                     pixar: "in Pixar 3D animation style, soft lighting",
                     'desert mirage': "with desert mirage effect, heat haze",
                     watercolor: "in soft watercolor painting style",
-                    'dots art': "in pointillism style with colorful dots",
-                    marble: "as a sculpted marble statue",
-                    clay: "in hand-sculpted clay texture",
+                    banksy: "in Banksy street art style with stencils and social commentary",
+                    medieval: "in medieval illuminated manuscript style with gold leaf details",
+                    '1960s comics': "in classic USA/Western comic book style with halftone dots",
                     kaleidoscope: "with symmetrical kaleidoscopic effect"
                   };
                   return styles[s] || s;
@@ -2040,7 +2139,7 @@
               const canvas = document.createElement('canvas');
               canvas.width = width;
               canvas.height = height;
-              const ctx = canvas.getContext('2d');
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
               ctx.drawImage(img, 0, 0, width, height);
               
               // Start with high quality
@@ -2121,6 +2220,29 @@
           }
         });
       }
+      
+      // === Image Modal Functionality ===
+      const textEditExamples = document.querySelectorAll('.text-edit-example');
+      
+      textEditExamples.forEach(example => {
+        example.addEventListener('click', () => {
+          const img = example.querySelector('img');
+          if (img && modalImage) {
+            modalImage.src = img.src;
+            imageModal.style.display = 'flex';
+          }
+        });
+      });
+      
+      modalClose.addEventListener('click', () => {
+        imageModal.style.display = 'none';
+      });
+      
+      imageModal.addEventListener('click', (e) => {
+        if (e.target === imageModal) {
+          imageModal.style.display = 'none';
+        }
+      });
     });
   </script>
 </body>
