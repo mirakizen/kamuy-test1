@@ -525,6 +525,7 @@
       <div class="tabs-container mb-6">
         <div class="tab active" data-tab="promptEdit">Prompt Edit</div>
         <div class="tab" data-tab="maskEdit">Remove/Add Mask</div>
+        <div class="tab" data-tab="backgroundRemover">Background Remover</div>
         <div class="tab" data-tab="styleTransfer">Style Transfer</div>
       </div>
       
@@ -615,15 +616,65 @@
           </div>
         </div>
         
-        <!-- Mask Prompt -->
-        <div class="mb-6">
-          <label for="maskPrompt" class="block text-sm font-medium mb-2">What would you like to change?</label>
-          <input type="text" id="maskPrompt" placeholder="Remove the background" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
-        </div>
-        
         <!-- Edit Button -->
         <button id="maskEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
           <i class="fas fa-paint-brush mr-2"></i> Apply Mask Edit
+        </button>
+      </div>
+      
+      <div id="backgroundRemoverTab" class="tab-content">
+        <p class="text-center mb-6 text-sm text-gray-500">Remove background with one click or paint what to keep</p>
+        
+        <!-- Upload -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">Upload Image</label>
+          <input type="file" id="bgImageInput" accept="image/*" class="hidden" />
+          <div id="bgDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
+            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p class="mt-2">Click to upload or drag and drop</p>
+            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
+          </div>
+          <!-- Preview -->
+          <div id="bgImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
+            <img id="bgPreviewImg" class="h-20 w-20 object-cover rounded" />
+            <div class="ml-3">
+              <p id="bgPreviewName" class="text-sm font-medium"></p>
+              <p id="bgPreviewSize" class="text-sm"></p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Mask Editor -->
+        <div id="bgEditor" class="hidden mb-6">
+          <div class="mask-container" style="position: relative; padding-top: 100%;">
+            <img id="bgBaseImage" class="comparison-image" src="" alt="Base image for masking" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;" />
+            <canvas id="bgCanvas" class="mask-canvas" width="400" height="400"></canvas>
+            <div id="bgOverlay" class="mask-overlay"></div>
+          </div>
+          
+          <div class="mask-controls">
+            <div class="mask-tool active" data-tool="brush">🖌️ Brush (Keep)</div>
+            <div class="mask-tool" data-tool="eraser">🧹 Eraser (Remove)</div>
+            <div class="mask-tool" data-tool="undo">↩️ Undo</div>
+            <div class="mask-tool" data-tool="redo">↪️ Redo</div>
+            
+            <div class="mask-brush-size">
+              <label for="bgBrushSize">Size:</label>
+              <input type="range" id="bgBrushSize" min="1" max="50" value="10" class="w-24" />
+              <div class="brush-size-preview" style="width: 10px; height: 10px;"></div>
+            </div>
+          </div>
+          
+          <div class="mask-help">
+            <p>Paint what to keep (blue) - leave empty for automatic background removal</p>
+          </div>
+        </div>
+        
+        <!-- Edit Button -->
+        <button id="bgEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+          <i class="fas fa-eraser mr-2"></i> Remove Background
         </button>
       </div>
       
@@ -737,6 +788,12 @@
         <button id="downloadBtn" class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
           <i class="fas fa-download mr-2"></i> Download Image
         </button>
+        
+        <!-- New Edit Button -->
+        <button id="newEditBtn" class="mt-3 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+          <i class="fas fa-redo mr-2"></i> New Edit
+        </button>
+        
         <p id="downloadInstructions" class="download-instructions"></p>
       </div>
     </div>
@@ -775,7 +832,14 @@
         imageUrl: null,
         editedImageUrl: null,
         maskData: null,
-        prompt: '',
+        loading: false,
+        progress: 0
+      },
+      backgroundRemover: {
+        imageFile: null,
+        imageUrl: null,
+        editedImageUrl: null,
+        maskData: null,
         loading: false,
         progress: 0
       },
@@ -793,6 +857,8 @@
     let currentTab = 'promptEdit';
     let maskCanvas = null;
     let maskCtx = null;
+    let bgCanvas = null;
+    let bgCtx = null;
     
     // Style placeholders
     const stylePlaceholders = {
@@ -814,6 +880,7 @@
       const tabs = document.querySelectorAll('.tab');
       const tabContents = document.querySelectorAll('.tab-content');
       const toast = document.getElementById('toast');
+      const newEditBtn = document.getElementById('newEditBtn');
       
       // Initialize tab state based on current tab
       function initTabState() {
@@ -1001,7 +1068,6 @@
           const maskPreviewImg = document.getElementById("maskPreviewImg");
           const maskPreviewName = document.getElementById("maskPreviewName");
           const maskPreviewSize = document.getElementById("maskPreviewSize");
-          const maskPromptInput = document.getElementById("maskPrompt");
           const maskEditBtn = document.getElementById("maskEditBtn");
           
           // Restore image preview if exists
@@ -1017,11 +1083,6 @@
           // Restore mask editor if image exists
           if (state.imageUrl) {
             initMaskEditor();
-          }
-          
-          // Restore prompt
-          if (maskPromptInput) {
-            maskPromptInput.value = state.prompt;
           }
           
           // Restore result if exists
@@ -1067,8 +1128,6 @@
           // Mask Edit button
           if (maskEditBtn) {
             maskEditBtn.addEventListener("click", async () => {
-              const prompt = maskPromptInput ? maskPromptInput.value.trim() : '';
-              
               if (!state.imageFile) {
                 alert("Please upload an image first.");
                 return;
@@ -1081,13 +1140,19 @@
                 return;
               }
               
-              // Prompt is required for mask editing (to describe what to put in the masked area)
-              if (!prompt) {
-                alert("Please enter a prompt describing what to change in the masked area.");
-                return;
+              // Analyze mask to determine what user painted
+              const maskAnalysis = await analyzeMask(maskData);
+              
+              // Automatically generate prompt based on mask operations
+              let prompt = "";
+              if (maskAnalysis.eraserUsed && !maskAnalysis.brushUsed) {
+                prompt = "Remove the painted areas while keeping the rest of the image unchanged";
+              } else if (maskAnalysis.brushUsed && !maskAnalysis.eraserUsed) {
+                prompt = "Keep only the painted areas while removing the rest of the image";
+              } else {
+                prompt = "Edit the image according to the painted areas";
               }
               
-              state.prompt = prompt;
               state.loading = true;
               state.progress = 0;
               updateLoadingState();
@@ -1115,7 +1180,7 @@
                 // Convert to base64
                 const base64Image = await fileToBase64(compressedFile);
                 
-                // API call - use mask data and prompt
+                // API call - use mask data and auto-generated prompt
                 const response = await fetch("/api/edit", {
                   method: "POST",
                   headers: { 
@@ -1177,6 +1242,187 @@
                 const loading = document.getElementById("loading");
                 if (loading) loading.classList.add("hidden");
                 if (maskEditBtn) maskEditBtn.classList.remove("hidden");
+                alert("Error: " + err.message);
+              }
+            });
+          }
+        }
+        
+        // Handle Background Remover tab
+        else if (currentTab === 'backgroundRemover') {
+          const bgImageInput = document.getElementById("bgImageInput");
+          const bgDropzone = document.getElementById("bgDropzone");
+          const bgImagePreview = document.getElementById("bgImagePreview");
+          const bgPreviewImg = document.getElementById("bgPreviewImg");
+          const bgPreviewName = document.getElementById("bgPreviewName");
+          const bgPreviewSize = document.getElementById("bgPreviewSize");
+          const bgEditBtn = document.getElementById("bgEditBtn");
+          
+          // Restore image preview if exists
+          if (state.imageUrl && bgImagePreview && bgPreviewImg) {
+            bgPreviewImg.src = state.imageUrl;
+            if (bgPreviewName) bgPreviewName.textContent = state.imageFile ? state.imageFile.name : 'Uploaded image';
+            if (bgPreviewSize) bgPreviewSize.textContent = state.imageFile ? (state.imageFile.size / (1024*1024)).toFixed(1) + " MB" : '';
+            bgImagePreview.classList.remove("hidden");
+          } else {
+            if (bgImagePreview) bgImagePreview.classList.add("hidden");
+          }
+          
+          // Restore mask editor if image exists
+          if (state.imageUrl) {
+            initBgEditor();
+          }
+          
+          // Restore result if exists
+          if (state.editedImageUrl) {
+            showResult(state.editedImageUrl);
+          }
+          
+          // Set up events
+          if (bgDropzone && bgImageInput) {
+            bgDropzone.addEventListener("click", () => {
+              // Clear previous file input to allow re-uploading the same file
+              bgImageInput.value = '';
+              bgImageInput.click();
+            });
+            bgDropzone.addEventListener("dragover", (e) => {
+              e.preventDefault();
+              bgDropzone.classList.add("border-blue-500", "bg-blue-50");
+            });
+            bgDropzone.addEventListener("dragleave", () => {
+              bgDropzone.classList.remove("border-blue-500", "bg-blue-50");
+            });
+            bgDropzone.addEventListener("drop", (e) => {
+              e.preventDefault();
+              bgDropzone.classList.remove("border-blue-500", "bg-blue-50");
+              if (e.dataTransfer.files.length) {
+                const file = e.dataTransfer.files[0];
+                handleImageUpload(file, 'background');
+              }
+            });
+            
+            bgImageInput.addEventListener("change", (e) => {
+              // Prevent double event triggering
+              e.stopPropagation();
+              e.preventDefault();
+              
+              const file = bgImageInput.files[0];
+              if (file) {
+                handleImageUpload(file, 'background');
+              }
+            });
+          }
+          
+          // Background Edit button
+          if (bgEditBtn) {
+            bgEditBtn.addEventListener("click", async () => {
+              if (!state.imageFile) {
+                alert("Please upload an image first.");
+                return;
+              }
+              
+              state.loading = true;
+              state.progress = 0;
+              updateLoadingState();
+              
+              try {
+                if (bgEditBtn) bgEditBtn.classList.add("hidden");
+                const loading = document.getElementById("loading");
+                if (loading) loading.classList.remove("hidden");
+                const resultDiv = document.getElementById("result");
+                if (resultDiv) resultDiv.classList.add("hidden");
+                
+                // Start processing
+                startProcessing(0, 100);
+                
+                // Compress and process the image
+                const compressionResult = await compressForServer(state.imageFile);
+                const compressedFile = compressionResult.file;
+                
+                // Show compression info
+                const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
+                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+                showToast(qualityMsg);
+                
+                // Convert to base64
+                const base64Image = await fileToBase64(compressedFile);
+                
+                // Check if user painted anything
+                const maskData = getBgMaskData();
+                let prompt = "Remove the background while keeping the foreground object";
+                
+                if (maskData) {
+                  // Analyze mask to determine what user painted
+                  const maskAnalysis = await analyzeMask(maskData);
+                  
+                  if (maskAnalysis.brushUsed) {
+                    prompt = "Keep only the painted areas and remove the background";
+                  }
+                }
+                
+                // API call
+                const response = await fetch("/api/edit", {
+                  method: "POST",
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                  },
+                  body: JSON.stringify({
+                    image: base64Image,
+                    imageName: state.imageFile.name,
+                    imageType: state.imageFile.type,
+                    prompt: prompt,
+                    mask: maskData // Will be null if no painting was done
+                  })
+                });
+                
+                // Stop processing
+                stopProcessing();
+                
+                // Error handling
+                if (!response.ok) {
+                  let errorMessage = `Server error: ${response.status}`;
+                  try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                      errorMessage += ` - ${errorData.error}`;
+                    }
+                  } catch (e) {
+                    // Ignore
+                  }
+                  throw new Error(errorMessage);
+                }
+                
+                // Parse response
+                const contentType = response.headers.get("content-type");
+                let data;
+                if (contentType && contentType.includes("application/json")) {
+                  data = await response.json();
+                } else {
+                  throw new Error("Expected JSON response but received different content type");
+                }
+                
+                if (data.edited_image_url) {
+                  // Store edited image URL in tab state
+                  state.editedImageUrl = data.edited_image_url;
+                  state.loading = false;
+                  updateLoadingState();
+                  
+                  showResult(data.edited_image_url);
+                } else {
+                  throw new Error("Invalid response format: missing edited_image_url");
+                }
+              } catch (err) {
+                console.error("Detailed error:", err);
+                // Stop processing on error
+                stopProcessing();
+                state.loading = false;
+                updateLoadingState();
+                
+                const loading = document.getElementById("loading");
+                if (loading) loading.classList.add("hidden");
+                if (bgEditBtn) bgEditBtn.classList.remove("hidden");
                 alert("Error: " + err.message);
               }
             });
@@ -1417,6 +1663,11 @@
           maskEditor.classList.add('hidden');
         }
         
+        const bgEditor = document.getElementById('bgEditor');
+        if (bgEditor) {
+          bgEditor.classList.add('hidden');
+        }
+        
         // Reset result
         const resultDiv = document.getElementById('result');
         if (resultDiv) {
@@ -1435,13 +1686,12 @@
           }
         } 
         else if (currentTab === 'maskEdit') {
-          const maskPromptInput = document.getElementById("maskPrompt");
-          if (maskPromptInput) {
-            state.prompt = maskPromptInput.value;
-          }
-          
           // Save mask data
           state.maskData = getMaskData();
+        }
+        else if (currentTab === 'backgroundRemover') {
+          // Save mask data
+          state.maskData = getBgMaskData();
         }
         else if (currentTab === 'styleTransfer') {
           // Save style selections
@@ -1523,6 +1773,29 @@
           }
         });
       });
+      
+      // New Edit button functionality
+      if (newEditBtn) {
+        newEditBtn.addEventListener("click", () => {
+          const resultDiv = document.getElementById('result');
+          if (resultDiv) resultDiv.classList.add("hidden");
+          
+          // Show appropriate edit button based on tab
+          if (currentTab === 'promptEdit') {
+            const editBtn = document.getElementById("editBtn");
+            if (editBtn) editBtn.classList.remove("hidden");
+          } else if (currentTab === 'maskEdit') {
+            const maskEditBtn = document.getElementById("maskEditBtn");
+            if (maskEditBtn) maskEditBtn.classList.remove("hidden");
+          } else if (currentTab === 'backgroundRemover') {
+            const bgEditBtn = document.getElementById("bgEditBtn");
+            if (bgEditBtn) bgEditBtn.classList.remove("hidden");
+          } else if (currentTab === 'styleTransfer') {
+            const styleEditBtn = document.getElementById("styleEditBtn");
+            if (styleEditBtn) styleEditBtn.classList.remove("hidden");
+          }
+        });
+      }
       
       // Initialize the current tab
       initTabState();
@@ -1689,11 +1962,230 @@
         }
       }
       
+      // Background editor functionality
+      function initBgEditor() {
+        const canvas = document.getElementById('bgCanvas');
+        const img = document.getElementById('bgBaseImage');
+        const overlay = document.getElementById('bgOverlay');
+        
+        if (!img || !img.src || !canvas) return;
+        
+        // Set canvas dimensions to match image
+        const rect = img.getBoundingClientRect();
+        const canvasWidth = Math.min(rect.width, 1000);
+        const canvasHeight = Math.min(rect.height, 1000);
+        
+        // Fix for canvas performance warning
+        canvas.setAttribute('willReadFrequently', 'true');
+        
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        
+        bgCanvas = canvas;
+        bgCtx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // Clear canvas
+        bgCtx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Set up drawing tools
+        setupBgDrawingTools();
+        
+        // Initialize overlay
+        if (overlay) {
+          overlay.style.width = '100%';
+          overlay.style.height = '100%';
+          overlay.style.position = 'absolute';
+          overlay.style.top = '0';
+          overlay.style.left = '0';
+          overlay.style.pointerEvents = 'none';
+          overlay.style.zIndex = '2';
+        }
+      }
+      
+      function setupBgDrawingTools() {
+        if (!bgCanvas || !bgCtx) return;
+        
+        let isDrawing = false;
+        
+        // Tool selection
+        document.querySelectorAll('.mask-tool').forEach(tool => {
+          tool.addEventListener('click', () => {
+            document.querySelectorAll('.mask-tool').forEach(t => t.classList.remove('active'));
+            tool.classList.add('active');
+          });
+        });
+        
+        // Brush size
+        const brushSizeInput = document.getElementById('bgBrushSize');
+        const brushPreview = document.querySelector('.brush-size-preview');
+        
+        if (brushSizeInput && brushPreview) {
+          brushSizeInput.addEventListener('input', () => {
+            const size = parseInt(brushSizeInput.value);
+            brushPreview.style.width = `${size/2}px`;
+            brushPreview.style.height = `${size/2}px`;
+          });
+        }
+        
+        // Drawing events
+        bgCanvas.addEventListener('mousedown', startDrawing);
+        bgCanvas.addEventListener('mousemove', draw);
+        bgCanvas.addEventListener('mouseup', stopDrawing);
+        bgCanvas.addEventListener('mouseleave', stopDrawing);
+        
+        bgCanvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          startDrawing({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+        });
+        bgCanvas.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          draw({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+        });
+        bgCanvas.addEventListener('touchend', stopDrawing);
+        
+        // Undo/Redo
+        const undoTool = document.querySelector('[data-tool="undo"]');
+        const redoTool = document.querySelector('[data-tool="redo"]');
+        
+        if (undoTool) {
+          undoTool.addEventListener('click', undo);
+        }
+        
+        if (redoTool) {
+          redoTool.addEventListener('click', redo);
+        }
+        
+        function startDrawing(e) {
+          isDrawing = true;
+          saveState();
+          draw(e);
+        }
+        
+        function draw(e) {
+          if (!isDrawing) return;
+          
+          const rect = bgCanvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          
+          bgCtx.beginPath();
+          
+          // Check current tool
+          const currentTool = document.querySelector('.mask-tool.active').getAttribute('data-tool');
+          
+          if (currentTool === 'brush') {
+            // Blue for keep areas
+            bgCtx.globalCompositeOperation = 'source-over';
+            bgCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+          } else if (currentTool === 'eraser') {
+            // Red for remove areas (with transparency)
+            bgCtx.globalCompositeOperation = 'source-over';
+            bgCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+          }
+          
+          const brushSize = parseInt(document.getElementById('bgBrushSize').value);
+          bgCtx.lineWidth = brushSize;
+          bgCtx.lineCap = 'round';
+          bgCtx.lineTo(x, y);
+          bgCtx.stroke();
+          bgCtx.beginPath();
+          bgCtx.moveTo(x, y);
+        }
+        
+        function stopDrawing() {
+          isDrawing = false;
+          bgCtx.beginPath();
+        }
+        
+        // Mask history for undo/redo
+        const maskHistory = [];
+        let historyIndex = -1;
+        
+        function saveState() {
+          maskHistory.length = historyIndex + 1;
+          maskHistory.push(bgCtx.getImageData(0, 0, bgCanvas.width, bgCanvas.height));
+          historyIndex = maskHistory.length - 1;
+        }
+        
+        function undo() {
+          if (historyIndex <= 0) return;
+          
+          historyIndex--;
+          bgCtx.putImageData(maskHistory[historyIndex], 0, 0);
+        }
+        
+        function redo() {
+          if (historyIndex >= maskHistory.length - 1) return;
+          
+          historyIndex++;
+          bgCtx.putImageData(maskHistory[historyIndex], 0, 0);
+        }
+      }
+      
       // Function to get mask data as base64
       function getMaskData() {
         if (!maskCanvas) return null;
         
         return maskCanvas.toDataURL('image/png');
+      }
+      
+      // Function to get background mask data as base64
+      function getBgMaskData() {
+        if (!bgCanvas) return null;
+        
+        return bgCanvas.toDataURL('image/png');
+      }
+      
+      // Analyze mask to determine what user painted
+      async function analyzeMask(maskDataUrl) {
+        // Create a temporary canvas to analyze the mask
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            tempCtx.drawImage(img, 0, 0);
+            
+            // Get pixel data
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+            
+            let hasRed = false;
+            let hasBlue = false;
+            
+            // Check for red and blue pixels (simplified)
+            for (let i = 0; i < data.length; i += 4) {
+              const r = data[i];
+              const g = data[i+1];
+              const b = data[i+2];
+              const a = data[i+3];
+              
+              // Check for red (eraser)
+              if (r > 200 && g < 50 && b < 50 && a > 100) {
+                hasRed = true;
+              }
+              
+              // Check for blue (brush)
+              if (b > 200 && r < 50 && g < 50 && a > 100) {
+                hasBlue = true;
+              }
+              
+              // If we found both, no need to continue
+              if (hasRed && hasBlue) break;
+            }
+            
+            resolve({
+              eraserUsed: hasRed,
+              brushUsed: hasBlue
+            });
+          };
+          img.src = maskDataUrl;
+        });
       }
       
       // === Toast Notification System ===
@@ -1762,6 +2254,28 @@
             // Initialize mask editor immediately
             setTimeout(() => {
               initMaskEditor();
+            }, 100);
+          }
+          else if (type === 'background') {
+            const bgImagePreview = document.getElementById("bgImagePreview");
+            const bgPreviewImg = document.getElementById("bgPreviewImg");
+            const bgPreviewName = document.getElementById("bgPreviewName");
+            const bgPreviewSize = document.getElementById("bgPreviewSize");
+            
+            if (bgPreviewImg) bgPreviewImg.src = reader.result;
+            if (bgPreviewName) bgPreviewName.textContent = file.name;
+            if (bgPreviewSize) bgPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+            if (bgImagePreview) bgImagePreview.classList.remove("hidden");
+            
+            // Show background editor
+            const bgEditor = document.getElementById('bgEditor');
+            const bgBaseImage = document.getElementById('bgBaseImage');
+            if (bgEditor) bgEditor.classList.remove('hidden');
+            if (bgBaseImage) bgBaseImage.src = reader.result;
+            
+            // Initialize background editor immediately
+            setTimeout(() => {
+              initBgEditor();
             }, 100);
           }
           else if (type === 'style') {
@@ -1868,6 +2382,7 @@
         const imageOverlay = document.getElementById('imageOverlay');
         const resultDiv = document.getElementById('result');
         const sliderHandle = document.getElementById('sliderHandle');
+        const newEditBtn = document.getElementById('newEditBtn');
         
         if (beforeImage && afterImage && resultDiv) {
           const state = tabStates[currentTab];
@@ -1889,6 +2404,28 @@
           
           // Set up download functionality
           setupDownload(editedImageUrl);
+          
+          // Set up new edit button
+          if (newEditBtn) {
+            newEditBtn.onclick = () => {
+              resultDiv.classList.add("hidden");
+              
+              // Show appropriate edit button based on tab
+              if (currentTab === 'promptEdit') {
+                const editBtn = document.getElementById("editBtn");
+                if (editBtn) editBtn.classList.remove("hidden");
+              } else if (currentTab === 'maskEdit') {
+                const maskEditBtn = document.getElementById("maskEditBtn");
+                if (maskEditBtn) maskEditBtn.classList.remove("hidden");
+              } else if (currentTab === 'backgroundRemover') {
+                const bgEditBtn = document.getElementById("bgEditBtn");
+                if (bgEditBtn) bgEditBtn.classList.remove("hidden");
+              } else if (currentTab === 'styleTransfer') {
+                const styleEditBtn = document.getElementById("styleEditBtn");
+                if (styleEditBtn) styleEditBtn.classList.remove("hidden");
+              }
+            };
+          }
           
           // Smooth scroll to result
           setTimeout(() => {
