@@ -185,7 +185,7 @@
       background: #1f2937;
       color: white;
       font-size: 0.875rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
       transform: translateX(120%);
       opacity: 0;
       transition: all 0.3s ease;
@@ -600,7 +600,7 @@
           
           <div class="mask-controls">
             <div class="mask-tool active" data-tool="brush">🖌️ Brush (Keep)</div>
-            <div class="mask-tool" data-tool="eraser">🧹 Eraser (Remove)</div>
+            <div class="mask-tool" data-tool="eraser">�� Eraser (Remove)</div>
             <div class="mask-tool" data-tool="undo">↩️ Undo</div>
             <div class="mask-tool" data-tool="redo">↪️ Redo</div>
             
@@ -1143,16 +1143,6 @@
               // Analyze mask to determine what user painted
               const maskAnalysis = await analyzeMask(maskData);
               
-              // Automatically generate prompt based on mask operations
-              let prompt = "";
-              if (maskAnalysis.eraserUsed && !maskAnalysis.brushUsed) {
-                prompt = "Remove the painted areas while keeping the rest of the image unchanged";
-              } else if (maskAnalysis.brushUsed && !maskAnalysis.eraserUsed) {
-                prompt = "Keep only the painted areas while removing the rest of the image";
-              } else {
-                prompt = "Edit the image according to the painted areas";
-              }
-              
               state.loading = true;
               state.progress = 0;
               updateLoadingState();
@@ -1167,20 +1157,57 @@
                 // Start processing
                 startProcessing(0, 100);
                 
-                // Compress and process the image
-                const compressionResult = await compressForServer(state.imageFile);
-                const compressedFile = compressionResult.file;
+                // First, get the original image data
+                const originalImage = new Image();
+                originalImage.src = state.imageUrl;
+                
+                await new Promise((resolve) => {
+                  originalImage.onload = resolve;
+                });
+                
+                // Create a canvas to combine the original image and mask
+                const combinedCanvas = document.createElement('canvas');
+                const combinedCtx = combinedCanvas.getContext('2d', { willReadFrequently: true });
+                
+                combinedCanvas.width = originalImage.width;
+                combinedCanvas.height = originalImage.height;
+                
+                // Draw the original image
+                combinedCtx.drawImage(originalImage, 0, 0);
+                
+                // Draw the mask directly on the image (red for removal)
+                const maskImage = new Image();
+                maskImage.src = maskData;
+                
+                await new Promise((resolve) => {
+                  maskImage.onload = resolve;
+                });
+                
+                // Set global composite operation to source-over to draw mask on top
+                combinedCtx.globalCompositeOperation = 'source-over';
+                
+                // Draw the mask on top of the original image
+                combinedCtx.drawImage(maskImage, 0, 0, originalImage.width, originalImage.height);
+                
+                // Convert combined canvas to base64
+                const combinedBase64 = combinedCanvas.toDataURL('image/png');
                 
                 // Show compression info
                 const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
+                const qualityMsg = `Preparing image with mask for editing`;
                 showToast(qualityMsg);
                 
-                // Convert to base64
-                const base64Image = await fileToBase64(compressedFile);
+                // Determine the appropriate prompt based on mask analysis
+                let prompt = "";
+                if (maskAnalysis.eraserUsed && !maskAnalysis.brushUsed) {
+                  prompt = "Remove the red marked areas while keeping the rest of the image unchanged";
+                } else if (maskAnalysis.brushUsed && !maskAnalysis.eraserUsed) {
+                  prompt = "Keep only the blue marked areas and remove the rest of the image";
+                } else {
+                  prompt = "Edit the image according to the marked areas";
+                }
                 
-                // API call - use mask data and auto-generated prompt
+                // API call - send the combined image with mask drawn on it
                 const response = await fetch("/api/edit", {
                   method: "POST",
                   headers: { 
@@ -1188,11 +1215,10 @@
                     "Accept": "application/json"
                   },
                   body: JSON.stringify({
-                    image: base64Image,
+                    image: combinedBase64.split(',')[1], // Just the base64 data
                     imageName: state.imageFile.name,
-                    imageType: state.imageFile.type,
-                    prompt: prompt,
-                    mask: maskData
+                    imageType: 'image/png',
+                    prompt: prompt
                   })
                 });
                 
@@ -1335,18 +1361,23 @@
                 // Start processing
                 startProcessing(0, 100);
                 
-                // Compress and process the image
-                const compressionResult = await compressForServer(state.imageFile);
-                const compressedFile = compressionResult.file;
+                // First, get the original image data
+                const originalImage = new Image();
+                originalImage.src = state.imageUrl;
                 
-                // Show compression info
-                const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-                showToast(qualityMsg);
+                await new Promise((resolve) => {
+                  originalImage.onload = resolve;
+                });
                 
-                // Convert to base64
-                const base64Image = await fileToBase64(compressedFile);
+                // Create a canvas to combine the original image and mask
+                const combinedCanvas = document.createElement('canvas');
+                const combinedCtx = combinedCanvas.getContext('2d', { willReadFrequently: true });
+                
+                combinedCanvas.width = originalImage.width;
+                combinedCanvas.height = originalImage.height;
+                
+                // Draw the original image
+                combinedCtx.drawImage(originalImage, 0, 0);
                 
                 // Check if user painted anything
                 const maskData = getBgMaskData();
@@ -1357,9 +1388,31 @@
                   const maskAnalysis = await analyzeMask(maskData);
                   
                   if (maskAnalysis.brushUsed) {
-                    prompt = "Keep only the painted areas and remove the background";
+                    prompt = "Keep only the blue marked areas and remove the background";
+                    
+                    // Draw the mask directly on the image (blue for keeping)
+                    const maskImage = new Image();
+                    maskImage.src = maskData;
+                    
+                    await new Promise((resolve) => {
+                      maskImage.onload = resolve;
+                    });
+                    
+                    // Set global composite operation to source-over to draw mask on top
+                    combinedCtx.globalCompositeOperation = 'source-over';
+                    
+                    // Draw the mask on top of the original image
+                    combinedCtx.drawImage(maskImage, 0, 0, originalImage.width, originalImage.height);
                   }
                 }
+                
+                // Convert combined canvas to base64
+                const combinedBase64 = combinedCanvas.toDataURL('image/png');
+                
+                // Show compression info
+                const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
+                const qualityMsg = `Preparing image with mask for background removal`;
+                showToast(qualityMsg);
                 
                 // API call
                 const response = await fetch("/api/edit", {
@@ -1369,11 +1422,10 @@
                     "Accept": "application/json"
                   },
                   body: JSON.stringify({
-                    image: base64Image,
+                    image: combinedBase64.split(',')[1], // Just the base64 data
                     imageName: state.imageFile.name,
-                    imageType: state.imageFile.type,
-                    prompt: prompt,
-                    mask: maskData // Will be null if no painting was done
+                    imageType: 'image/png',
+                    prompt: prompt
                   })
                 });
                 
@@ -1779,6 +1831,15 @@
         newEditBtn.addEventListener("click", () => {
           const resultDiv = document.getElementById('result');
           if (resultDiv) resultDiv.classList.add("hidden");
+          
+          // Reset mask canvas
+          if (currentTab === 'maskEdit' && maskCanvas) {
+            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+          }
+          
+          if (currentTab === 'backgroundRemover' && bgCanvas) {
+            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+          }
           
           // Show appropriate edit button based on tab
           if (currentTab === 'promptEdit') {
@@ -2409,6 +2470,15 @@
           if (newEditBtn) {
             newEditBtn.onclick = () => {
               resultDiv.classList.add("hidden");
+              
+              // Reset mask canvas
+              if (currentTab === 'maskEdit' && maskCanvas) {
+                maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+              }
+              
+              if (currentTab === 'backgroundRemover' && bgCanvas) {
+                bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+              }
               
               // Show appropriate edit button based on tab
               if (currentTab === 'promptEdit') {
