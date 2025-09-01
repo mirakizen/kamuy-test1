@@ -403,111 +403,58 @@
       color: #7c2d12;
     }
     
-    /* Mask Editor */
-    .mask-container {
-      position: relative;
-      width: 100%;
+    /* Text Editor */
+    .text-editor {
       margin-top: 1rem;
     }
     
-    .mask-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      cursor: crosshair;
-    }
-    
-    .mask-controls {
+    .text-edit-field {
       display: flex;
       gap: 0.5rem;
-      margin-top: 0.5rem;
-      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
     }
     
-    .mask-tool {
-      padding: 0.25rem 0.5rem;
+    .text-edit-field input {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid var(--border-primary);
       border-radius: 4px;
-      background-color: #e5e7eb;
+    }
+    
+    .text-edit-field button {
+      padding: 0.5rem 1rem;
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
-      font-size: 0.875rem;
-      transition: all 0.2s ease;
     }
     
-    .mask-tool.active {
-      background-color: #2563eb;
-      color: white;
-    }
-    
-    .mask-brush-size {
+    .text-edit-preview {
       display: flex;
-      align-items: center;
+      flex-wrap: wrap;
       gap: 0.5rem;
+      margin-top: 1rem;
     }
     
-    .brush-size-preview {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background-color: #2563eb;
-      transition: all 0.2s ease;
-    }
-    
-    .mask-help {
-      font-size: 0.75rem;
-      color: #6b7280;
-      margin-top: 0.5rem;
-      text-align: center;
-    }
-    
-    /* Style Transfer Enhancements */
-    .style-intensity {
-      margin-top: 0.5rem;
-    }
-    
-    .style-intensity label {
-      display: block;
-      margin-bottom: 0.25rem;
-      font-size: 0.875rem;
-    }
-    
-    .intensity-slider {
-      width: 100%;
-      height: 4px;
-      -webkit-appearance: none;
-      appearance: none;
-      background: #e5e7eb;
-      border-radius: 2px;
-      outline: none;
-    }
-    
-    .intensity-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #2563eb;
+    .text-edit-example {
+      border: 1px solid var(--border-primary);
+      border-radius: 4px;
+      padding: 0.5rem;
       cursor: pointer;
+      transition: all 0.2s;
     }
     
-    .intensity-value {
-      text-align: center;
-      margin-top: 0.25rem;
-      font-size: 0.875rem;
-      color: #6b7280;
+    .text-edit-example:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    /* Mask overlay for visual feedback */
-    .mask-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 2;
+    .text-edit-example img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -524,7 +471,7 @@
       <!-- Tab Navigation -->
       <div class="tabs-container mb-6">
         <div class="tab active" data-tab="promptEdit">Prompt Edit</div>
-        <div class="tab" data-tab="maskEdit">Remove/Add Mask</div>
+        <div class="tab" data-tab="textEdit">Text Edit</div>
         <div class="tab" data-tab="backgroundRemover">Background Remover</div>
         <div class="tab" data-tab="styleTransfer">Style Transfer</div>
       </div>
@@ -566,14 +513,14 @@
         </button>
       </div>
       
-      <div id="maskEditTab" class="tab-content">
-        <p class="text-center mb-6 text-sm text-gray-500">Paint what to keep or remove - precise object editing</p>
+      <div id="textEditTab" class="tab-content">
+        <p class="text-center mb-6 text-sm text-gray-500">Add or modify text in your images with perfect font matching</p>
         
         <!-- Upload -->
         <div class="mb-6">
           <label class="block text-sm font-medium mb-2">Upload Image</label>
-          <input type="file" id="maskImageInput" accept="image/*" class="hidden" />
-          <div id="maskDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
+          <input type="file" id="textImageInput" accept="image/*" class="hidden" />
+          <div id="textDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
             <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
               <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -581,49 +528,50 @@
             <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
           </div>
           <!-- Preview -->
-          <div id="maskImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
-            <img id="maskPreviewImg" class="h-20 w-20 object-cover rounded" />
+          <div id="textImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex items-center">
+            <img id="textPreviewImg" class="h-20 w-20 object-cover rounded" />
             <div class="ml-3">
-              <p id="maskPreviewName" class="text-sm font-medium"></p>
-              <p id="maskPreviewSize" class="text-sm"></p>
+              <p id="textPreviewName" class="text-sm font-medium"></p>
+              <p id="textPreviewSize" class="text-sm"></p>
             </div>
           </div>
         </div>
         
-        <!-- Mask Editor -->
-        <div id="maskEditor" class="hidden mb-6">
-          <div class="mask-container" style="position: relative; padding-top: 100%;">
-            <img id="maskBaseImage" class="comparison-image" src="" alt="Base image for masking" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;" />
-            <canvas id="maskCanvas" class="mask-canvas" width="400" height="400"></canvas>
-            <div id="maskOverlay" class="mask-overlay"></div>
+        <!-- Text Editing -->
+        <div class="text-editor mb-6">
+          <div class="text-edit-field">
+            <input type="text" id="textToAdd" placeholder="Enter text to add or modify" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            <button id="addTextEditBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+              <i class="fas fa-plus"></i>
+            </button>
           </div>
           
-          <div class="mask-controls">
-            <div class="mask-tool active" data-tool="brush">🖌️ Brush (Keep)</div>
-            <div class="mask-tool" data-tool="eraser">�� Eraser (Remove)</div>
-            <div class="mask-tool" data-tool="undo">↩️ Undo</div>
-            <div class="mask-tool" data-tool="redo">↪️ Redo</div>
-            
-            <div class="mask-brush-size">
-              <label for="brushSize">Size:</label>
-              <input type="range" id="brushSize" min="1" max="50" value="10" class="w-24" />
-              <div class="brush-size-preview" style="width: 10px; height: 10px;"></div>
+          <p class="text-sm text-gray-500 mt-2">Qwen-Image-Edit will automatically match the font, size, and style of existing text in your image</p>
+          
+          <div class="text-edit-preview mt-4">
+            <div class="text-edit-example">
+              <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8715.JPG" alt="Text editing example" />
+              <p class="text-xs mt-1">Edit English text</p>
             </div>
-          </div>
-          
-          <div class="mask-help">
-            <p>Draw on the image to select what to keep (blue) or remove (red)</p>
+            <div class="text-edit-example">
+              <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8717.JPG" alt="Chinese text editing example" />
+              <p class="text-xs mt-1">Edit Chinese text</p>
+            </div>
+            <div class="text-edit-example">
+              <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8718.JPG" alt="Calligraphy editing example" />
+              <p class="text-xs mt-1">Edit calligraphy</p>
+            </div>
           </div>
         </div>
         
         <!-- Edit Button -->
-        <button id="maskEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-          <i class="fas fa-paint-brush mr-2"></i> Apply Mask Edit
+        <button id="textEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+          <i class="fas fa-font mr-2"></i> Edit Text
         </button>
       </div>
       
       <div id="backgroundRemoverTab" class="tab-content">
-        <p class="text-center mb-6 text-sm text-gray-500">Remove background with one click or paint what to keep</p>
+        <p class="text-center mb-6 text-sm text-gray-500">Remove background with one click - no manual editing needed</p>
         
         <!-- Upload -->
         <div class="mb-6">
@@ -643,32 +591,6 @@
               <p id="bgPreviewName" class="text-sm font-medium"></p>
               <p id="bgPreviewSize" class="text-sm"></p>
             </div>
-          </div>
-        </div>
-        
-        <!-- Mask Editor -->
-        <div id="bgEditor" class="hidden mb-6">
-          <div class="mask-container" style="position: relative; padding-top: 100%;">
-            <img id="bgBaseImage" class="comparison-image" src="" alt="Base image for masking" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;" />
-            <canvas id="bgCanvas" class="mask-canvas" width="400" height="400"></canvas>
-            <div id="bgOverlay" class="mask-overlay"></div>
-          </div>
-          
-          <div class="mask-controls">
-            <div class="mask-tool active" data-tool="brush">🖌️ Brush (Keep)</div>
-            <div class="mask-tool" data-tool="eraser">🧹 Eraser (Remove)</div>
-            <div class="mask-tool" data-tool="undo">↩️ Undo</div>
-            <div class="mask-tool" data-tool="redo">↪️ Redo</div>
-            
-            <div class="mask-brush-size">
-              <label for="bgBrushSize">Size:</label>
-              <input type="range" id="bgBrushSize" min="1" max="50" value="10" class="w-24" />
-              <div class="brush-size-preview" style="width: 10px; height: 10px;"></div>
-            </div>
-          </div>
-          
-          <div class="mask-help">
-            <p>Paint what to keep (blue) - leave empty for automatic background removal</p>
           </div>
         </div>
         
@@ -723,7 +645,7 @@
               <span class="tooltip">Neon lights, rain, futuristic</span>
             </button>
             <button type="button" class="style-btn">
-              🖼️ Van Gogh
+              ��️ Van Gogh
               <span class="tooltip">Expressive brushstrokes, textured</span>
             </button>
             <button type="button" class="style-btn">
@@ -745,6 +667,26 @@
             <button type="button" class="style-btn">
               🏜️ Mirage
               <span class="tooltip">Heat haze, desert illusion</span>
+            </button>
+            <button type="button" class="style-btn">
+              🎨 Watercolor
+              <span class="tooltip">Soft watercolor painting style</span>
+            </button>
+            <button type="button" class="style-btn">
+              🎨 Dots Art
+              <span class="tooltip">Pointillism with colorful dots</span>
+            </button>
+            <button type="button" class="style-btn">
+              🗿 Marble
+              <span class="tooltip">Sculpted marble statue appearance</span>
+            </button>
+            <button type="button" class="style-btn">
+              🏺 Clay
+              <span class="tooltip">Hand-sculpted clay texture</span>
+            </button>
+            <button type="button" class="style-btn">
+              🔮 Kaleidoscope
+              <span class="tooltip">Symmetrical kaleidoscopic effect</span>
             </button>
           </div>
           
@@ -827,11 +769,11 @@
         loading: false,
         progress: 0
       },
-      maskEdit: {
+      textEdit: {
         imageFile: null,
         imageUrl: null,
         editedImageUrl: null,
-        maskData: null,
+        textToAdd: '',
         loading: false,
         progress: 0
       },
@@ -839,7 +781,6 @@
         imageFile: null,
         imageUrl: null,
         editedImageUrl: null,
-        maskData: null,
         loading: false,
         progress: 0
       },
@@ -855,10 +796,6 @@
     };
     
     let currentTab = 'promptEdit';
-    let maskCanvas = null;
-    let maskCtx = null;
-    let bgCanvas = null;
-    let bgCtx = null;
     
     // Style placeholders
     const stylePlaceholders = {
@@ -871,7 +808,12 @@
       'pixel art': "in 16-bit pixel art style",
       sketch: "as a pencil sketch, hand-drawn lines",
       pixar: "in Pixar 3D animation style, soft lighting",
-      'desert mirage': "with desert mirage effect, heat haze"
+      'desert mirage': "with desert mirage effect, heat haze",
+      watercolor: "in soft watercolor painting style",
+      'dots art': "in pointillism style with colorful dots",
+      marble: "as a sculpted marble statue",
+      clay: "in hand-sculpted clay texture",
+      kaleidoscope: "with symmetrical kaleidoscopic effect"
     };
     
     // Initialize the app when DOM is ready
@@ -1060,29 +1002,30 @@
           }
         }
         
-        // Handle Mask Edit tab
-        else if (currentTab === 'maskEdit') {
-          const maskImageInput = document.getElementById("maskImageInput");
-          const maskDropzone = document.getElementById("maskDropzone");
-          const maskImagePreview = document.getElementById("maskImagePreview");
-          const maskPreviewImg = document.getElementById("maskPreviewImg");
-          const maskPreviewName = document.getElementById("maskPreviewName");
-          const maskPreviewSize = document.getElementById("maskPreviewSize");
-          const maskEditBtn = document.getElementById("maskEditBtn");
+        // Handle Text Edit tab
+        else if (currentTab === 'textEdit') {
+          const textImageInput = document.getElementById("textImageInput");
+          const textDropzone = document.getElementById("textDropzone");
+          const textImagePreview = document.getElementById("textImagePreview");
+          const textPreviewImg = document.getElementById("textPreviewImg");
+          const textPreviewName = document.getElementById("textPreviewName");
+          const textPreviewSize = document.getElementById("textPreviewSize");
+          const textToAddInput = document.getElementById("textToAdd");
+          const textEditBtn = document.getElementById("textEditBtn");
           
           // Restore image preview if exists
-          if (state.imageUrl && maskImagePreview && maskPreviewImg) {
-            maskPreviewImg.src = state.imageUrl;
-            if (maskPreviewName) maskPreviewName.textContent = state.imageFile ? state.imageFile.name : 'Uploaded image';
-            if (maskPreviewSize) maskPreviewSize.textContent = state.imageFile ? (state.imageFile.size / (1024*1024)).toFixed(1) + " MB" : '';
-            maskImagePreview.classList.remove("hidden");
+          if (state.imageUrl && textImagePreview && textPreviewImg) {
+            textPreviewImg.src = state.imageUrl;
+            if (textPreviewName) textPreviewName.textContent = state.imageFile ? state.imageFile.name : 'Uploaded image';
+            if (textPreviewSize) textPreviewSize.textContent = state.imageFile ? (state.imageFile.size / (1024*1024)).toFixed(1) + " MB" : '';
+            textImagePreview.classList.remove("hidden");
           } else {
-            if (maskImagePreview) maskImagePreview.classList.add("hidden");
+            if (textImagePreview) textImagePreview.classList.add("hidden");
           }
           
-          // Restore mask editor if image exists
-          if (state.imageUrl) {
-            initMaskEditor();
+          // Restore text
+          if (textToAddInput) {
+            textToAddInput.value = state.textToAdd;
           }
           
           // Restore result if exists
@@ -1091,64 +1034,57 @@
           }
           
           // Set up events
-          if (maskDropzone && maskImageInput) {
-            maskDropzone.addEventListener("click", () => {
+          if (textDropzone && textImageInput) {
+            textDropzone.addEventListener("click", () => {
               // Clear previous file input to allow re-uploading the same file
-              maskImageInput.value = '';
-              maskImageInput.click();
+              textImageInput.value = '';
+              textImageInput.click();
             });
-            maskDropzone.addEventListener("dragover", (e) => {
+            textDropzone.addEventListener("dragover", (e) => {
               e.preventDefault();
-              maskDropzone.classList.add("border-blue-500", "bg-blue-50");
+              textDropzone.classList.add("border-blue-500", "bg-blue-50");
             });
-            maskDropzone.addEventListener("dragleave", () => {
-              maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
+            textDropzone.addEventListener("dragleave", () => {
+              textDropzone.classList.remove("border-blue-500", "bg-blue-50");
             });
-            maskDropzone.addEventListener("drop", (e) => {
+            textDropzone.addEventListener("drop", (e) => {
               e.preventDefault();
-              maskDropzone.classList.remove("border-blue-500", "bg-blue-50");
+              textDropzone.classList.remove("border-blue-500", "bg-blue-50");
               if (e.dataTransfer.files.length) {
                 const file = e.dataTransfer.files[0];
-                handleImageUpload(file, 'mask');
+                handleImageUpload(file, 'text');
               }
             });
             
-            maskImageInput.addEventListener("change", (e) => {
+            textImageInput.addEventListener("change", (e) => {
               // Prevent double event triggering
               e.stopPropagation();
               e.preventDefault();
               
-              const file = maskImageInput.files[0];
+              const file = textImageInput.files[0];
               if (file) {
-                handleImageUpload(file, 'mask');
+                handleImageUpload(file, 'text');
               }
             });
           }
           
-          // Mask Edit button
-          if (maskEditBtn) {
-            maskEditBtn.addEventListener("click", async () => {
-              if (!state.imageFile) {
-                alert("Please upload an image first.");
+          // Text Edit button
+          if (textEditBtn) {
+            textEditBtn.addEventListener("click", async () => {
+              const textToAdd = textToAddInput ? textToAddInput.value.trim() : '';
+              
+              if (!state.imageFile || !textToAdd) {
+                alert("Please upload an image and enter text to add or modify.");
                 return;
               }
               
-              // Get mask data
-              const maskData = getMaskData();
-              if (!maskData) {
-                alert("Please draw on the image to select areas to keep/remove.");
-                return;
-              }
-              
-              // Analyze mask to determine what user painted
-              const maskAnalysis = await analyzeMask(maskData);
-              
+              state.textToAdd = textToAdd;
               state.loading = true;
               state.progress = 0;
               updateLoadingState();
               
               try {
-                if (maskEditBtn) maskEditBtn.classList.add("hidden");
+                if (textEditBtn) textEditBtn.classList.add("hidden");
                 const loading = document.getElementById("loading");
                 if (loading) loading.classList.remove("hidden");
                 const resultDiv = document.getElementById("result");
@@ -1157,57 +1093,20 @@
                 // Start processing
                 startProcessing(0, 100);
                 
-                // First, get the original image data
-                const originalImage = new Image();
-                originalImage.src = state.imageUrl;
-                
-                await new Promise((resolve) => {
-                  originalImage.onload = resolve;
-                });
-                
-                // Create a canvas to combine the original image and mask
-                const combinedCanvas = document.createElement('canvas');
-                const combinedCtx = combinedCanvas.getContext('2d', { willReadFrequently: true });
-                
-                combinedCanvas.width = originalImage.width;
-                combinedCanvas.height = originalImage.height;
-                
-                // Draw the original image
-                combinedCtx.drawImage(originalImage, 0, 0);
-                
-                // Draw the mask directly on the image (red for removal)
-                const maskImage = new Image();
-                maskImage.src = maskData;
-                
-                await new Promise((resolve) => {
-                  maskImage.onload = resolve;
-                });
-                
-                // Set global composite operation to source-over to draw mask on top
-                combinedCtx.globalCompositeOperation = 'source-over';
-                
-                // Draw the mask on top of the original image
-                combinedCtx.drawImage(maskImage, 0, 0, originalImage.width, originalImage.height);
-                
-                // Convert combined canvas to base64
-                const combinedBase64 = combinedCanvas.toDataURL('image/png');
+                // Compress and process the image
+                const compressionResult = await compressForServer(state.imageFile);
+                const compressedFile = compressionResult.file;
                 
                 // Show compression info
                 const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const qualityMsg = `Preparing image with mask for editing`;
+                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
                 showToast(qualityMsg);
                 
-                // Determine the appropriate prompt based on mask analysis
-                let prompt = "";
-                if (maskAnalysis.eraserUsed && !maskAnalysis.brushUsed) {
-                  prompt = "Remove the red marked areas while keeping the rest of the image unchanged";
-                } else if (maskAnalysis.brushUsed && !maskAnalysis.eraserUsed) {
-                  prompt = "Keep only the blue marked areas and remove the rest of the image";
-                } else {
-                  prompt = "Edit the image according to the marked areas";
-                }
+                // Convert to base64
+                const base64Image = await fileToBase64(compressedFile);
                 
-                // API call - send the combined image with mask drawn on it
+                // API call - using Qwen's text editing capability
                 const response = await fetch("/api/edit", {
                   method: "POST",
                   headers: { 
@@ -1215,10 +1114,10 @@
                     "Accept": "application/json"
                   },
                   body: JSON.stringify({
-                    image: combinedBase64.split(',')[1], // Just the base64 data
+                    image: base64Image,
                     imageName: state.imageFile.name,
-                    imageType: 'image/png',
-                    prompt: prompt
+                    imageType: state.imageFile.type,
+                    prompt: `Add or modify text to: "${textToAdd}". Preserve the original font style and size.`
                   })
                 });
                 
@@ -1267,7 +1166,7 @@
                 
                 const loading = document.getElementById("loading");
                 if (loading) loading.classList.add("hidden");
-                if (maskEditBtn) maskEditBtn.classList.remove("hidden");
+                if (textEditBtn) textEditBtn.classList.remove("hidden");
                 alert("Error: " + err.message);
               }
             });
@@ -1292,11 +1191,6 @@
             bgImagePreview.classList.remove("hidden");
           } else {
             if (bgImagePreview) bgImagePreview.classList.add("hidden");
-          }
-          
-          // Restore mask editor if image exists
-          if (state.imageUrl) {
-            initBgEditor();
           }
           
           // Restore result if exists
@@ -1361,60 +1255,20 @@
                 // Start processing
                 startProcessing(0, 100);
                 
-                // First, get the original image data
-                const originalImage = new Image();
-                originalImage.src = state.imageUrl;
-                
-                await new Promise((resolve) => {
-                  originalImage.onload = resolve;
-                });
-                
-                // Create a canvas to combine the original image and mask
-                const combinedCanvas = document.createElement('canvas');
-                const combinedCtx = combinedCanvas.getContext('2d', { willReadFrequently: true });
-                
-                combinedCanvas.width = originalImage.width;
-                combinedCanvas.height = originalImage.height;
-                
-                // Draw the original image
-                combinedCtx.drawImage(originalImage, 0, 0);
-                
-                // Check if user painted anything
-                const maskData = getBgMaskData();
-                let prompt = "Remove the background while keeping the foreground object";
-                
-                if (maskData) {
-                  // Analyze mask to determine what user painted
-                  const maskAnalysis = await analyzeMask(maskData);
-                  
-                  if (maskAnalysis.brushUsed) {
-                    prompt = "Keep only the blue marked areas and remove the background";
-                    
-                    // Draw the mask directly on the image (blue for keeping)
-                    const maskImage = new Image();
-                    maskImage.src = maskData;
-                    
-                    await new Promise((resolve) => {
-                      maskImage.onload = resolve;
-                    });
-                    
-                    // Set global composite operation to source-over to draw mask on top
-                    combinedCtx.globalCompositeOperation = 'source-over';
-                    
-                    // Draw the mask on top of the original image
-                    combinedCtx.drawImage(maskImage, 0, 0, originalImage.width, originalImage.height);
-                  }
-                }
-                
-                // Convert combined canvas to base64
-                const combinedBase64 = combinedCanvas.toDataURL('image/png');
+                // Compress and process the image
+                const compressionResult = await compressForServer(state.imageFile);
+                const compressedFile = compressionResult.file;
                 
                 // Show compression info
                 const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const qualityMsg = `Preparing image with mask for background removal`;
+                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
+                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
                 showToast(qualityMsg);
                 
-                // API call
+                // Convert to base64
+                const base64Image = await fileToBase64(compressedFile);
+                
+                // API call - simplified background removal
                 const response = await fetch("/api/edit", {
                   method: "POST",
                   headers: { 
@@ -1422,10 +1276,10 @@
                     "Accept": "application/json"
                   },
                   body: JSON.stringify({
-                    image: combinedBase64.split(',')[1], // Just the base64 data
+                    image: base64Image,
                     imageName: state.imageFile.name,
-                    imageType: 'image/png',
-                    prompt: prompt
+                    imageType: state.imageFile.type,
+                    prompt: "Remove the background while keeping the foreground object with high detail"
                   })
                 });
                 
@@ -1626,7 +1480,12 @@
                     'pixel art': "in 16-bit pixel art style",
                     sketch: "as a pencil sketch, hand-drawn lines",
                     pixar: "in Pixar 3D animation style, soft lighting",
-                    'desert mirage': "with desert mirage effect, heat haze"
+                    'desert mirage': "with desert mirage effect, heat haze",
+                    watercolor: "in soft watercolor painting style",
+                    'dots art': "in pointillism style with colorful dots",
+                    marble: "as a sculpted marble statue",
+                    clay: "in hand-sculpted clay texture",
+                    kaleidoscope: "with symmetrical kaleidoscopic effect"
                   };
                   return styles[s] || s;
                 }).join(", ");
@@ -1709,17 +1568,6 @@
           }
         });
         
-        // Reset mask editor
-        const maskEditor = document.getElementById('maskEditor');
-        if (maskEditor) {
-          maskEditor.classList.add('hidden');
-        }
-        
-        const bgEditor = document.getElementById('bgEditor');
-        if (bgEditor) {
-          bgEditor.classList.add('hidden');
-        }
-        
         // Reset result
         const resultDiv = document.getElementById('result');
         if (resultDiv) {
@@ -1737,13 +1585,11 @@
             state.prompt = promptInput.value;
           }
         } 
-        else if (currentTab === 'maskEdit') {
-          // Save mask data
-          state.maskData = getMaskData();
-        }
-        else if (currentTab === 'backgroundRemover') {
-          // Save mask data
-          state.maskData = getBgMaskData();
+        else if (currentTab === 'textEdit') {
+          const textToAddInput = document.getElementById("textToAdd");
+          if (textToAddInput) {
+            state.textToAdd = textToAddInput.value;
+          }
         }
         else if (currentTab === 'styleTransfer') {
           // Save style selections
@@ -1832,22 +1678,13 @@
           const resultDiv = document.getElementById('result');
           if (resultDiv) resultDiv.classList.add("hidden");
           
-          // Reset mask canvas
-          if (currentTab === 'maskEdit' && maskCanvas) {
-            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-          }
-          
-          if (currentTab === 'backgroundRemover' && bgCanvas) {
-            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-          }
-          
           // Show appropriate edit button based on tab
           if (currentTab === 'promptEdit') {
             const editBtn = document.getElementById("editBtn");
             if (editBtn) editBtn.classList.remove("hidden");
-          } else if (currentTab === 'maskEdit') {
-            const maskEditBtn = document.getElementById("maskEditBtn");
-            if (maskEditBtn) maskEditBtn.classList.remove("hidden");
+          } else if (currentTab === 'textEdit') {
+            const textEditBtn = document.getElementById("textEditBtn");
+            if (textEditBtn) textEditBtn.classList.remove("hidden");
           } else if (currentTab === 'backgroundRemover') {
             const bgEditBtn = document.getElementById("bgEditBtn");
             if (bgEditBtn) bgEditBtn.classList.remove("hidden");
@@ -1860,394 +1697,6 @@
       
       // Initialize the current tab
       initTabState();
-      
-      // Mask editor functionality
-      function initMaskEditor() {
-        const canvas = document.getElementById('maskCanvas');
-        const img = document.getElementById('maskBaseImage');
-        const overlay = document.getElementById('maskOverlay');
-        
-        if (!img || !img.src || !canvas) return;
-        
-        // Set canvas dimensions to match image
-        const rect = img.getBoundingClientRect();
-        const canvasWidth = Math.min(rect.width, 1000);
-        const canvasHeight = Math.min(rect.height, 1000);
-        
-        // Fix for canvas performance warning
-        canvas.setAttribute('willReadFrequently', 'true');
-        
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        
-        maskCanvas = canvas;
-        maskCtx = canvas.getContext('2d', { willReadFrequently: true });
-        
-        // Clear canvas
-        maskCtx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Set up drawing tools
-        setupDrawingTools();
-        
-        // Initialize overlay
-        if (overlay) {
-          overlay.style.width = '100%';
-          overlay.style.height = '100%';
-          overlay.style.position = 'absolute';
-          overlay.style.top = '0';
-          overlay.style.left = '0';
-          overlay.style.pointerEvents = 'none';
-          overlay.style.zIndex = '2';
-        }
-      }
-      
-      function setupDrawingTools() {
-        if (!maskCanvas || !maskCtx) return;
-        
-        let isDrawing = false;
-        
-        // Tool selection
-        document.querySelectorAll('.mask-tool').forEach(tool => {
-          tool.addEventListener('click', () => {
-            document.querySelectorAll('.mask-tool').forEach(t => t.classList.remove('active'));
-            tool.classList.add('active');
-          });
-        });
-        
-        // Brush size
-        const brushSizeInput = document.getElementById('brushSize');
-        const brushPreview = document.querySelector('.brush-size-preview');
-        
-        if (brushSizeInput && brushPreview) {
-          brushSizeInput.addEventListener('input', () => {
-            const size = parseInt(brushSizeInput.value);
-            brushPreview.style.width = `${size/2}px`;
-            brushPreview.style.height = `${size/2}px`;
-          });
-        }
-        
-        // Drawing events
-        maskCanvas.addEventListener('mousedown', startDrawing);
-        maskCanvas.addEventListener('mousemove', draw);
-        maskCanvas.addEventListener('mouseup', stopDrawing);
-        maskCanvas.addEventListener('mouseleave', stopDrawing);
-        
-        maskCanvas.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          startDrawing({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-        });
-        maskCanvas.addEventListener('touchmove', (e) => {
-          e.preventDefault();
-          draw({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-        });
-        maskCanvas.addEventListener('touchend', stopDrawing);
-        
-        // Undo/Redo
-        const undoTool = document.querySelector('[data-tool="undo"]');
-        const redoTool = document.querySelector('[data-tool="redo"]');
-        
-        if (undoTool) {
-          undoTool.addEventListener('click', undo);
-        }
-        
-        if (redoTool) {
-          redoTool.addEventListener('click', redo);
-        }
-        
-        function startDrawing(e) {
-          isDrawing = true;
-          saveState();
-          draw(e);
-        }
-        
-        function draw(e) {
-          if (!isDrawing) return;
-          
-          const rect = maskCanvas.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          
-          maskCtx.beginPath();
-          
-          // Check current tool
-          const currentTool = document.querySelector('.mask-tool.active').getAttribute('data-tool');
-          
-          if (currentTool === 'brush') {
-            // Blue for keep areas
-            maskCtx.globalCompositeOperation = 'source-over';
-            maskCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-          } else if (currentTool === 'eraser') {
-            // Red for remove areas (with transparency)
-            maskCtx.globalCompositeOperation = 'source-over';
-            maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-          }
-          
-          const brushSize = parseInt(document.getElementById('brushSize').value);
-          maskCtx.lineWidth = brushSize;
-          maskCtx.lineCap = 'round';
-          maskCtx.lineTo(x, y);
-          maskCtx.stroke();
-          maskCtx.beginPath();
-          maskCtx.moveTo(x, y);
-        }
-        
-        function stopDrawing() {
-          isDrawing = false;
-          maskCtx.beginPath();
-        }
-        
-        // Mask history for undo/redo
-        const maskHistory = [];
-        let historyIndex = -1;
-        
-        function saveState() {
-          maskHistory.length = historyIndex + 1;
-          maskHistory.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
-          historyIndex = maskHistory.length - 1;
-        }
-        
-        function undo() {
-          if (historyIndex <= 0) return;
-          
-          historyIndex--;
-          maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
-        }
-        
-        function redo() {
-          if (historyIndex >= maskHistory.length - 1) return;
-          
-          historyIndex++;
-          maskCtx.putImageData(maskHistory[historyIndex], 0, 0);
-        }
-      }
-      
-      // Background editor functionality
-      function initBgEditor() {
-        const canvas = document.getElementById('bgCanvas');
-        const img = document.getElementById('bgBaseImage');
-        const overlay = document.getElementById('bgOverlay');
-        
-        if (!img || !img.src || !canvas) return;
-        
-        // Set canvas dimensions to match image
-        const rect = img.getBoundingClientRect();
-        const canvasWidth = Math.min(rect.width, 1000);
-        const canvasHeight = Math.min(rect.height, 1000);
-        
-        // Fix for canvas performance warning
-        canvas.setAttribute('willReadFrequently', 'true');
-        
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        
-        bgCanvas = canvas;
-        bgCtx = canvas.getContext('2d', { willReadFrequently: true });
-        
-        // Clear canvas
-        bgCtx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Set up drawing tools
-        setupBgDrawingTools();
-        
-        // Initialize overlay
-        if (overlay) {
-          overlay.style.width = '100%';
-          overlay.style.height = '100%';
-          overlay.style.position = 'absolute';
-          overlay.style.top = '0';
-          overlay.style.left = '0';
-          overlay.style.pointerEvents = 'none';
-          overlay.style.zIndex = '2';
-        }
-      }
-      
-      function setupBgDrawingTools() {
-        if (!bgCanvas || !bgCtx) return;
-        
-        let isDrawing = false;
-        
-        // Tool selection
-        document.querySelectorAll('.mask-tool').forEach(tool => {
-          tool.addEventListener('click', () => {
-            document.querySelectorAll('.mask-tool').forEach(t => t.classList.remove('active'));
-            tool.classList.add('active');
-          });
-        });
-        
-        // Brush size
-        const brushSizeInput = document.getElementById('bgBrushSize');
-        const brushPreview = document.querySelector('.brush-size-preview');
-        
-        if (brushSizeInput && brushPreview) {
-          brushSizeInput.addEventListener('input', () => {
-            const size = parseInt(brushSizeInput.value);
-            brushPreview.style.width = `${size/2}px`;
-            brushPreview.style.height = `${size/2}px`;
-          });
-        }
-        
-        // Drawing events
-        bgCanvas.addEventListener('mousedown', startDrawing);
-        bgCanvas.addEventListener('mousemove', draw);
-        bgCanvas.addEventListener('mouseup', stopDrawing);
-        bgCanvas.addEventListener('mouseleave', stopDrawing);
-        
-        bgCanvas.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          startDrawing({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-        });
-        bgCanvas.addEventListener('touchmove', (e) => {
-          e.preventDefault();
-          draw({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-        });
-        bgCanvas.addEventListener('touchend', stopDrawing);
-        
-        // Undo/Redo
-        const undoTool = document.querySelector('[data-tool="undo"]');
-        const redoTool = document.querySelector('[data-tool="redo"]');
-        
-        if (undoTool) {
-          undoTool.addEventListener('click', undo);
-        }
-        
-        if (redoTool) {
-          redoTool.addEventListener('click', redo);
-        }
-        
-        function startDrawing(e) {
-          isDrawing = true;
-          saveState();
-          draw(e);
-        }
-        
-        function draw(e) {
-          if (!isDrawing) return;
-          
-          const rect = bgCanvas.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          
-          bgCtx.beginPath();
-          
-          // Check current tool
-          const currentTool = document.querySelector('.mask-tool.active').getAttribute('data-tool');
-          
-          if (currentTool === 'brush') {
-            // Blue for keep areas
-            bgCtx.globalCompositeOperation = 'source-over';
-            bgCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-          } else if (currentTool === 'eraser') {
-            // Red for remove areas (with transparency)
-            bgCtx.globalCompositeOperation = 'source-over';
-            bgCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-          }
-          
-          const brushSize = parseInt(document.getElementById('bgBrushSize').value);
-          bgCtx.lineWidth = brushSize;
-          bgCtx.lineCap = 'round';
-          bgCtx.lineTo(x, y);
-          bgCtx.stroke();
-          bgCtx.beginPath();
-          bgCtx.moveTo(x, y);
-        }
-        
-        function stopDrawing() {
-          isDrawing = false;
-          bgCtx.beginPath();
-        }
-        
-        // Mask history for undo/redo
-        const maskHistory = [];
-        let historyIndex = -1;
-        
-        function saveState() {
-          maskHistory.length = historyIndex + 1;
-          maskHistory.push(bgCtx.getImageData(0, 0, bgCanvas.width, bgCanvas.height));
-          historyIndex = maskHistory.length - 1;
-        }
-        
-        function undo() {
-          if (historyIndex <= 0) return;
-          
-          historyIndex--;
-          bgCtx.putImageData(maskHistory[historyIndex], 0, 0);
-        }
-        
-        function redo() {
-          if (historyIndex >= maskHistory.length - 1) return;
-          
-          historyIndex++;
-          bgCtx.putImageData(maskHistory[historyIndex], 0, 0);
-        }
-      }
-      
-      // Function to get mask data as base64
-      function getMaskData() {
-        if (!maskCanvas) return null;
-        
-        return maskCanvas.toDataURL('image/png');
-      }
-      
-      // Function to get background mask data as base64
-      function getBgMaskData() {
-        if (!bgCanvas) return null;
-        
-        return bgCanvas.toDataURL('image/png');
-      }
-      
-      // Analyze mask to determine what user painted
-      async function analyzeMask(maskDataUrl) {
-        // Create a temporary canvas to analyze the mask
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-        
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            tempCanvas.width = img.width;
-            tempCanvas.height = img.height;
-            tempCtx.drawImage(img, 0, 0);
-            
-            // Get pixel data
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            const data = imageData.data;
-            
-            let hasRed = false;
-            let hasBlue = false;
-            
-            // Check for red and blue pixels (simplified)
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i];
-              const g = data[i+1];
-              const b = data[i+2];
-              const a = data[i+3];
-              
-              // Check for red (eraser)
-              if (r > 200 && g < 50 && b < 50 && a > 100) {
-                hasRed = true;
-              }
-              
-              // Check for blue (brush)
-              if (b > 200 && r < 50 && g < 50 && a > 100) {
-                hasBlue = true;
-              }
-              
-              // If we found both, no need to continue
-              if (hasRed && hasBlue) break;
-            }
-            
-            resolve({
-              eraserUsed: hasRed,
-              brushUsed: hasBlue
-            });
-          };
-          img.src = maskDataUrl;
-        });
-      }
       
       // === Toast Notification System ===
       function showToast(message) {
@@ -2295,27 +1744,16 @@
             if (previewSize) previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
             if (imagePreview) imagePreview.classList.remove("hidden");
           } 
-          else if (type === 'mask') {
-            const maskImagePreview = document.getElementById("maskImagePreview");
-            const maskPreviewImg = document.getElementById("maskPreviewImg");
-            const maskPreviewName = document.getElementById("maskPreviewName");
-            const maskPreviewSize = document.getElementById("maskPreviewSize");
+          else if (type === 'text') {
+            const textImagePreview = document.getElementById("textImagePreview");
+            const textPreviewImg = document.getElementById("textPreviewImg");
+            const textPreviewName = document.getElementById("textPreviewName");
+            const textPreviewSize = document.getElementById("textPreviewSize");
             
-            if (maskPreviewImg) maskPreviewImg.src = reader.result;
-            if (maskPreviewName) maskPreviewName.textContent = file.name;
-            if (maskPreviewSize) maskPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-            if (maskImagePreview) maskImagePreview.classList.remove("hidden");
-            
-            // Show mask editor
-            const maskEditor = document.getElementById('maskEditor');
-            const maskBaseImage = document.getElementById('maskBaseImage');
-            if (maskEditor) maskEditor.classList.remove('hidden');
-            if (maskBaseImage) maskBaseImage.src = reader.result;
-            
-            // Initialize mask editor immediately
-            setTimeout(() => {
-              initMaskEditor();
-            }, 100);
+            if (textPreviewImg) textPreviewImg.src = reader.result;
+            if (textPreviewName) textPreviewName.textContent = file.name;
+            if (textPreviewSize) textPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
+            if (textImagePreview) textImagePreview.classList.remove("hidden");
           }
           else if (type === 'background') {
             const bgImagePreview = document.getElementById("bgImagePreview");
@@ -2327,17 +1765,6 @@
             if (bgPreviewName) bgPreviewName.textContent = file.name;
             if (bgPreviewSize) bgPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
             if (bgImagePreview) bgImagePreview.classList.remove("hidden");
-            
-            // Show background editor
-            const bgEditor = document.getElementById('bgEditor');
-            const bgBaseImage = document.getElementById('bgBaseImage');
-            if (bgEditor) bgEditor.classList.remove('hidden');
-            if (bgBaseImage) bgBaseImage.src = reader.result;
-            
-            // Initialize background editor immediately
-            setTimeout(() => {
-              initBgEditor();
-            }, 100);
           }
           else if (type === 'style') {
             const styleImagePreview = document.getElementById("styleImagePreview");
@@ -2471,22 +1898,13 @@
             newEditBtn.onclick = () => {
               resultDiv.classList.add("hidden");
               
-              // Reset mask canvas
-              if (currentTab === 'maskEdit' && maskCanvas) {
-                maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-              }
-              
-              if (currentTab === 'backgroundRemover' && bgCanvas) {
-                bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-              }
-              
               // Show appropriate edit button based on tab
               if (currentTab === 'promptEdit') {
                 const editBtn = document.getElementById("editBtn");
                 if (editBtn) editBtn.classList.remove("hidden");
-              } else if (currentTab === 'maskEdit') {
-                const maskEditBtn = document.getElementById("maskEditBtn");
-                if (maskEditBtn) maskEditBtn.classList.remove("hidden");
+              } else if (currentTab === 'textEdit') {
+                const textEditBtn = document.getElementById("textEditBtn");
+                if (textEditBtn) textEditBtn.classList.remove("hidden");
               } else if (currentTab === 'backgroundRemover') {
                 const bgEditBtn = document.getElementById("bgEditBtn");
                 if (bgEditBtn) bgEditBtn.classList.remove("hidden");
