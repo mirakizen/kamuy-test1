@@ -43,9 +43,8 @@
         .btn-secondary:hover { background-color: var(--accent-secondary-hover); }
         .loader { border-color: rgba(255, 255, 255, 0.2); border-top-color: #fff; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        /* --- SLIDER FIX: Let the container be flexible --- */
-        .comparison-slider { position: relative; overflow: hidden; border: 1px solid var(--border-primary); border-radius: 6px; width: 100%; /* Ensure it takes full width of its parent */ }
-        .comparison-slider img { display: block; width: 100%; height: auto; object-fit: contain; } /* Let images define the aspect ratio */
+        .comparison-slider { position: relative; overflow: hidden; border: 1px solid var(--border-primary); border-radius: 6px; width: 100%; }
+        .comparison-slider img { display: block; width: 100%; height: auto; object-fit: contain; }
         .comparison-slider .after-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; clip-path: inset(0 50% 0 0); }
         .comparison-slider .slider-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background-color: var(--accent-primary); cursor: ew-resize; display: flex; align-items: center; justify-content: center; }
         .comparison-slider .slider-handle-button { width: 30px; height: 30px; background-color: var(--accent-primary); border-radius: 50%; color: white; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.3); user-select: none; }
@@ -54,7 +53,8 @@
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="w-full max-w-lg mx-auto">
+    <!-- THIS IS THE FIX: Changed max-w-lg to max-w-3xl -->
+    <div class="w-full max-w-3xl mx-auto">
         <header class="text-center mb-6 flex justify-between items-center">
             <div></div> <!-- Spacer -->
             <div>
@@ -80,7 +80,6 @@
             <!-- Edit View -->
             <section id="edit-view" class="hidden">
                 <div class="mb-4">
-                     <!-- SLIDER FIX: Removed max-height from image preview -->
                     <img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg w-full object-contain border border-primary p-1">
                 </div>
                 <div>
@@ -99,7 +98,6 @@
             <!-- Result View -->
             <section id="result-view" class="hidden">
                 <h2 class="text-xl font-bold mb-3 text-center">Your masterpiece is ready!</h2>
-                <!-- SLIDER FIX: Container is now flexible -->
                 <div id="comparison-slider" class="comparison-slider">
                     <img id="before-image" src="#" alt="Original Image">
                     <img id="after-image" src="#" class="after-image" alt="Edited Image">
@@ -109,7 +107,6 @@
                 </div>
                 <p class="text-center text-sm text-secondary mt-1 italic">Slide to compare</p>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     <!-- DOWNLOAD FIX: Added target="_blank" -->
                     <a id="download-button" href="#" download="kamuy-edit.png" target="_blank" rel="noopener noreferrer" class="btn-secondary w-full py-2.5 rounded-md text-center">Download</a>
                     <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
                 </div>
@@ -119,11 +116,9 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- DOM Elements ---
         const themeToggle = document.getElementById('theme-toggle');
         const uploadView = document.getElementById('upload-view');
         const editView = document.getElementById('edit-view');
-        // ... (rest of the elements are the same)
         const resultView = document.getElementById('result-view');
         const imageInput = document.getElementById('image-input');
         const dropzone = document.getElementById('dropzone');
@@ -141,7 +136,6 @@
         let originalFile = null;
         let originalFileUrl = null;
 
-        // --- DARK MODE LOGIC ---
         const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
         const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
 
@@ -161,12 +155,8 @@
             localStorage.setItem('theme', newTheme);
             applyTheme(newTheme);
         });
-
-        // Apply theme on initial load
         applyTheme(localStorage.getItem('theme') || 'light');
 
-
-        // --- State Management ---
         const showView = (view) => {
             uploadView.classList.add('hidden');
             editView.classList.add('hidden');
@@ -191,7 +181,6 @@
             generateButtonText.textContent = isLoading ? 'Generating...' : 'Generate';
         };
 
-        // --- File Handling & API Call (largely unchanged) ---
         const handleFileSelect = (file) => {
             if (!file || !file.type.startsWith('image/')) {
                 alert('Please select a valid image file.');
@@ -264,7 +253,6 @@
             }
         });
 
-        // --- Comparison Slider Logic (unchanged) ---
         const slider = document.getElementById('comparison-slider');
         const sliderHandle = document.getElementById('slider-handle');
 
@@ -288,7 +276,6 @@
         document.addEventListener('mousemove', (e) => moveSlider(e.clientX));
         document.addEventListener('touchmove', (e) => moveSlider(e.touches[0].clientX), { passive: false });
 
-        // --- Helper Functions (unchanged) ---
         const fileToBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result.split(',')[1]);
