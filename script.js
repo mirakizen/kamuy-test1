@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const generateImage = async (toolState) => {
         const generateButton = document.getElementById('generate-button');
+        if (!generateButton) return;
         const generateButtonText = generateButton.querySelector('span');
         const generateLoader = generateButton.querySelector('div');
         generateButton.disabled = true;
@@ -40,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: base64Image, imageName: compressedFile.name, imageType: compressedFile.type, prompt: toolState.prompt, negative_prompt: toolState.negative_prompt, width: toolState.dimensions.width, height: toolState.dimensions.height }),
+                body: JSON.stringify({ image: base64Image, imageName: compressedFile.name, imageType: compressedFile.type, prompt: toolState.prompt, negative_prompt: toolState.negative_prompt, width: toolState.dimensions.width, height: toolState.dimensions.height, task_type: state.activeTool }),
             });
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'The server returned an error.'); }
             const data = await response.json();
@@ -63,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const toolState = state[state.activeTool];
         const info = toolInfo[state.activeTool];
         let contentHTML = '';
+
         if (toolState.view === 'upload') {
             contentHTML = `<section><input type="file" id="image-input" class="hidden" accept="image/*" /><div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
         } else if (toolState.view === 'edit') {
@@ -74,17 +76,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     <label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label>
                     <label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label>
                     <label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label>
-                </div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'} mt-4"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}"></div></div>`;
+                </div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'} mt-4"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the person in the background" value="${toolState.objectToRemove || ''}"></div></div>`;
             } else if (state.activeTool === 'artify') {
                 const styles = [
-                    { name: 'Anime', prompt: 'anime style, vibrant, detailed, studio ghibli', img: 'https://storage.googleapis.com/static.fal.ai/static/images/8b072591-c454-4286-a24a-1b57221e7842.jpeg' },
-                    { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting', img: 'https://storage.googleapis.com/static.fal.ai/static/images/1e485e50-f831-48d6-a077-0c75402a5e44.jpeg' },
-                    { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive impasto brushstrokes', img: 'https://storage.googleapis.com/static.fal.ai/static/images/a0e1b033-a337-4148-a0fd-1481b764b8a4.jpeg' },
-                    { name: 'Pixel Art', prompt: '16-bit pixel art style, detailed, vibrant palette', img: 'https://storage.googleapis.com/static.fal.ai/static/images/862089f8-22fd-4a1a-9a9c-a15d7f1b7a2d.jpeg' },
-                    { name: 'Sketch', prompt: 'pencil sketch, hand-drawn, monochrome, detailed shading', img: 'https://storage.googleapis.com/static.fal.ai/static/images/4295e89a-a82f-4824-85b5-227563f03b5f.jpeg' },
-                    { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture, 3d render', img: 'https://storage.googleapis.com/static.fal.ai/static/images/b216d4c6-9937-44ab-8a50-02588c757c2a.jpeg' }
+                    { name: 'Anime', prompt: 'masterpiece, anime style, vibrant, detailed, studio ghibli style'},
+                    { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting, highly detailed'},
+                    { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive impasto brushstrokes, vibrant colors'},
+                    { name: 'Watercolor', prompt: 'watercolor painting, soft wash, flowing colors, detailed'},
+                    { name: 'Pop Art', prompt: 'Pop Art style, bold colors, graphic novel aesthetic, halftone dots'},
+                    { name: 'Sketch', prompt: 'pencil sketch, hand-drawn, monochrome, detailed shading, high contrast'},
                 ];
-                let styleGridHTML = styles.map(s => `<div class="style-btn ${toolState.selectedStyle === s.prompt ? 'active' : ''}" data-style-prompt="${s.prompt}"><img src="${s.img}" alt="${s.name} style preview"><span>${s.name}</span></div>`).join('');
+                let styleGridHTML = styles.map(s => `<button class="style-btn ${toolState.selectedStyle === s.prompt ? 'active' : ''}" data-style-prompt="${s.prompt}">${s.name}</button>`).join('');
                 editControls = `<div class="my-4"><label class="block text-sm font-bold mb-2">Choose a style:</label><div class="style-grid">${styleGridHTML}</div></div>`;
             }
             contentHTML = `<section><div class="mb-4"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span><div class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div></section>`;
@@ -111,14 +113,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const generateButton = document.getElementById('generate-button');
         if(generateButton) {
             generateButton.addEventListener('click', () => {
-                // --- FIX: Advanced Prompt Engineering ---
-                toolState.negative_prompt = 'blurry, noisy, distorted, malformed, watermark, bad quality, artifacts';
-
+                toolState.negative_prompt = 'blurry, noisy, distorted, malformed, watermark, bad quality, artifacts, bad anatomy, mutated hands, disfigured faces, extra limbs';
+                
                 if (state.activeTool === 'prompt-edit') {
                     const userInput = document.getElementById('prompt-input').value;
-                    toolState.prompt = `${userInput}, keeping all other elements and the overall style unchanged. Preserve facial features and skin tones.`;
+                    toolState.prompt = `${userInput}, keeping all other elements and the overall style unchanged. Preserve all facial features, skin tones, and background elements not mentioned in the prompt.`;
                 } else if (state.activeTool === 'removal-tool') {
-                    if (toolState.mode === 'background') { toolState.prompt = 'remove the background, keeping the subject perfectly intact. Output with a transparent background.'; }
+                    if (toolState.mode === 'background') { toolState.prompt = 'remove the background, keeping the subject perfectly intact. Output with a transparent background. Do not add a watermark.'; }
                     else if (toolState.mode === 'object') {
                         toolState.objectToRemove = document.getElementById('object-input').value;
                         if (!toolState.objectToRemove) { alert('Please specify an object to remove.'); return; }
@@ -126,8 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (toolState.mode === 'watermark') { toolState.prompt = `remove the watermark from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`; }
                 } else if (state.activeTool === 'artify') {
                     if (!toolState.selectedStyle) { alert('Please select a style!'); return; }
-                    toolState.prompt = `transform the image in a ${toolState.selectedStyle}.`;
-                    toolState.negative_prompt = 'realistic, photo, real life';
+                    toolState.prompt = `transform the image in a ${toolState.selectedStyle}. Preserve the original composition and subject poses.`;
+                    toolState.negative_prompt += ', realistic, photo, real life, photograph';
                 }
                 generateImage(toolState);
             });
