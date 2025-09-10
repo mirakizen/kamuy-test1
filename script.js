@@ -19,15 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', () => { const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme); });
     applyTheme(localStorage.getItem('theme') || 'light');
     
-    // --- NAVIGATION LOGIC (FIXED) ---
+    // --- Navigation Logic ---
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             state.activeTool = link.dataset.tool;
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
-            toolSections.forEach(section => section.classList.remove('active'));
-            document.getElementById(state.activeTool).classList.add('active');
+            toolSections.forEach(section => section.classList.add('hidden')); // Use hidden class
+            document.getElementById(state.activeTool).classList.remove('hidden'); // Use hidden class
             render();
         });
     });
@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (toolState.view === 'edit') {
             let editControls = '';
             if (state.activeTool === 'prompt-edit') {
-                editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.prompt || ''}</textarea></div>`;
+                 editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.prompt || ''}</textarea></div>`;
             } else if (state.activeTool === 'removal-tool') {
                 editControls = `<div class="my-4 space-y-2"><div class="flex items-center space-x-4">
                     <label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label>
@@ -86,12 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'}"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}"></div></div>`;
             } else if (state.activeTool === 'artify') {
                 const styles = [
-                    { name: 'Anime', prompt: 'anime style, vibrant, detailed', img: 'https://placehold.co/100x80/f87171/ffffff?text=Anime' },
-                    { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city', img: 'https://placehold.co/100x80/60a5fa/ffffff?text=Cyber' },
-                    { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive brushstrokes', img: 'https://placehold.co/100x80/facc15/ffffff?text=Van+Gogh' },
-                    { name: 'Pixel Art', prompt: '16-bit pixel art style', img: 'https://placehold.co/100x80/4ade80/ffffff?text=Pixel' },
-                    { name: 'Sketch', prompt: 'pencil sketch, hand-drawn, shaded', img: 'https://placehold.co/100x80/a78bfa/ffffff?text=Sketch' },
-                    { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture', img: 'https://placehold.co/100x80/f472b6/ffffff?text=LEGO' }
+                    { name: 'Anime', prompt: 'anime style, vibrant, detailed, studio ghibli', img: 'https://storage.googleapis.com/static.fal.ai/static/images/8b072591-c454-4286-a24a-1b57221e7842.jpeg' },
+                    { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting', img: 'https://storage.googleapis.com/static.fal.ai/static/images/1e485e50-f831-48d6-a077-0c75402a5e44.jpeg' },
+                    { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive impasto brushstrokes', img: 'https://storage.googleapis.com/static.fal.ai/static/images/a0e1b033-a337-4148-a0fd-1481b764b8a4.jpeg' },
+                    { name: 'Pixel Art', prompt: '16-bit pixel art style, detailed, vibrant palette', img: 'https://storage.googleapis.com/static.fal.ai/static/images/862089f8-22fd-4a1a-9a9c-a15d7f1b7a2d.jpeg' },
+                    { name: 'Sketch', prompt: 'pencil sketch, hand-drawn, monochrome, detailed shading', img: 'https://storage.googleapis.com/static.fal.ai/static/images/4295e89a-a82f-4824-85b5-227563f03b5f.jpeg' },
+                    { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture, 3d render', img: 'https://storage.googleapis.com/static.fal.ai/static/images/b216d4c6-9937-44ab-8a50-02588c757c2a.jpeg' }
                 ];
                 let styleGridHTML = styles.map(s => `<div class="style-btn ${toolState.selectedStyle === s.prompt ? 'active' : ''}" data-style-prompt="${s.prompt}"><img src="${s.img}" alt="${s.name} style preview"><span>${s.name}</span></div>`).join('');
                 editControls = `<div class="my-4"><label class="block text-sm font-bold mb-2">Choose a style:</label><div class="style-grid">${styleGridHTML}</div></div>`;
@@ -128,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         toolState.prompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.';
                     } else if (toolState.mode === 'object') {
                         toolState.objectToRemove = document.getElementById('object-input').value;
+                        if (!toolState.objectToRemove) { alert('Please specify an object to remove.'); return; }
                         toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally`;
                     } else if (toolState.mode === 'watermark') {
                         toolState.prompt = `remove the watermark from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
@@ -209,5 +210,5 @@ document.addEventListener('DOMContentLoaded', () => {
         img.onerror = reject;
     });
 
-    render(); // Initial Render for Prompt Edit
+    render();
 });
