@@ -1,2249 +1,375 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Kamuy - AI Image Editor</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
-
-    :root {
-      --bg-primary: #f9fafb;
-      --bg-secondary: #ffffff;
-      --text-primary: #111827;
-      --text-secondary: #4b5563;
-      --border-primary: #e5e7eb;
-      --btn-bg: #3b82f6;
-      --btn-text: #ffffff;
-      --tab-active: #2563eb;
-      --tab-inactive: #e5e7eb;
-    }
-
-    .dark {
-      --bg-primary: #111827;
-      --bg-secondary: #1f2937;
-      --text-primary: #f9fafb;
-      --text-secondary: #d1d5db;
-      --border-primary: #374151;
-      --btn-bg: #2563eb;
-      --btn-text: #ffffff;
-      --tab-active: #3b82f6;
-      --tab-inactive: #4b5563;
-    }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      transition: background-color 0.3s ease, color 0.3s ease;
-      touch-action: manipulation;
-    }
-
-    .container {
-      background-color: var(--bg-secondary);
-      border-radius: 0.75rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-    }
-
-    /* Tab styles */
-    .tabs-container {
-      display: flex;
-      border-bottom: 1px solid var(--border-primary);
-    }
-    
-    .tab {
-      flex: 1;
-      text-align: center;
-      padding: 0.75rem 0;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      position: relative;
-      font-weight: 500;
-      color: var(--text-secondary);
-    }
-    
-    .tab.active {
-      color: var(--tab-active);
-    }
-    
-    .tab.active::after {
-      content: '';
-      position: absolute;
-      bottom: -1px;
-      left: 0;
-      width: 100%;
-      height: 3px;
-      background-color: var(--tab-active);
-    }
-    
-    .tab:hover:not(.active) {
-      background-color: rgba(37, 99, 235, 0.05);
-    }
-    
-    .tab-content {
-      display: none;
-      animation: fadeIn 0.3s ease;
-    }
-    
-    .tab-content.active {
-      display: block;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(5px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .dropzone {
-      border: 3px dashed var(--border-primary);
-      border-radius: 12px;
-      background: #f8f9fa;
-      transition: all 0.2s ease;
-      color: var(--text-secondary);
-    }
-
-    .dark .dropzone {
-      background: #1f2937;
-      color: #d1d5db;
-    }
-
-    .dropzone:hover {
-      border-color: #0d6efd;
-      background: #f1f3f5;
-    }
-
-    .dark .dropzone:hover {
-      background: #374151;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 1em;
-      height: 1em;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid #fff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    .style-btn {
-      @apply px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-pointer relative;
-      border-color: var(--border-primary);
-      color: var(--text-primary);
-      background-color: transparent;
-    }
-
-    .style-btn:hover {
-      background-color: #2563eb;
-      color: white;
-      transform: scale(1.05);
-    }
-
-    .style-btn.style-active {
-      background-color: #2563eb;
-      color: white;
-    }
-
-    .tooltip {
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #1f2937;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      white-space: nowrap;
-      z-index: 10;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s ease;
-      margin-bottom: 4px;
-    }
-
-    .style-btn:hover .tooltip {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .style-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0.5rem;
-    }
-
-    .toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      max-width: 300px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      background: #1f2937;
-      color: white;
-      font-size: 0.875rem;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-      transform: translateX(120%);
-      opacity: 0;
-      transition: all 0.3s ease;
-      z-index: 50;
-    }
-
-    .toast.show {
-      transform: translateX(0);
-      opacity: 1;
-    }
-
-    /* Loading Screen */
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-
-    .loading-progress {
-      width: 100%;
-      height: 8px;
-      background-color: #e5e7eb;
-      border-radius: 4px;
-      overflow: hidden;
-      margin: 1rem 0;
-    }
-
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background-color: #2563eb;
-      transition: width 0.3s ease;
-    }
-
-    .loading-text {
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 640px) {
-      .style-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-      .dropzone {
-        padding: 1rem;
-      }
-      .spinner {
-        width: 1.2em;
-        height: 1.2em;
-      }
-    }
-
-    /* Vertical Reveal Slider */
-    .comparison-container {
-      position: relative;
-      width: 100%;
-      height: auto;
-      overflow: hidden;
-      border-radius: 0.5rem;
-      border: 1px solid var(--border-primary);
-      touch-action: none;
-    }
-
-    .comparison-image {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
-
-    .image-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .image-overlay img {
-      width: 100%;
-      height: auto;
-    }
-
-    .slider-handle {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      width: 40px;
-      height: 100%;
-      cursor: ew-resize;
-      z-index: 3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,0.8);
-      border-left: 1px solid #d1d5db;
-      border-right: 1px solid #d1d5db;
-      touch-action: none;
-    }
-
-    .dark .slider-handle {
-      background: rgba(0,0,0,0.8);
-      border-left: 1px solid #374151;
-      border-right: 1px solid #374151;
-    }
-
-    .slider-handle::before {
-      content: "↔";
-      font-size: 24px;
-      color: #4b5563;
-      opacity: 0.8;
-    }
-
-    .dark .slider-handle::before {
-      color: #d1d5db;
-    }
-
-    .slider-instruction {
-      text-align: center;
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      margin-top: 0.25rem;
-      font-style: italic;
-    }
-
-    /* History Panel */
-    .history-panel {
-      position: fixed;
-      top: 0;
-      right: -320px;
-      width: 300px;
-      height: 100%;
-      background: var(--bg-secondary);
-      border-left: 1px solid var(--border-primary);
-      box-shadow: -4px 0 6px -2px rgba(0,0,0,0.1);
-      z-index: 40;
-      transition: right 0.3s ease;
-      overflow-y: auto;
-      padding: 1rem;
-    }
-
-    .history-panel.open {
-      right: 0;
-    }
-
-    .history-item {
-      border: 1px solid var(--border-primary);
-      border-radius: 8px;
-      padding: 0.5rem;
-      margin-bottom: 0.5rem;
-      cursor: pointer;
-    }
-
-    .history-item img {
-      width: 100%;
-      border-radius: 4px;
-      margin-bottom: 0.25rem;
-    }
-
-    .history-prompt {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .close-history {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 1.5rem;
-      color: var(--text-secondary);
-      cursor: pointer;
-    }
-
-    .open-history {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      background: var(--btn-bg);
-      color: var(--btn-text);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-      z-index: 30;
-      cursor: pointer;
-    }
-
-    .dark .open-history {
-      background: #2563eb;
-    }
-    
-    /* Facebook WebView Warning */
-    .fb-warning {
-      display: none;
-      background-color: #fff1e6;
-      border: 1px solid #fed7aa;
-      border-radius: 0.5rem;
-      padding: 1rem;
-      margin-top: 1rem;
-      color: #7c2d12;
-    }
-    
-    /* Text Editor */
-    .text-editor {
-      margin-top: 1rem;
-    }
-    
-    .text-edit-field {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .text-edit-field input {
-      flex: 1;
-      padding: 0.5rem;
-      border: 1px solid var(--border-primary);
-      border-radius: 4px;
-    }
-    
-    .text-edit-field button {
-      padding: 0.5rem 1rem;
-      background-color: var(--btn-bg);
-      color: var(--btn-text);
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    
-    .text-edit-preview {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-    
-    .text-edit-example {
-      border: 1px solid var(--border-primary);
-      border-radius: 4px;
-      padding: 0.5rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      width: 150px;
-    }
-    
-    .text-edit-example:hover {
-      transform: scale(1.05);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .text-edit-example img {
-      width: 100%;
-      height: 150px;
-      object-fit: cover;
-      border-radius: 4px;
-    }
-    
-    .text-edit-example p {
-      margin-top: 0.5rem;
-      text-align: center;
-      font-size: 0.875rem;
-    }
-    
-    /* Image Preview Modal */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .modal-content {
-      max-width: 90%;
-      max-height: 90%;
-    }
-    
-    .modal-content img {
-      max-width: 100%;
-      max-height: 80vh;
-      object-fit: contain;
-    }
-    
-    .modal-close {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      color: white;
-      font-size: 2rem;
-      cursor: pointer;
-    }
-    
-    /* Image Preview */
-    .image-preview {
-      width: 100%;
-      height: 200px;
-      object-fit: contain;
-      border-radius: 4px;
-      margin-top: 0.5rem;
-    }
-    
-    /* Image upload preview */
-    .image-preview-container {
-      margin-top: 0.5rem;
-      width: 100%;
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--border-primary);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    
-    .image-preview-container img {
-      max-width: 100%;
-      max-height: 190px;
-      object-fit: contain;
-    }
-    
-    /* Mobile specific fixes */
-    @media (max-width: 768px) {
-      .comparison-container {
-        height: 300px;
-      }
-      
-      .comparison-image {
-        height: 300px;
-      }
-      
-      .image-overlay img {
-        height: 300px;
-      }
-      
-      .slider-handle {
-        width: 30px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Kamuy ✨ AI Image Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-primary: #f0f2f5;
+            --bg-secondary: #ffffff;
+            --text-primary: #1c1e21;
+            --text-secondary: #606770;
+            --border-primary: #e0e0e0;
+            --accent-primary: #1b74e4;
+            --accent-primary-hover: #186ac9;
+            --accent-secondary: #42b72a;
+            --accent-secondary-hover: #3ba326;
+        }
+        html.dark {
+            --bg-primary: #18191a;
+            --bg-secondary: #242526;
+            --text-primary: #e4e6eb;
+            --text-secondary: #b0b3b8;
+            --border-primary: #3a3b3c;
+            --accent-primary: #2d88ff;
+            --accent-primary-hover: #297be2;
+        }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .main-container {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        .dropzone {
+            border: 2px dashed var(--border-primary);
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .dropzone.dragover {
+            border-color: var(--accent-primary);
+            background-color: rgba(27, 116, 228, 0.05);
+        }
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: var(--accent-primary-hover);
+        }
+        .btn-primary:disabled {
+            background-color: #a0c3f0;
+            cursor: not-allowed;
+        }
+        html.dark .btn-primary:disabled {
+            background-color: #4a5d75;
+        }
+        .btn-secondary {
+            background-color: var(--accent-secondary);
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .btn-secondary:hover {
+            background-color: var(--accent-secondary-hover);
+        }
+        .loader {
+            border-color: rgba(255, 255, 255, 0.2);
+            border-top-color: #fff;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .comparison-slider {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+        }
+        .comparison-slider .after-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            clip-path: inset(0 50% 0 0);
+        }
+        .comparison-slider .slider-handle {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background-color: var(--accent-primary);
+            cursor: ew-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .comparison-slider .slider-handle-button {
+            width: 30px;
+            height: 30px;
+            background-color: var(--accent-primary);
+            border-radius: 50%;
+            color: white;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            user-select: none;
+        }
+        .hidden { display: none; }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-6">
-  <div class="w-full max-w-2xl mx-auto container" id="appContainer">
-    <div class="p-6 sm:p-8">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-center">✨ Kamuy</h1>
-        <button id="darkModeToggle" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm">
-          Dark Mode
-        </button>
-      </div>
-      
-      <!-- Tab Navigation -->
-      <div class="tabs-container mb-6">
-        <div class="tab active" data-tab="promptEdit">Prompt Edit</div>
-        <div class="tab" data-tab="textEdit">Text Edit</div>
-        <div class="tab" data-tab="backgroundRemover">Background Remover</div>
-        <div class="tab" data-tab="styleTransfer">Style Transfer</div>
-      </div>
-      
-      <!-- Tab Content -->
-      <div id="promptEditTab" class="tab-content active">
-        <p class="text-center mb-6 text-sm text-gray-500">Describe what you want changed - our AI understands natural language</p>
-        
-        <!-- Upload -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-2">Upload Image</label>
-          <input type="file" id="imageInput" accept="image/*" class="hidden" />
-          <div id="dropzone" class="dropzone w-full p-6 text-center cursor-pointer">
-            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="mt-2">Click to upload or drag and drop</p>
-            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
-          </div>
-          <!-- Preview -->
-          <div id="imagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
-            <img id="previewImg" class="image-preview" />
-            <div class="ml-3 mt-2 text-center w-full">
-              <p id="previewName" class="text-sm font-medium"></p>
-              <p id="previewSize" class="text-sm"></p>
-            </div>
-          </div>
-        </div>
+<body class="min-h-screen flex items-center justify-center p-4">
 
-        <!-- Prompt -->
-        <div class="mb-6">
-          <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
-          <input type="text" id="prompt" placeholder="Change the car color to red" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
-        </div>
+    <div class="w-full max-w-lg mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold">Kamuy ✨</h1>
+            <p class="text-lg text-secondary">Divine image editing, powered by AI.</p>
+        </header>
 
-        <!-- Edit Button -->
-        <button id="editBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-          <i class="fas fa-magic mr-2"></i> Edit Image
-        </button>
-      </div>
-      
-      <div id="textEditTab" class="tab-content">
-        <p class="text-center mb-6 text-sm text-gray-500">Add or modify text in your images with perfect font matching</p>
-        
-        <!-- Upload -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-2">Upload Image</label>
-          <input type="file" id="textImageInput" accept="image/*" class="hidden" />
-          <div id="textDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
-            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="mt-2">Click to upload or drag and drop</p>
-            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
-          </div>
-          <!-- Preview -->
-          <div id="textImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
-            <img id="textPreviewImg" class="image-preview" />
-            <div class="ml-3 mt-2 text-center w-full">
-              <p id="textPreviewName" class="text-sm font-medium"></p>
-              <p id="textPreviewSize" class="text-sm"></p>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Text Editing -->
-        <div class="text-editor mb-6">
-          <div class="text-edit-field">
-            <input type="text" id="textToAdd" placeholder="Enter text to add or modify" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-            <button id="addTextEditBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
-              <i class="fas fa-plus"></i>
-            </button>
-          </div>
-          
-          <p class="text-sm text-gray-500 mt-2">Qwen-Image-Edit will automatically match the font, size, and style of existing text in your image</p>
-          
-          <div class="text-edit-preview mt-4">
-            <div class="text-edit-example">
-              <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8715.JPG" alt="Text editing example" />
-              <p>Edit English text</p>
-            </div>
-            <div class="text-edit-example">
-              <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8717.JPG" alt="Chinese text editing example" />
-              <p>Edit Chinese text</p>
-            </div>
-            <div class="text-edit-example">
-              <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit_en/%E5%B9%BB%E7%81%AF%E7%89%8718.JPG" alt="Calligraphy editing example" />
-              <p>Edit calligraphy</p>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Edit Button -->
-        <button id="textEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-          <i class="fas fa-font mr-2"></i> Edit Text
-        </button>
-      </div>
-      
-      <div id="backgroundRemoverTab" class="tab-content">
-        <p class="text-center mb-6 text-sm text-gray-500">Remove background while keeping the foreground object exactly as is</p>
-        
-        <!-- Upload -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-2">Upload Image</label>
-          <input type="file" id="bgImageInput" accept="image/*" class="hidden" />
-          <div id="bgDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
-            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="mt-2">Click to upload or drag and drop</p>
-            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
-          </div>
-          <!-- Preview -->
-          <div id="bgImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
-            <img id="bgPreviewImg" class="image-preview" />
-            <div class="ml-3 mt-2 text-center w-full">
-              <p id="bgPreviewName" class="text-sm font-medium"></p>
-              <p id="bgPreviewSize" class="text-sm"></p>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Edit Button -->
-        <button id="bgEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-          <i class="fas fa-eraser mr-2"></i> Remove Background
-        </button>
-      </div>
-      
-      <div id="styleTransferTab" class="tab-content">
-        <p class="text-center mb-6 text-sm text-gray-500">Transform your image into any artistic style</p>
-        
-        <!-- Upload -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-2">Upload Image</label>
-          <input type="file" id="styleImageInput" accept="image/*" class="hidden" />
-          <div id="styleDropzone" class="dropzone w-full p-6 text-center cursor-pointer">
-            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-              <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20M16 16l16 16m-16 0l16-16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="mt-2">Click to upload or drag and drop</p>
-            <p class="text-xs">PNG, JPG, GIF up to 8MB (smart compression applied)</p>
-          </div>
-          <!-- Preview -->
-          <div id="styleImagePreview" class="hidden mt-4 p-2 border rounded-lg bg-gray-50 flex flex-col items-center">
-            <img id="stylePreviewImg" class="image-preview" />
-            <div class="ml-3 mt-2 text-center w-full">
-              <p id="stylePreviewName" class="text-sm font-medium"></p>
-              <p id="stylePreviewSize" class="text-sm"></p>
-            </div>
-          </div>
-        </div>
+        <main id="app-container" class="main-container p-6">
+            <!-- 1. Upload View -->
+            <section id="upload-view">
+                <input type="file" id="image-input" class="hidden" accept="image/*" />
+                <div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg>
+                    <p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p>
+                    <p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p>
+                </div>
+            </section>
 
-        <!-- Style Presets -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-2">Style Presets</label>
-          <div class="style-grid" id="styleTransferGrid">
-            <button type="button" class="style-btn">
-              🎨 Anime
-              <span class="tooltip">Transform into vibrant anime style</span>
-            </button>
-            <button type="button" class="style-btn">
-              🎬 Ghibli
-              <span class="tooltip">Studio Ghibli watercolor aesthetic</span>
-            </button>
-            <button type="button" class="style-btn">
-              🎨 Picasso
-              <span class="tooltip">Cubist abstraction and bold forms</span>
-            </button>
-            <button type="button" class="style-btn">
-              🕹️ Cyberpunk
-              <span class="tooltip">Neon lights, rain, futuristic</span>
-            </button>
-            <button type="button" class="style-btn">
-              🖼️ Van Gogh
-              <span class="tooltip">Expressive brushstrokes, textured</span>
-            </button>
-            <button type="button" class="style-btn">
-              🧱 LEGO
-              <span class="tooltip">Plastic brick diorama style</span>
-            </button>
-            <button type="button" class="style-btn">
-              🎮 Pixel
-              <span class="tooltip">16-bit retro video game style</span>
-            </button>
-            <button type="button" class="style-btn">
-              🖋️ Sketch
-              <span class="tooltip">Pencil drawing with shading</span>
-            </button>
-            <button type="button" class="style-btn">
-              🧸 Pixar
-              <span class="tooltip">3D animation, soft lighting</span>
-            </button>
-            <button type="button" class="style-btn">
-              🏜️ Mirage
-              <span class="tooltip">Heat haze, desert illusion</span>
-            </button>
-            <button type="button" class="style-btn">
-              🎨 Watercolor
-              <span class="tooltip">Soft watercolor painting style</span>
-            </button>
-            <button type="button" class="style-btn">
-              🎨 Impressionist
-              <span class="tooltip">Visible brushstrokes with light effects</span>
-            </button>
-            <button type="button" class="style-btn">
-              🎞️ Film Noir
-              <span class="tooltip">Classic black and white cinematic style with dramatic lighting</span>
-            </button>
-            <button type="button" class="style-btn">
-              💡 Neon Glow
-              <span class="tooltip">Vibrant neon glow effect with light trails</span>
-            </button>
-            <button type="button" class="style-btn">
-              🔮 Kaleidoscope
-              <span class="tooltip">Symmetrical kaleidoscopic effect</span>
-            </button>
-          </div>
-          
-          <!-- Style Intensity Slider -->
-          <div class="style-intensity mt-4">
-            <label for="styleIntensity">Style Intensity</label>
-            <input type="range" id="styleIntensity" class="intensity-slider" min="0.1" max="1.0" step="0.1" value="0.7">
-            <div class="intensity-value">Intensity: <span id="intensityValue">70%</span></div>
-          </div>
-        </div>
+            <!-- 2. Edit View -->
+            <section id="edit-view" class="hidden">
+                <div class="mb-4">
+                    <img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg max-h-64 w-full object-contain border border-primary p-1">
+                </div>
+                <div>
+                    <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
+                    <textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent focus:ring-2 focus:ring-accent-primary focus:outline-none transition" placeholder="e.g., Change the background to a sunny beach with palm trees"></textarea>
+                </div>
+                <div class="mt-4 flex space-x-2">
+                    <button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center">
+                        <span id="generate-button-text">Generate</span>
+                        <div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div>
+                    </button>
+                    <button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button>
+                </div>
+            </section>
 
-        <!-- Edit Button -->
-        <button id="styleEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-          <i class="fas fa-palette mr-2"></i> Apply Style
-        </button>
-      </div>
-
-      <!-- Loading -->
-      <div id="loading" class="hidden mt-4 text-center text-gray-600">
-        <div class="loading-container">
-          <div class="loading-text">Processing: <span id="progressPercent">0</span>%</div>
-          <div class="loading-progress">
-            <div class="progress-bar" id="progressBar"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Result -->
-      <div id="result" class="hidden mt-6">
-        <h3 class="text-lg font-medium mb-2">✨ Edited Image</h3>
-        <div class="comparison-container relative">
-          <img id="beforeImage" class="comparison-image" src="" alt="Original" />
-          <div class="image-overlay" id="imageOverlay">
-            <img id="afterImage" class="comparison-image" src="" alt="Edited" />
-          </div>
-          <div class="slider-handle" id="sliderHandle"></div>
-        </div>
-        <p class="slider-instruction">Drag left/right to compare before/after</p>
-
-        <!-- Download Button -->
-        <button id="downloadBtn" class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
-          <i class="fas fa-download mr-2"></i> Download Image
-        </button>
-        
-        <!-- New Edit Button -->
-        <button id="newEditBtn" class="mt-3 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
-          <i class="fas fa-redo mr-2"></i> New Edit
-        </button>
-        
-        <p id="downloadInstructions" class="download-instructions"></p>
-      </div>
+            <!-- 3. Result View -->
+            <section id="result-view" class="hidden">
+                <h2 class="text-xl font-bold mb-3 text-center">Your masterpiece is ready!</h2>
+                <div id="comparison-slider" class="comparison-slider">
+                    <img id="before-image" src="#" class="block w-full h-auto object-contain" alt="Original Image">
+                    <img id="after-image" src="#" class="after-image" alt="Edited Image">
+                    <div id="slider-handle" class="slider-handle">
+                        <div class="slider-handle-button">&#x2194;</div>
+                    </div>
+                </div>
+                <p class="text-center text-sm text-secondary mt-1 italic">Slide to compare</p>
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a id="download-button" href="#" download="kamuy-edit.png" class="btn-secondary w-full py-2.5 rounded-md text-center">Download</a>
+                    <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
+                </div>
+            </section>
+        </main>
     </div>
-  </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="toast">Image uploaded successfully</div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Elements ---
+        const uploadView = document.getElementById('upload-view');
+        const editView = document.getElementById('edit-view');
+        const resultView = document.getElementById('result-view');
+        const imageInput = document.getElementById('image-input');
+        const dropzone = document.getElementById('dropzone');
+        const imagePreview = document.getElementById('image-preview');
+        const promptInput = document.getElementById('prompt-input');
+        const generateButton = document.getElementById('generate-button');
+        const generateButtonText = document.getElementById('generate-button-text');
+        const generateLoader = document.getElementById('generate-loader');
+        const resetButton = document.getElementById('reset-button');
+        const newEditButton = document.getElementById('new-edit-button');
+        const beforeImage = document.getElementById('before-image');
+        const afterImage = document.getElementById('after-image');
+        const downloadButton = document.getElementById('download-button');
+        
+        let originalFile = null;
+        let originalFileUrl = null;
 
-  <!-- History Panel -->
-  <div id="historyPanel" class="history-panel">
-    <h3 class="text-lg font-semibold mb-4">Recent Edits</h3>
-    <div id="historyList"></div>
-    <div class="close-history" id="closeHistory">&times;</div>
-  </div>
-
-  <!-- Open History Button -->
-  <div id="openHistory" class="open-history">
-    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-    </svg>
-  </div>
-  
-  <!-- Image Modal -->
-  <div id="imageModal" class="modal">
-    <div class="modal-content">
-      <img id="modalImage" src="" alt="Expanded view" />
-      <span class="modal-close">&times;</span>
-    </div>
-  </div>
-
-  <script>
-    // Tab state management
-    const tabStates = {
-      promptEdit: {
-        imageFile: null,
-        imageUrl: null,
-        editedImageUrl: null,
-        prompt: '',
-        loading: false,
-        progress: 0
-      },
-      textEdit: {
-        imageFile: null,
-        imageUrl: null,
-        editedImageUrl: null,
-        textToAdd: '',
-        loading: false,
-        progress: 0
-      },
-      backgroundRemover: {
-        imageFile: null,
-        imageUrl: null,
-        editedImageUrl: null,
-        loading: false,
-        progress: 0
-      },
-      styleTransfer: {
-        imageFile: null,
-        imageUrl: null,
-        editedImageUrl: null,
-        styles: [],
-        intensity: 0.7,
-        loading: false,
-        progress: 0
-      }
-    };
-    
-    let currentTab = 'promptEdit';
-    
-    // Style placeholders
-    const stylePlaceholders = {
-      anime: "Make it anime-style with vibrant colors",
-      'studio ghibli': "Transform into a Studio Ghibli scene",
-      picasso: "in Picasso's cubist style, abstract forms",
-      cyberpunk: "Cyberpunk neon lights and rain effects",
-      'van gogh': "in the style of Van Gogh, expressive brushstrokes",
-      lego: "as a LEGO diorama, plastic texture",
-      'pixel art': "in 16-bit pixel art style",
-      sketch: "as a pencil sketch, hand-drawn lines",
-      pixar: "in Pixar 3D animation style, soft lighting",
-      'desert mirage': "with desert mirage effect, heat haze",
-      watercolor: "in soft watercolor painting style",
-      impressionist: "in impressionist style with visible brushstrokes and light effects",
-      'film noir': "in classic black and white film noir cinematic style with dramatic lighting",
-      'neon glow': "in vibrant neon glow effect with light trails and cyber atmosphere",
-      kaleidoscope: "with symmetrical kaleidoscopic effect"
-    };
-    
-    // Initialize the app when DOM is ready
-    document.addEventListener('DOMContentLoaded', function() {
-      // DOM elements
-      const tabs = document.querySelectorAll('.tab');
-      const tabContents = document.querySelectorAll('.tab-content');
-      const toast = document.getElementById('toast');
-      const newEditBtn = document.getElementById('newEditBtn');
-      const imageModal = document.getElementById('imageModal');
-      const modalImage = document.getElementById('modalImage');
-      const modalClose = document.querySelector('.modal-close');
-      
-      // Initialize tab state based on current tab
-      function initTabState() {
-        const state = tabStates[currentTab];
-        
-        // Reset UI elements
-        resetUI();
-        
-        // Handle Prompt Edit tab
-        if (currentTab === 'promptEdit') {
-          const imageInput = document.getElementById("imageInput");
-          const dropzone = document.getElementById("dropzone");
-          const imagePreview = document.getElementById("imagePreview");
-          const previewImg = document.getElementById("previewImg");
-          const previewName = document.getElementById("previewName");
-          const previewSize = document.getElementById("previewSize");
-          const promptInput = document.getElementById("prompt");
-          const editBtn = document.getElementById("editBtn");
-          
-          // Restore image preview if exists
-          if (state.imageUrl && imagePreview && previewImg) {
-            previewImg.src = state.imageUrl;
-            if (previewName) previewName.textContent = state.imageFile ? state.imageFile.name : 'Uploaded image';
-            if (previewSize) previewSize.textContent = state.imageFile ? (state.imageFile.size / (1024*1024)).toFixed(1) + " MB" : '';
-            imagePreview.classList.remove("hidden");
-          } else {
-            if (imagePreview) imagePreview.classList.add("hidden");
-          }
-          
-          // Restore prompt
-          if (promptInput) {
-            promptInput.value = state.prompt;
-          }
-          
-          // Restore result if exists
-          if (state.editedImageUrl) {
-            showResult(state.editedImageUrl);
-          }
-          
-          // Set up events
-          if (dropzone && imageInput) {
-            dropzone.addEventListener("click", () => {
-              // Clear previous file input to allow re-uploading the same file
-              imageInput.value = '';
-              imageInput.click();
-            });
-            dropzone.addEventListener("dragover", (e) => {
-              e.preventDefault();
-              dropzone.classList.add("border-blue-500", "bg-blue-50");
-            });
-            dropzone.addEventListener("dragleave", () => {
-              dropzone.classList.remove("border-blue-500", "bg-blue-50");
-            });
-            dropzone.addEventListener("drop", (e) => {
-              e.preventDefault();
-              dropzone.classList.remove("border-blue-500", "bg-blue-50");
-              if (e.dataTransfer.files.length) {
-                const file = e.dataTransfer.files[0];
-                handleImageUpload(file, 'prompt');
-              }
-            });
-            
-            imageInput.addEventListener("change", (e) => {
-              // Prevent double event triggering
-              e.stopPropagation();
-              e.preventDefault();
-              
-              const file = imageInput.files[0];
-              if (file) {
-                handleImageUpload(file, 'prompt');
-              }
-            });
-          }
-          
-          // Edit button
-          if (editBtn) {
-            editBtn.addEventListener("click", async () => {
-              const prompt = promptInput ? promptInput.value.trim() : '';
-              
-              if (!state.imageFile || !prompt) {
-                alert("Please upload an image and enter a prompt.");
-                return;
-              }
-              
-              state.prompt = prompt;
-              state.loading = true;
-              state.progress = 0;
-              updateLoadingState();
-              
-              try {
-                if (editBtn) editBtn.classList.add("hidden");
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.remove("hidden");
-                const resultDiv = document.getElementById("result");
-                if (resultDiv) resultDiv.classList.add("hidden");
-                
-                // Start processing
-                startProcessing(0, 100);
-                
-                // Compress and process the image
-                const compressionResult = await compressForServer(state.imageFile);
-                const compressedFile = compressionResult.file;
-                
-                // Show compression info
-                const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-                showToast(qualityMsg);
-                
-                // Convert to base64
-                const base64Image = await fileToBase64(compressedFile);
-                
-                // API call
-                const response = await fetch("/api/edit", {
-                  method: "POST",
-                  headers: { 
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                  },
-                  body: JSON.stringify({
-                    image: base64Image,
-                    imageName: state.imageFile.name,
-                    imageType: state.imageFile.type,
-                    prompt: prompt
-                  })
-                });
-                
-                // Stop processing
-                stopProcessing();
-                
-                // Error handling
-                if (!response.ok) {
-                  let errorMessage = `Server error: ${response.status}`;
-                  try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                      errorMessage += ` - ${errorData.error}`;
-                    }
-                  } catch (e) {
-                    // Ignore
-                  }
-                  throw new Error(errorMessage);
-                }
-                
-                // Parse response
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.includes("application/json")) {
-                  data = await response.json();
-                } else {
-                  throw new Error("Expected JSON response but received different content type");
-                }
-                
-                if (data.edited_image_url) {
-                  // Store edited image URL in tab state
-                  state.editedImageUrl = data.edited_image_url;
-                  state.loading = false;
-                  updateLoadingState();
-                  
-                  showResult(data.edited_image_url);
-                } else {
-                  throw new Error("Invalid response format: missing edited_image_url");
-                }
-              } catch (err) {
-                console.error("Detailed error:", err);
-                // Stop processing on error
-                stopProcessing();
-                state.loading = false;
-                updateLoadingState();
-                
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.add("hidden");
-                if (editBtn) editBtn.classList.remove("hidden");
-                alert("Error: " + err.message);
-              }
-            });
-          }
-        }
-        
-        // Handle Text Edit tab
-        else if (currentTab === 'textEdit') {
-          const textImageInput = document.getElementById("textImageInput");
-          const textDropzone = document.getElementById("textDropzone");
-          const textImagePreview = document.getElementById("textImagePreview");
-          const textPreviewImg = document.getElementById("textPreviewImg");
-          const textPreviewName = document.getElementById("textPreviewName");
-          const textPreviewSize = document.getElementById("textPreviewSize");
-          const textToAddInput = document.getElementById("textToAdd");
-          const textEditBtn = document.getElementById("textEditBtn");
-          
-          // Restore image preview if exists
-          if (state.imageUrl && textImagePreview && textPreviewImg) {
-            textPreviewImg.src = state.imageUrl;
-            if (textPreviewName) textPreviewName.textContent = state.imageFile ? state.imageFile.name : 'Uploaded image';
-            if (textPreviewSize) textPreviewSize.textContent = state.imageFile ? (state.imageFile.size / (1024*1024)).toFixed(1) + " MB" : '';
-            textImagePreview.classList.remove("hidden");
-          } else {
-            if (textImagePreview) textImagePreview.classList.add("hidden");
-          }
-          
-          // Restore text
-          if (textToAddInput) {
-            textToAddInput.value = state.textToAdd;
-          }
-          
-          // Restore result if exists
-          if (state.editedImageUrl) {
-            showResult(state.editedImageUrl);
-          }
-          
-          // Set up events
-          if (textDropzone && textImageInput) {
-            textDropzone.addEventListener("click", () => {
-              // Clear previous file input to allow re-uploading the same file
-              textImageInput.value = '';
-              textImageInput.click();
-            });
-            textDropzone.addEventListener("dragover", (e) => {
-              e.preventDefault();
-              textDropzone.classList.add("border-blue-500", "bg-blue-50");
-            });
-            textDropzone.addEventListener("dragleave", () => {
-              textDropzone.classList.remove("border-blue-500", "bg-blue-50");
-            });
-            textDropzone.addEventListener("drop", (e) => {
-              e.preventDefault();
-              textDropzone.classList.remove("border-blue-500", "bg-blue-50");
-              if (e.dataTransfer.files.length) {
-                const file = e.dataTransfer.files[0];
-                handleImageUpload(file, 'text');
-              }
-            });
-            
-            textImageInput.addEventListener("change", (e) => {
-              // Prevent double event triggering
-              e.stopPropagation();
-              e.preventDefault();
-              
-              const file = textImageInput.files[0];
-              if (file) {
-                handleImageUpload(file, 'text');
-              }
-            });
-          }
-          
-          // Text Edit button
-          if (textEditBtn) {
-            textEditBtn.addEventListener("click", async () => {
-              const textToAdd = textToAddInput ? textToAddInput.value.trim() : '';
-              
-              if (!state.imageFile || !textToAdd) {
-                alert("Please upload an image and enter text to add or modify.");
-                return;
-              }
-              
-              state.textToAdd = textToAdd;
-              state.loading = true;
-              state.progress = 0;
-              updateLoadingState();
-              
-              try {
-                if (textEditBtn) textEditBtn.classList.add("hidden");
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.remove("hidden");
-                const resultDiv = document.getElementById("result");
-                if (resultDiv) resultDiv.classList.add("hidden");
-                
-                // Start processing
-                startProcessing(0, 100);
-                
-                // Compress and process the image
-                const compressionResult = await compressForServer(state.imageFile);
-                const compressedFile = compressionResult.file;
-                
-                // Show compression info
-                const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-                showToast(qualityMsg);
-                
-                // Convert to base64
-                const base64Image = await fileToBase64(compressedFile);
-                
-                // API call - using Qwen's text editing capability
-                const response = await fetch("/api/edit", {
-                  method: "POST",
-                  headers: { 
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                  },
-                  body: JSON.stringify({
-                    image: base64Image,
-                    imageName: state.imageFile.name,
-                    imageType: state.imageFile.type,
-                    prompt: `Add or modify text to: "${textToAdd}". Preserve the original font style and size.`
-                  })
-                });
-                
-                // Stop processing
-                stopProcessing();
-                
-                // Error handling
-                if (!response.ok) {
-                  let errorMessage = `Server error: ${response.status}`;
-                  try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                      errorMessage += ` - ${errorData.error}`;
-                    }
-                  } catch (e) {
-                    // Ignore
-                  }
-                  throw new Error(errorMessage);
-                }
-                
-                // Parse response
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.includes("application/json")) {
-                  data = await response.json();
-                } else {
-                  throw new Error("Expected JSON response but received different content type");
-                }
-                
-                if (data.edited_image_url) {
-                  // Store edited image URL in tab state
-                  state.editedImageUrl = data.edited_image_url;
-                  state.loading = false;
-                  updateLoadingState();
-                  
-                  showResult(data.edited_image_url);
-                } else {
-                  throw new Error("Invalid response format: missing edited_image_url");
-                }
-              } catch (err) {
-                console.error("Detailed error:", err);
-                // Stop processing on error
-                stopProcessing();
-                state.loading = false;
-                updateLoadingState();
-                
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.add("hidden");
-                if (textEditBtn) textEditBtn.classList.remove("hidden");
-                alert("Error: " + err.message);
-              }
-            });
-          }
-        }
-        
-        // Handle Background Remover tab
-        else if (currentTab === 'backgroundRemover') {
-          const bgImageInput = document.getElementById("bgImageInput");
-          const bgDropzone = document.getElementById("bgDropzone");
-          const bgImagePreview = document.getElementById("bgImagePreview");
-          const bgPreviewImg = document.getElementById("bgPreviewImg");
-          const bgPreviewName = document.getElementById("bgPreviewName");
-          const bgPreviewSize = document.getElementById("bgPreviewSize");
-          const bgEditBtn = document.getElementById("bgEditBtn");
-          
-          // Restore image preview if exists
-          if (state.imageUrl && bgImagePreview && bgPreviewImg) {
-            bgPreviewImg.src = state.imageUrl;
-            if (bgPreviewName) bgPreviewName.textContent = state.imageFile ? state.imageFile.name : 'Uploaded image';
-            if (bgPreviewSize) bgPreviewSize.textContent = state.imageFile ? (state.imageFile.size / (1024*1024)).toFixed(1) + " MB" : '';
-            bgImagePreview.classList.remove("hidden");
-          } else {
-            if (bgImagePreview) bgImagePreview.classList.add("hidden");
-          }
-          
-          // Restore result if exists
-          if (state.editedImageUrl) {
-            showResult(state.editedImageUrl);
-          }
-          
-          // Set up events
-          if (bgDropzone && bgImageInput) {
-            bgDropzone.addEventListener("click", () => {
-              // Clear previous file input to allow re-uploading the same file
-              bgImageInput.value = '';
-              bgImageInput.click();
-            });
-            bgDropzone.addEventListener("dragover", (e) => {
-              e.preventDefault();
-              bgDropzone.classList.add("border-blue-500", "bg-blue-50");
-            });
-            bgDropzone.addEventListener("dragleave", () => {
-              bgDropzone.classList.remove("border-blue-500", "bg-blue-50");
-            });
-            bgDropzone.addEventListener("drop", (e) => {
-              e.preventDefault();
-              bgDropzone.classList.remove("border-blue-500", "bg-blue-50");
-              if (e.dataTransfer.files.length) {
-                const file = e.dataTransfer.files[0];
-                handleImageUpload(file, 'background');
-              }
-            });
-            
-            bgImageInput.addEventListener("change", (e) => {
-              // Prevent double event triggering
-              e.stopPropagation();
-              e.preventDefault();
-              
-              const file = bgImageInput.files[0];
-              if (file) {
-                handleImageUpload(file, 'background');
-              }
-            });
-          }
-          
-          // Background Edit button
-          if (bgEditBtn) {
-            bgEditBtn.addEventListener("click", async () => {
-              if (!state.imageFile) {
-                alert("Please upload an image first.");
-                return;
-              }
-              
-              state.loading = true;
-              state.progress = 0;
-              updateLoadingState();
-              
-              try {
-                if (bgEditBtn) bgEditBtn.classList.add("hidden");
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.remove("hidden");
-                const resultDiv = document.getElementById("result");
-                if (resultDiv) resultDiv.classList.add("hidden");
-                
-                // Start processing
-                startProcessing(0, 100);
-                
-                // Compress and process the image
-                const compressionResult = await compressForServer(state.imageFile);
-                const compressedFile = compressionResult.file;
-                
-                // Show compression info
-                const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-                showToast(qualityMsg);
-                
-                // Convert to base64
-                const base64Image = await fileToBase64(compressedFile);
-                
-                // API call - using the optimal background removal prompt
-                const response = await fetch("/api/edit", {
-                  method: "POST",
-                  headers: { 
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                  },
-                  body: JSON.stringify({
-                    image: base64Image,
-                    imageName: state.imageFile.name,
-                    imageType: state.imageFile.type,
-                    prompt: "Remove ONLY the background while keeping the foreground object exactly as it appears in the original image, with no changes to colors, lighting, textures, or details"
-                  })
-                });
-                
-                // Stop processing
-                stopProcessing();
-                
-                // Error handling
-                if (!response.ok) {
-                  let errorMessage = `Server error: ${response.status}`;
-                  try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                      errorMessage += ` - ${errorData.error}`;
-                    }
-                  } catch (e) {
-                    // Ignore
-                  }
-                  throw new Error(errorMessage);
-                }
-                
-                // Parse response
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.includes("application/json")) {
-                  data = await response.json();
-                } else {
-                  throw new Error("Expected JSON response but received different content type");
-                }
-                
-                if (data.edited_image_url) {
-                  // Store edited image URL in tab state
-                  state.editedImageUrl = data.edited_image_url;
-                  state.loading = false;
-                  updateLoadingState();
-                  
-                  showResult(data.edited_image_url);
-                } else {
-                  throw new Error("Invalid response format: missing edited_image_url");
-                }
-              } catch (err) {
-                console.error("Detailed error:", err);
-                // Stop processing on error
-                stopProcessing();
-                state.loading = false;
-                updateLoadingState();
-                
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.add("hidden");
-                if (bgEditBtn) bgEditBtn.classList.remove("hidden");
-                alert("Error: " + err.message);
-              }
-            });
-          }
-        }
-        
-        // Handle Style Transfer tab
-        else if (currentTab === 'styleTransfer') {
-          const styleImageInput = document.getElementById("styleImageInput");
-          const styleDropzone = document.getElementById("styleDropzone");
-          const styleImagePreview = document.getElementById("styleImagePreview");
-          const stylePreviewImg = document.getElementById("stylePreviewImg");
-          const stylePreviewName = document.getElementById("stylePreviewName");
-          const stylePreviewSize = document.getElementById("stylePreviewSize");
-          const styleEditBtn = document.getElementById("styleEditBtn");
-          const styleTransferGrid = document.getElementById("styleTransferGrid");
-          const intensitySlider = document.getElementById('styleIntensity');
-          const intensityValue = document.getElementById('intensityValue');
-          
-          // Restore image preview if exists
-          if (state.imageUrl && styleImagePreview && stylePreviewImg) {
-            stylePreviewImg.src = state.imageUrl;
-            if (stylePreviewName) stylePreviewName.textContent = state.imageFile ? state.imageFile.name : 'Uploaded image';
-            if (stylePreviewSize) stylePreviewSize.textContent = state.imageFile ? (state.imageFile.size / (1024*1024)).toFixed(1) + " MB" : '';
-            styleImagePreview.classList.remove("hidden");
-          } else {
-            if (styleImagePreview) styleImagePreview.classList.add("hidden");
-          }
-          
-          // Initialize style buttons
-          if (styleTransferGrid) {
-            styleTransferGrid.querySelectorAll('.style-btn').forEach((button, index) => {
-              const styles = Object.keys(stylePlaceholders);
-              const style = styles[index % styles.length];
-              
-              // Check if this style is active
-              const isActive = state.styles.includes(style);
-              if (isActive) {
-                button.classList.add('style-active');
-                button.style.backgroundColor = '#2563eb';
-                button.style.borderColor = '#2563eb';
-                button.style.color = 'white';
-              }
-              
-              button.addEventListener('click', () => {
-                toggleStyle(button, style);
-              });
-            });
-          }
-          
-          // Style intensity slider
-          if (intensitySlider && intensityValue) {
-            intensitySlider.value = state.intensity;
-            const value = Math.round(state.intensity * 100);
-            intensityValue.textContent = `${value}%`;
-            
-            intensitySlider.addEventListener('input', () => {
-              const value = Math.round(intensitySlider.value * 100);
-              intensityValue.textContent = `${value}%`;
-              state.intensity = parseFloat(intensitySlider.value);
-              saveTabState();
-            });
-          }
-          
-          // Restore result if exists
-          if (state.editedImageUrl) {
-            showResult(state.editedImageUrl);
-          }
-          
-          // Set up events
-          if (styleDropzone && styleImageInput) {
-            styleDropzone.addEventListener("click", () => {
-              // Clear previous file input to allow re-uploading the same file
-              styleImageInput.value = '';
-              styleImageInput.click();
-            });
-            styleDropzone.addEventListener("dragover", (e) => {
-              e.preventDefault();
-              styleDropzone.classList.add("border-blue-500", "bg-blue-50");
-            });
-            styleDropzone.addEventListener("dragleave", () => {
-              styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
-            });
-            styleDropzone.addEventListener("drop", (e) => {
-              e.preventDefault();
-              styleDropzone.classList.remove("border-blue-500", "bg-blue-50");
-              if (e.dataTransfer.files.length) {
-                const file = e.dataTransfer.files[0];
-                handleImageUpload(file, 'style');
-              }
-            });
-            
-            styleImageInput.addEventListener("change", (e) => {
-              // Prevent double event triggering
-              e.stopPropagation();
-              e.preventDefault();
-              
-              const file = styleImageInput.files[0];
-              if (file) {
-                handleImageUpload(file, 'style');
-              }
-            });
-          }
-          
-          // Style Edit button
-          if (styleEditBtn) {
-            styleEditBtn.addEventListener("click", async () => {
-              if (!state.imageFile || state.styles.length === 0) {
-                alert("Please upload an image and select at least one style.");
-                return;
-              }
-              
-              state.loading = true;
-              state.progress = 0;
-              updateLoadingState();
-              
-              try {
-                if (styleEditBtn) styleEditBtn.classList.add("hidden");
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.remove("hidden");
-                const resultDiv = document.getElementById("result");
-                if (resultDiv) resultDiv.classList.add("hidden");
-                
-                // Start processing
-                startProcessing(0, 100);
-                
-                // Compress and process the image
-                const compressionResult = await compressForServer(state.imageFile);
-                const compressedFile = compressionResult.file;
-                
-                // Show compression info
-                const originalMB = (state.imageFile.size / (1024*1024)).toFixed(1);
-                const compressedMB = (compressionResult.compressedSize / (1024*1024)).toFixed(1);
-                const qualityMsg = `Optimized from ${originalMB}MB to ${compressedMB}MB (${compressionResult.dimensions})`;
-                showToast(qualityMsg);
-                
-                // Convert to base64
-                const base64Image = await fileToBase64(compressedFile);
-                
-                // Construct prompt with style information
-                const stylePrompt = state.styles.map(s => {
-                  const styles = {
-                    anime: "in anime style",
-                    'studio ghibli': "in Studio Ghibli style",
-                    picasso: "in Picasso's cubist style, abstract forms",
-                    cyberpunk: "with cyberpunk neon lighting",
-                    'van gogh': "in the style of Van Gogh, expressive brushstrokes",
-                    lego: "as a LEGO diorama, plastic texture",
-                    'pixel art': "in 16-bit pixel art style",
-                    sketch: "as a pencil sketch, hand-drawn lines",
-                    pixar: "in Pixar 3D animation style, soft lighting",
-                    'desert mirage': "with desert mirage effect, heat haze",
-                    watercolor: "in soft watercolor painting style",
-                    impressionist: "in impressionist style with visible brushstrokes and light effects",
-                    'film noir': "in classic black and white film noir cinematic style with dramatic lighting",
-                    'neon glow': "in vibrant neon glow effect with light trails and cyber atmosphere",
-                    kaleidoscope: "with symmetrical kaleidoscopic effect"
-                  };
-                  return styles[s] || s;
-                }).join(", ");
-                
-                // API call
-                const response = await fetch("/api/edit", {
-                  method: "POST",
-                  headers: { 
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                  },
-                  body: JSON.stringify({
-                    image: base64Image,
-                    imageName: state.imageFile.name,
-                    imageType: state.imageFile.type,
-                    prompt: stylePrompt,
-                    style_intensity: state.intensity
-                  })
-                });
-                
-                // Stop processing
-                stopProcessing();
-                
-                // Error handling
-                if (!response.ok) {
-                  let errorMessage = `Server error: ${response.status}`;
-                  try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                      errorMessage += ` - ${errorData.error}`;
-                    }
-                  } catch (e) {
-                    // Ignore
-                  }
-                  throw new Error(errorMessage);
-                }
-                
-                // Parse response
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.includes("application/json")) {
-                  data = await response.json();
-                } else {
-                  throw new Error("Expected JSON response but received different content type");
-                }
-                
-                if (data.edited_image_url) {
-                  // Store edited image URL in tab state
-                  state.editedImageUrl = data.edited_image_url;
-                  state.loading = false;
-                  updateLoadingState();
-                  
-                  showResult(data.edited_image_url);
-                } else {
-                  throw new Error("Invalid response format: missing edited_image_url");
-                }
-              } catch (err) {
-                console.error("Detailed error:", err);
-                // Stop processing on error
-                stopProcessing();
-                state.loading = false;
-                updateLoadingState();
-                
-                const loading = document.getElementById("loading");
-                if (loading) loading.classList.add("hidden");
-                if (styleEditBtn) styleEditBtn.classList.remove("hidden");
-                alert("Error: " + err.message);
-              }
-            });
-          }
-        }
-      }
-      
-      // Reset UI elements to ensure no cross-contamination
-      function resetUI() {
-        // Hide all previews
-        document.querySelectorAll('.hidden').forEach(el => {
-          if (el.classList.contains('image-preview')) {
-            el.classList.add('hidden');
-          }
-        });
-        
-        // Reset result
-        const resultDiv = document.getElementById('result');
-        if (resultDiv) {
-          resultDiv.classList.add('hidden');
-        }
-      }
-      
-      // Save current tab state
-      function saveTabState() {
-        const state = tabStates[currentTab];
-        
-        if (currentTab === 'promptEdit') {
-          const promptInput = document.getElementById("prompt");
-          if (promptInput) {
-            state.prompt = promptInput.value;
-          }
-        } 
-        else if (currentTab === 'textEdit') {
-          const textToAddInput = document.getElementById("textToAdd");
-          if (textToAddInput) {
-            state.textToAdd = textToAddInput.value;
-          }
-        }
-        else if (currentTab === 'styleTransfer') {
-          // Save style selections
-          const styleTransferGrid = document.getElementById("styleTransferGrid");
-          if (styleTransferGrid) {
-            state.styles = [];
-            styleTransferGrid.querySelectorAll('.style-btn.style-active').forEach(button => {
-              const styleName = button.textContent.trim().split(' ')[1].toLowerCase();
-              state.styles.push(styleName);
-            });
-          }
-          
-          // Save intensity
-          const intensitySlider = document.getElementById('styleIntensity');
-          if (intensitySlider) {
-            state.intensity = parseFloat(intensitySlider.value);
-          }
-        }
-      }
-      
-      // Update loading state
-      function updateLoadingState() {
-        const state = tabStates[currentTab];
-        const progressBar = document.getElementById('progressBar');
-        const progressPercent = document.getElementById('progressPercent');
-        
-        if (progressBar && progressPercent) {
-          progressBar.style.width = `${state.progress}%`;
-          progressPercent.textContent = Math.round(state.progress);
-        }
-      }
-      
-      // Start processing
-      function startProcessing(start, end) {
-        const state = tabStates[currentTab];
-        let current = start;
-        const interval = setInterval(() => {
-          if (current >= end) {
-            clearInterval(interval);
-          } else {
-            current += 1;
-            state.progress = current;
-            updateLoadingState();
-          }
-        }, 50);
-      }
-      
-      // Stop processing
-      function stopProcessing() {
-        const state = tabStates[currentTab];
-        state.progress = 100;
-        updateLoadingState();
-        
-        // Hide loading after a short delay
-        setTimeout(() => {
-          const loading = document.getElementById("loading");
-          if (loading) loading.classList.add("hidden");
-        }, 500);
-      }
-      
-      // Tab functionality
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          // Save current tab state before switching
-          saveTabState();
-          
-          // Remove active class from all tabs and content
-          tabs.forEach(t => t.classList.remove('active'));
-          tabContents.forEach(c => c.classList.remove('active'));
-          
-          // Add active class to clicked tab and corresponding content
-          tab.classList.add('active');
-          currentTab = tab.getAttribute('data-tab');
-          const contentElement = document.getElementById(`${currentTab}Tab`);
-          
-          if (contentElement) {
-            contentElement.classList.add('active');
-            initTabState();
-          }
-        });
-      });
-      
-      // New Edit button functionality
-      if (newEditBtn) {
-        newEditBtn.addEventListener("click", () => {
-          const resultDiv = document.getElementById('result');
-          if (resultDiv) resultDiv.classList.add("hidden");
-          
-          // Show appropriate edit button based on tab
-          if (currentTab === 'promptEdit') {
-            const editBtn = document.getElementById("editBtn");
-            if (editBtn) editBtn.classList.remove("hidden");
-          } else if (currentTab === 'textEdit') {
-            const textEditBtn = document.getElementById("textEditBtn");
-            if (textEditBtn) textEditBtn.classList.remove("hidden");
-          } else if (currentTab === 'backgroundRemover') {
-            const bgEditBtn = document.getElementById("bgEditBtn");
-            if (bgEditBtn) bgEditBtn.classList.remove("hidden");
-          } else if (currentTab === 'styleTransfer') {
-            const styleEditBtn = document.getElementById("styleEditBtn");
-            if (styleEditBtn) styleEditBtn.classList.remove("hidden");
-          }
-        });
-      }
-      
-      // Initialize the current tab
-      initTabState();
-      
-      // === Toast Notification System ===
-      function showToast(message) {
-        if (!toast) return;
-        toast.textContent = message;
-        toast.classList.add('show');
-        
-        setTimeout(() => {
-          toast.classList.remove('show');
-        }, 3000);
-      }
-
-      // Detect Facebook WebView
-      function isFacebookWebView() {
-        const ua = navigator.userAgent || navigator.vendor || window.opera;
-        return (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || 
-               (ua.indexOf("FB_IAB") > -1) || (ua.indexOf("FB4A") > -1);
-      }
-
-      // === Rest of the JS ===
-      function handleImageUpload(file, type) {
-        // Check if file is an image
-        if (!file.type.match('image.*')) {
-          alert('Please select an image file (PNG, JPG, GIF)');
-          return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = () => {
-          const state = tabStates[currentTab];
-          
-          // Store file and URL in tab state
-          state.imageFile = file;
-          state.imageUrl = reader.result;
-          
-          // Update UI based on tab
-          if (type === 'prompt') {
-            const imagePreview = document.getElementById("imagePreview");
-            const previewImg = document.getElementById("previewImg");
-            const previewName = document.getElementById("previewName");
-            const previewSize = document.getElementById("previewSize");
-            
-            if (previewImg) previewImg.src = reader.result;
-            if (previewName) previewName.textContent = file.name;
-            if (previewSize) previewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-            if (imagePreview) imagePreview.classList.remove("hidden");
-          } 
-          else if (type === 'text') {
-            const textImagePreview = document.getElementById("textImagePreview");
-            const textPreviewImg = document.getElementById("textPreviewImg");
-            const textPreviewName = document.getElementById("textPreviewName");
-            const textPreviewSize = document.getElementById("textPreviewSize");
-            
-            if (textPreviewImg) textPreviewImg.src = reader.result;
-            if (textPreviewName) textPreviewName.textContent = file.name;
-            if (textPreviewSize) textPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-            if (textImagePreview) textImagePreview.classList.remove("hidden");
-          }
-          else if (type === 'background') {
-            const bgImagePreview = document.getElementById("bgImagePreview");
-            const bgPreviewImg = document.getElementById("bgPreviewImg");
-            const bgPreviewName = document.getElementById("bgPreviewName");
-            const bgPreviewSize = document.getElementById("bgPreviewSize");
-            
-            if (bgPreviewImg) bgPreviewImg.src = reader.result;
-            if (bgPreviewName) bgPreviewName.textContent = file.name;
-            if (bgPreviewSize) bgPreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-            if (bgImagePreview) bgImagePreview.classList.remove("hidden");
-          }
-          else if (type === 'style') {
-            const styleImagePreview = document.getElementById("styleImagePreview");
-            const stylePreviewImg = document.getElementById("stylePreviewImg");
-            const stylePreviewName = document.getElementById("stylePreviewName");
-            const stylePreviewSize = document.getElementById("stylePreviewSize");
-            
-            if (stylePreviewImg) stylePreviewImg.src = reader.result;
-            if (stylePreviewName) stylePreviewName.textContent = file.name;
-            if (stylePreviewSize) stylePreviewSize.textContent = (file.size / (1024*1024)).toFixed(1) + " MB";
-            if (styleImagePreview) styleImagePreview.classList.remove("hidden");
-          }
-          
-          showToast("Image uploaded successfully");
+        // --- State Management ---
+        const showView = (view) => {
+            uploadView.classList.add('hidden');
+            editView.classList.add('hidden');
+            resultView.classList.add('hidden');
+            view.classList.remove('hidden');
         };
-        reader.readAsDataURL(file);
-      }
 
-      // === Vertical Reveal Slider (Mobile-Fixed) ===
-      const sliderHandle = document.getElementById('sliderHandle');
-      const imageOverlay = document.getElementById('imageOverlay');
-      const beforeImage = document.getElementById('beforeImage');
-      const afterImage = document.getElementById('afterImage');
-      
-      if (sliderHandle && imageOverlay && beforeImage && afterImage) {
-        let isDragging = false;
-
-        function handleMove(e) {
-          if (!isDragging) return;
-          
-          e.preventDefault(); // Prevent scrolling while dragging
-          
-          const container = sliderHandle.parentElement;
-          const rect = container.getBoundingClientRect();
-          const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-          if (!clientX) return;
-          
-          let x = clientX - rect.left;
-          const maxLeft = rect.width - 40;
-          const clampedX = Math.max(0, Math.min(maxLeft, x));
-          const percent = (clampedX / rect.width) * 100;
-          
-          sliderHandle.style.left = clampedX + 'px';
-          imageOverlay.style.clipPath = `inset(0 ${100 - (clampedX / rect.width) * 100}% 0 0)`;
-        }
-
-        function stopDragging() {
-          isDragging = false;
-          document.removeEventListener('mousemove', handleMove);
-          document.removeEventListener('mouseup', stopDragging);
-          document.removeEventListener('touchmove', handleMove);
-          document.removeEventListener('touchend', stopDragging);
-        }
-
-        sliderHandle.addEventListener('mousedown', (e) => {
-          isDragging = true;
-          document.addEventListener('mousemove', handleMove);
-          document.addEventListener('mouseup', stopDragging);
-          e.preventDefault();
-        });
-
-        sliderHandle.addEventListener('touchstart', (e) => {
-          isDragging = true;
-          document.addEventListener('touchmove', handleMove, { passive: false });
-          document.addEventListener('touchend', stopDragging);
-          e.preventDefault();
-        });
-      }
-      
-      // === Style Presets ===
-      function toggleStyle(button, style) {
-        const state = tabStates[currentTab];
-        const isActive = button.classList.contains('style-active');
-        
-        if (isActive) {
-          button.classList.remove('style-active');
-          button.style.backgroundColor = '';
-          button.style.borderColor = 'var(--border-primary)';
-          button.style.color = 'var(--text-primary)';
-          
-          // Remove from state
-          const index = state.styles.indexOf(style);
-          if (index > -1) {
-            state.styles.splice(index, 1);
-          }
-        } else {
-          button.classList.add('style-active');
-          button.style.backgroundColor = '#2563eb';
-          button.style.borderColor = '#2563eb';
-          button.style.color = 'white';
-          
-          // Add to state
-          state.styles.push(style);
-        }
-        
-        saveTabState();
-      }
-
-      // Show result image
-      function showResult(editedImageUrl) {
-        const beforeImage = document.getElementById('beforeImage');
-        const afterImage = document.getElementById('afterImage');
-        const imageOverlay = document.getElementById('imageOverlay');
-        const resultDiv = document.getElementById('result');
-        const sliderHandle = document.getElementById('sliderHandle');
-        const newEditBtn = document.getElementById('newEditBtn');
-        
-        if (beforeImage && afterImage && resultDiv) {
-          const state = tabStates[currentTab];
-          
-          // Set image sources
-          beforeImage.src = state.imageUrl;
-          afterImage.src = editedImageUrl;
-          
-          // Show result
-          resultDiv.classList.remove("hidden");
-          
-          // Reset slider to 50%
-          if (sliderHandle && imageOverlay) {
-            const container = sliderHandle.parentElement;
-            const midPoint = (container.offsetWidth - 40) / 2;
-            sliderHandle.style.left = midPoint + 'px';
-            imageOverlay.style.clipPath = 'inset(0 50% 0 0)';
-          }
-          
-          // Set up download functionality
-          setupDownload(editedImageUrl);
-          
-          // Set up new edit button
-          if (newEditBtn) {
-            newEditBtn.onclick = () => {
-              resultDiv.classList.add("hidden");
-              
-              // Show appropriate edit button based on tab
-              if (currentTab === 'promptEdit') {
-                const editBtn = document.getElementById("editBtn");
-                if (editBtn) editBtn.classList.remove("hidden");
-              } else if (currentTab === 'textEdit') {
-                const textEditBtn = document.getElementById("textEditBtn");
-                if (textEditBtn) textEditBtn.classList.remove("hidden");
-              } else if (currentTab === 'backgroundRemover') {
-                const bgEditBtn = document.getElementById("bgEditBtn");
-                if (bgEditBtn) bgEditBtn.classList.remove("hidden");
-              } else if (currentTab === 'styleTransfer') {
-                const styleEditBtn = document.getElementById("styleEditBtn");
-                if (styleEditBtn) styleEditBtn.classList.remove("hidden");
-              }
-            };
-          }
-          
-          // Smooth scroll to result
-          setTimeout(() => {
-            resultDiv.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'start' 
-            });
-          }, 300);
-        }
-      }
-
-      // Setup download functionality with Facebook WebView compatibility
-      function setupDownload(imageUrl) {
-        const downloadBtn = document.getElementById("downloadBtn");
-        const downloadInstructions = document.getElementById("downloadInstructions");
-        
-        // Clear previous instructions
-        if (downloadInstructions) {
-          downloadInstructions.textContent = '';
-        }
-        
-        // For Facebook WebView, use a different approach
-        if (isFacebookWebView()) {
-          downloadBtn.onclick = async () => {
-            try {
-              // Fetch the image as blob
-              const response = await fetch(imageUrl);
-              const blob = await response.blob();
-              
-              // Create object URL
-              const url = URL.createObjectURL(blob);
-              
-              // For mobile devices, open in new tab
-              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-              if (isMobile) {
-                // Open in new window/tab
-                window.open(url, '_blank');
-                
-                // Show instructions
-                if (downloadInstructions) {
-                  downloadInstructions.textContent = 'Tap and hold the image to save it to your device';
-                }
-                showToast('Image opened in new tab - tap and hold to save');
-              } else {
-                // For desktop Facebook WebView (rare), try normal download
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "kamuy-edited.png";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showToast("Download started");
-              }
-            } catch (err) {
-              alert("Download failed: " + err.message);
+        const resetToUpload = () => {
+            if (originalFileUrl) {
+                URL.revokeObjectURL(originalFileUrl); // Clean up memory
             }
-          };
-        } else {
-          // Standard download for regular browsers
-          downloadBtn.onclick = () => {
-            fetch(imageUrl)
-              .then(res => res.blob())
-              .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "kamuy-edited.png";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showToast("Download started");
-              })
-              .catch(err => alert("Download failed: " + err.message));
-          };
-        }
-      }
+            originalFile = null;
+            originalFileUrl = null;
+            imageInput.value = ''; // Clear file input
+            promptInput.value = '';
+            showView(uploadView);
+        };
+        
+        const setLoadingState = (isLoading) => {
+            generateButton.disabled = isLoading;
+            generateLoader.classList.toggle('hidden', !isLoading);
+            generateButtonText.textContent = isLoading ? 'Generating...' : 'Generate';
+        };
 
-      // === Processing Functions ===
-      function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            // Remove the data URL prefix (e.g., "image/png;base64,")
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
+        // --- File Handling ---
+        const handleFileSelect = (file) => {
+            if (!file || !file.type.startsWith('image/')) {
+                alert('Please select a valid image file.');
+                return;
+            }
+            originalFile = file;
+            originalFileUrl = URL.createObjectURL(file);
+            imagePreview.src = originalFileUrl;
+            beforeImage.src = originalFileUrl;
+            showView(editView);
+        };
+
+        // --- Event Listeners ---
+        dropzone.addEventListener('click', () => imageInput.click());
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
         });
-      }
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        resetButton.addEventListener('click', resetToUpload);
+        newEditButton.addEventListener('click', resetToUpload);
 
-      // Smart compression function
-      async function compressForServer(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = function(e) {
-            const img = new Image();
-            img.src = e.target.result;
+        generateButton.addEventListener('click', async () => {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                alert('Please describe your edit.');
+                return;
+            }
             
-            img.onload = function() {
-              let width = img.width;
-              let height = img.height;
-              
-              // Calculate aspect ratio
-              const aspectRatio = width / height;
-              
-              // Maximum dimensions for good quality
-              const maxDimension = 1920;
-              
-              // Scale down if needed, but maintain aspect ratio
-              if (width > maxDimension || height > maxDimension) {
-                if (width > height) {
-                  width = maxDimension;
-                  height = Math.round(width / aspectRatio);
-                } else {
-                  height = maxDimension;
-                  width = Math.round(height * aspectRatio);
+            setLoadingState(true);
+
+            try {
+                const compressedFile = await compressImage(originalFile);
+                const base64Image = await fileToBase64(compressedFile);
+
+                const response = await fetch('/api/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: base64Image,
+                        imageName: compressedFile.name,
+                        imageType: compressedFile.type,
+                        prompt: prompt,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'The server returned an error.');
                 }
-              }
-              
-              // Create canvas and draw image
-              const canvas = document.createElement('canvas');
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext('2d', { willReadFrequently: true });
-              ctx.drawImage(img, 0, 0, width, height);
-              
-              // Start with high quality
-              let quality = 0.9;
-              const mime = file.type || 'image/jpeg';
-              
-              function tryCompression() {
-                // Convert to blob with current quality
-                canvas.toBlob(blob => {
-                  if (!blob) {
-                    reject(new Error('Canvas toBlob failed'));
-                    return;
-                  }
-                  
-                  // Calculate expected base64 size (rough estimate)
-                  const base64Size = blob.size * 1.33; // Base64 adds ~33% overhead
-                  
-                  // For Facebook WebView, be more conservative
-                  const maxSize = isFacebookWebView() ? 3.0 * 1024 * 1024 : 3.5 * 1024 * 1024;
-                  
-                  // Check if size is acceptable
-                  if (base64Size <= maxSize || quality <= 0.3) {
-                    const compressedFile = new File([blob], file.name, {
-                      type: file.type,
-                      lastModified: file.lastModified
-                    });
-                    
-                    resolve({
-                      file: compressedFile,
-                      originalSize: file.size,
-                      compressedSize: blob.size,
-                      quality: quality,
-                      dimensions: `${width}x${height}`
-                    });
-                  } else {
-                    // Reduce quality and try again
-                    quality -= 0.1;
-                    tryCompression();
-                  }
-                }, mime, quality);
-              }
-              
-              tryCompression();
+                
+                const data = await response.json();
+                
+                if (data.edited_image_url) {
+                    afterImage.src = data.edited_image_url;
+                    downloadButton.href = data.edited_image_url;
+                    showView(resultView);
+                } else {
+                    throw new Error('Could not find the edited image in the response.');
+                }
+
+            } catch (error) {
+                console.error('Generation failed:', error);
+                alert(`Error: ${error.message}`);
+            } finally {
+                setLoadingState(false);
+            }
+        });
+
+        // --- Comparison Slider Logic ---
+        const slider = document.getElementById('comparison-slider');
+        const sliderHandle = document.getElementById('slider-handle');
+        const afterImageContainer = document.querySelector('.after-image');
+
+        let isDragging = false;
+        const startDragging = () => { isDragging = true; };
+        const stopDragging = () => { isDragging = false; };
+        const moveSlider = (clientX) => {
+            if (!isDragging) return;
+            const rect = slider.getBoundingClientRect();
+            let x = clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            const percent = (x / rect.width) * 100;
+            sliderHandle.style.left = `${percent}%`;
+            afterImage.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+        };
+
+        sliderHandle.addEventListener('mousedown', startDragging);
+        sliderHandle.addEventListener('touchstart', startDragging);
+        document.addEventListener('mouseup', stopDragging);
+        document.addEventListener('touchend', stopDragging);
+        document.addEventListener('mousemove', (e) => moveSlider(e.clientX));
+        document.addEventListener('touchmove', (e) => moveSlider(e.touches[0].clientX));
+
+
+        // --- Helper Functions ---
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+        
+        const compressImage = (file) => new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                const maxDim = 1920;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = (height / width) * maxDim;
+                        width = maxDim;
+                    } else {
+                        width = (width / height) * maxDim;
+                        height = maxDim;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    URL.revokeObjectURL(img.src); // Clean up original object URL
+                    resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                }, 'image/jpeg', 0.9); // Use JPEG for better compression
             };
-            
-            img.onerror = function() {
-              reject(new Error('Image load error'));
-            };
-          };
-          
-          reader.onerror = function() {
-            reject(new Error('File reader error'));
-          };
-          
-          reader.readAsDataURL(file);
+            img.onerror = reject;
         });
-      }
-
-      // === Dark Mode Toggle ===
-      const darkModeToggle = document.getElementById('darkModeToggle');
-      const body = document.body;
-
-      const prefersDark = localStorage.getItem('kamuy_dark_mode') === 'true';
-      if (prefersDark) {
-        body.classList.add('dark');
-        darkModeToggle.textContent = 'Light Mode';
-      }
-
-      if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', () => {
-          body.classList.toggle('dark');
-          if (body.classList.contains('dark')) {
-            darkModeToggle.textContent = 'Light Mode';
-            localStorage.setItem('kamuy_dark_mode', 'true');
-          } else {
-            darkModeToggle.textContent = 'Dark Mode';
-            localStorage.setItem('kamuy_dark_mode', 'false');
-          }
-        });
-      }
-      
-      // === Image Modal Functionality ===
-      const textEditExamples = document.querySelectorAll('.text-edit-example');
-      
-      textEditExamples.forEach(example => {
-        example.addEventListener('click', () => {
-          const img = example.querySelector('img');
-          if (img && modalImage) {
-            modalImage.src = img.src;
-            imageModal.style.display = 'flex';
-          }
-        });
-      });
-      
-      modalClose.addEventListener('click', () => {
-        imageModal.style.display = 'none';
-      });
-      
-      imageModal.addEventListener('click', (e) => {
-        if (e.target === imageModal) {
-          imageModal.style.display = 'none';
-        }
-      });
     });
-  </script>
+    </script>
 </body>
 </html>
