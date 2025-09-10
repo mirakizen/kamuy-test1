@@ -124,7 +124,7 @@
         
         let originalFile = null;
         let originalFileUrl = null;
-        let originalDimensions = { width: 0, height: 0 }; // Store original dimensions
+        let originalDimensions = { width: 0, height: 0 };
 
         const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
         const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
@@ -149,6 +149,7 @@
         };
 
         const resetToUpload = () => {
+            // --- THIS IS THE FIX: Properly clean up the URL when done ---
             if (originalFileUrl) URL.revokeObjectURL(originalFileUrl);
             originalFile = null;
             originalFileUrl = null;
@@ -172,15 +173,16 @@
             originalFile = file;
             originalFileUrl = URL.createObjectURL(file);
             
-            // --- THIS IS THE FIX: Get the image dimensions ---
             const img = new Image();
             img.onload = () => {
                 originalDimensions = { width: img.naturalWidth, height: img.naturalHeight };
-                URL.revokeObjectURL(img.src); // Clean up temp object URL
+                // --- THIS IS THE FIX: We NO LONGER revoke the URL here ---
+                // URL.revokeObjectURL(img.src); // <-- THIS WAS THE BUG. REMOVED.
                 imagePreview.src = originalFileUrl;
                 beforeImage.src = originalFileUrl;
                 showView(editView);
             };
+            // We use the same URL for measuring and for display
             img.src = originalFileUrl;
         };
 
@@ -207,7 +209,6 @@
             setLoadingState(true);
 
             try {
-                // We use originalFile for compression to keep quality high
                 const compressedFile = await compressImage(originalFile);
                 const base64Image = await fileToBase64(compressedFile);
 
@@ -219,7 +220,6 @@
                         imageName: compressedFile.name,
                         imageType: compressedFile.type,
                         prompt: prompt,
-                        // --- THIS IS THE FIX: Send the dimensions to the backend ---
                         width: originalDimensions.width,
                         height: originalDimensions.height,
                     }),
@@ -239,7 +239,6 @@
                 } else {
                     throw new Error('Could not find the edited image in the response.');
                 }
-
             } catch (error) {
                 console.error('Generation failed:', error);
                 alert(`Error: ${error.message}`);
@@ -286,13 +285,8 @@
                 let { width, height } = img;
                 const maxDim = 1920;
                 if (width > maxDim || height > maxDim) {
-                    if (width > height) {
-                        height = (height / width) * maxDim;
-                        width = maxDim;
-                    } else {
-                        width = (width / height) * maxDim;
-                        height = maxDim;
-                    }
+                    if (width > height) { height = (height / width) * maxDim; width = maxDim; }
+                    else { width = (width / height) * maxDim; height = maxDim; }
                 }
                 canvas.width = width;
                 canvas.height = height;
