@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { image, imageName, imageType, prompt, negative_prompt, width, height, task_type } = req.body;
+    const { image, imageName, imageType, prompt, negative_prompt, width, height } = req.body;
 
     if (!image || !prompt || !width || !height) {
       return res.status(400).json({
@@ -29,21 +29,19 @@ export default async function handler(req, res) {
 
     const imageUrl = await fal.storage.upload(file);
 
-    const payload = {
+    // --- THIS IS THE FIX ---
+    // The model requires width and height to be explicitly passed for ALL image-to-image tasks
+    // to prevent stretching and processing errors. The conditional logic was wrong.
+    const result = await fal.subscribe('fal-ai/bytedance/seedream/v4/edit', {
       input: {
         prompt: prompt,
         negative_prompt: negative_prompt,
         image_urls: [imageUrl],
+        width: width,
+        height: height,
       },
       logs: true,
-    };
-
-    if (task_type === 'prompt_edit' || task_type === 'artify') {
-        payload.input.width = width;
-        payload.input.height = height;
-    }
-    
-    const result = await fal.subscribe('fal-ai/bytedance/seedream/v4/edit', payload);
+    });
 
     if (result?.data?.images?.[0]?.url) {
       return res.status(200).json({ edited_image_url: result.data.images[0].url });

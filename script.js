@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const generateButton = document.getElementById('generate-button');
         if(generateButton) {
             generateButton.addEventListener('click', () => {
-                toolState.negative_prompt = 'blurry, noisy, distorted, malformed, watermark, bad quality, artifacts, bad anatomy, mutated hands, disfigured faces, extra limbs';
+                toolState.negative_prompt = 'blurry, noisy, distorted, malformed, watermark, bad quality, artifacts, bad anatomy, mutated hands, disfigured faces, extra limbs, poor details';
                 
                 if (state.activeTool === 'prompt-edit') {
                     const userInput = document.getElementById('prompt-input').value;
