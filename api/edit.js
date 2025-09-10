@@ -10,8 +10,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // RE-ADD width and height, as they are required for consistent i2i tasks.
-    const { image, imageName, imageType, prompt, width, height } = req.body;
+    // ADD `negative_prompt` to the request body
+    const { image, imageName, imageType, prompt, negative_prompt, width, height } = req.body;
 
     if (!image || !prompt || !width || !height) {
       return res.status(400).json({
@@ -31,11 +31,11 @@ export default async function handler(req, res) {
     const imageUrl = await fal.storage.upload(file);
 
     // --- THIS IS THE FIX ---
-    // The model requires width and height to be explicitly passed for i2i tasks
-    // to prevent stretching and processing errors.
+    // We now pass a `negative_prompt` to the model to prevent poor quality results.
     const result = await fal.subscribe('fal-ai/bytedance/seedream/v4/edit', {
       input: {
         prompt: prompt,
+        negative_prompt: negative_prompt, // Pass the negative prompt
         image_urls: [imageUrl],
         width: width,
         height: height,

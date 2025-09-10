@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const state = {
         activeTool: 'prompt-edit',
-        'prompt-edit': { file: null, prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload' },
-        'removal-tool': { file: null, prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '' },
-        'artify': { file: null, prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null }
+        'prompt-edit': { file: null, prompt: '', negative_prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload' },
+        'removal-tool': { file: null, prompt: '', negative_prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '' },
+        'artify': { file: null, prompt: '', negative_prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null }
     };
 
     const toolInfo = {
@@ -23,20 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(localStorage.getItem('theme') || 'light');
     
     navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            state.activeTool = link.dataset.tool;
-            navLinks.forEach(l => l.classList.remove('active'));
-            link.classList.add('active');
-            render();
-        });
+        link.addEventListener('click', (e) => { e.preventDefault(); state.activeTool = link.dataset.tool; navLinks.forEach(l => l.classList.remove('active')); link.classList.add('active'); render(); });
     });
 
     const generateImage = async (toolState) => {
         const generateButton = document.getElementById('generate-button');
         const generateButtonText = generateButton.querySelector('span');
         const generateLoader = generateButton.querySelector('div');
-
         generateButton.disabled = true;
         generateLoader.classList.remove('hidden');
         generateButtonText.textContent = 'Generating...';
@@ -47,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: base64Image, imageName: compressedFile.name, imageType: compressedFile.type, prompt: toolState.prompt, width: toolState.dimensions.width, height: toolState.dimensions.height }),
+                body: JSON.stringify({ image: base64Image, imageName: compressedFile.name, imageType: compressedFile.type, prompt: toolState.prompt, negative_prompt: toolState.negative_prompt, width: toolState.dimensions.width, height: toolState.dimensions.height }),
             });
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'The server returned an error.'); }
             const data = await response.json();
@@ -70,13 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const toolState = state[state.activeTool];
         const info = toolInfo[state.activeTool];
         let contentHTML = '';
-
         if (toolState.view === 'upload') {
             contentHTML = `<section><input type="file" id="image-input" class="hidden" accept="image/*" /><div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
         } else if (toolState.view === 'edit') {
             let editControls = '';
             if (state.activeTool === 'prompt-edit') {
-                 editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.prompt || ''}</textarea></div>`;
+                 editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the red shirts to green">${toolState.prompt || ''}</textarea></div>`;
             } else if (state.activeTool === 'removal-tool') {
                 editControls = `<div class="my-4 space-y-2"><div class="flex flex-wrap items-center gap-4">
                     <label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label>
@@ -119,19 +111,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const generateButton = document.getElementById('generate-button');
         if(generateButton) {
             generateButton.addEventListener('click', () => {
+                // --- FIX: Advanced Prompt Engineering ---
+                toolState.negative_prompt = 'blurry, noisy, distorted, malformed, watermark, bad quality, artifacts';
+
                 if (state.activeTool === 'prompt-edit') {
                     const userInput = document.getElementById('prompt-input').value;
-                    toolState.prompt = `${userInput}, keeping all other elements and the overall style unchanged.`;
+                    toolState.prompt = `${userInput}, keeping all other elements and the overall style unchanged. Preserve facial features and skin tones.`;
                 } else if (state.activeTool === 'removal-tool') {
-                    if (toolState.mode === 'background') { toolState.prompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.'; }
+                    if (toolState.mode === 'background') { toolState.prompt = 'remove the background, keeping the subject perfectly intact. Output with a transparent background.'; }
                     else if (toolState.mode === 'object') {
                         toolState.objectToRemove = document.getElementById('object-input').value;
                         if (!toolState.objectToRemove) { alert('Please specify an object to remove.'); return; }
-                        toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally. The final image must have the same dimensions and aspect ratio as the original.`;
+                        toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally. The final image must have the same dimensions and aspect ratio as the original. Keep all other parts of the image unchanged.`;
                     } else if (toolState.mode === 'watermark') { toolState.prompt = `remove the watermark from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`; }
                 } else if (state.activeTool === 'artify') {
                     if (!toolState.selectedStyle) { alert('Please select a style!'); return; }
-                    toolState.prompt = toolState.selectedStyle;
+                    toolState.prompt = `transform the image in a ${toolState.selectedStyle}.`;
+                    toolState.negative_prompt = 'realistic, photo, real life';
                 }
                 generateImage(toolState);
             });
