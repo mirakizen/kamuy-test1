@@ -17,11 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
             file: null,
             prompt: '',
             dimensions: { width: 0, height: 0 },
-            view: 'upload', // 'upload', 'edit', 'result'
-            mode: 'background', // 'background', 'object'
+            view: 'upload',
+            mode: 'background',
             objectToRemove: ''
         },
-        // ... (add states for other tools later)
+        'artify': {
+            file: null,
+            prompt: '',
+            dimensions: { width: 0, height: 0 },
+            view: 'upload'
+        }
     };
 
     // --- Dark Mode Logic ---
@@ -38,17 +43,17 @@ document.addEventListener('DOMContentLoaded', () => {
             state.activeTool = link.dataset.tool;
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
-            toolSections.forEach(section => section.classList.remove('active'));
-            document.getElementById(state.activeTool).classList.add('active');
+            toolSections.forEach(section => section.classList.add('hidden'));
+            document.getElementById(state.activeTool).classList.remove('hidden');
             render();
         });
     });
 
     // --- Generic API Call ---
     const generateImage = async (toolState) => {
-        const generateButton = document.querySelector(`#${state.activeTool} #generate-button`);
-        const generateButtonText = document.querySelector(`#${state.activeTool} #generate-button-text`);
-        const generateLoader = document.querySelector(`#${state.activeTool} #generate-loader`);
+        const generateButton = document.querySelector(`#${state.activeTool} button[id^="generate-"]`);
+        const generateButtonText = generateButton.querySelector('span');
+        const generateLoader = generateButton.querySelector('div');
 
         generateButton.disabled = true;
         generateLoader.classList.remove('hidden');
@@ -80,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Dynamic UI Rendering ---
     const render = () => {
         const toolState = state[state.activeTool];
-        const container = document.querySelector(`#${state.activeTool} .main-container`);
+        const container = document.querySelector(`#${state.activeTool} > div > .main-container`);
         if (!container) return;
 
         let content = '';
@@ -97,8 +102,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 </section>
             `;
         } else if (toolState.view === 'edit') {
-            const objectInputHTML = state.activeTool === 'removal-tool' ? `
-                <div class="my-4 space-y-2">
+            let editControls = '';
+            if (state.activeTool === 'prompt-edit') {
+                 editControls = `<div>
+                    <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
+                    <textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.prompt || ''}</textarea>
+                </div>`;
+            } else if (state.activeTool === 'removal-tool') {
+                editControls = `<div class="my-4 space-y-2">
                     <div class="flex items-center space-x-4">
                         <label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label>
                         <label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label>
@@ -107,21 +118,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label>
                         <input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}">
                     </div>
-                </div>
-            ` : `
-                <div>
-                    <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
-                    <textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.prompt || ''}</textarea>
-                </div>
-            `;
-
+                </div>`;
+            }
             content = `
                 <section>
-                    <div class="mb-4"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>
-                    ${objectInputHTML}
+                    <div class="mb-4"><img id="${state.activeTool}-image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>
+                    ${editControls}
                     <div class="mt-4 flex space-x-2">
-                        <button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span id="generate-button-text">Generate</span><div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button>
-                        <button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button>
+                        <button id="${state.activeTool}-generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span><div class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button>
+                        <button id="${state.activeTool}-reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button>
                     </div>
                 </section>
             `;
@@ -130,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <section class="space-y-4">
                     <div>
                         <h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3>
-                        <p id="result-prompt" class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.prompt}"</p>
+                        <p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.prompt}"</p>
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-secondary mb-2">Original</label>
@@ -141,25 +146,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         <img src="${toolState.resultUrl}" class="rounded-lg border border-primary w-full">
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                        <button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button>
-                        <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
+                        <button id="${state.activeTool}-download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button>
+                        <button id="${state.activeTool}-new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
                     </div>
                 </section>
             `;
         }
-        
         container.innerHTML = content;
-        addEventListeners(); // Re-add listeners to the new content
+        addEventListeners();
     };
 
-    // --- Event Listener Setup ---
     function addEventListeners() {
         const toolState = state[state.activeTool];
-        
-        // Upload listeners
         const dropzone = document.getElementById(`${state.activeTool}-dropzone`);
-        const imageInput = document.getElementById(`${state.activeTool}-image-input`);
         if (dropzone) {
+            const imageInput = document.getElementById(`${state.activeTool}-image-input`);
             dropzone.addEventListener('click', () => imageInput.click());
             dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
             dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
@@ -167,25 +168,25 @@ document.addEventListener('DOMContentLoaded', () => {
             imageInput.addEventListener('change', (e) => { if (e.target.files.length) handleFileSelect(e.target.files[0]); });
         }
         
-        // Edit listeners
-        const generateButton = document.getElementById('generate-button');
+        const generateButton = document.getElementById(`${state.activeTool}-generate-button`);
         if(generateButton) {
             generateButton.addEventListener('click', () => {
                 if (state.activeTool === 'prompt-edit') {
                     toolState.prompt = document.getElementById('prompt-input').value;
                 } else if (state.activeTool === 'removal-tool') {
                     if (toolState.mode === 'background') {
-                        toolState.prompt = 'remove the background';
+                        // --- WATERMARK FIX: More specific prompt ---
+                        toolState.prompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.';
                     } else {
                         toolState.objectToRemove = document.getElementById('object-input').value;
-                        toolState.prompt = `remove the ${toolState.objectToRemove}`;
+                        toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally`;
                     }
                 }
                 generateImage(toolState);
             });
         }
 
-        const resetButton = document.getElementById('reset-button');
+        const resetButton = document.getElementById(`${state.activeTool}-reset-button`);
         if(resetButton) resetButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; render(); });
 
         const removalModeRadios = document.querySelectorAll('input[name="removal-mode"]');
@@ -198,11 +199,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // Result listeners
-        const newEditButton = document.getElementById('new-edit-button');
+        const newEditButton = document.getElementById(`${state.activeTool}-new-edit-button`);
         if(newEditButton) newEditButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; render(); });
         
-        const downloadButton = document.getElementById('download-button');
+        const downloadButton = document.getElementById(`${state.activeTool}-download-button`);
         if (downloadButton) {
             downloadButton.addEventListener('click', async (e) => {
                 e.preventDefault();
@@ -226,17 +226,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const toolState = state[state.activeTool];
         if (!file || !file.type.startsWith('image/')) { alert('Please select a valid image file.'); return; }
         toolState.file = file;
-        
         const img = new Image();
-        img.onload = () => {
-            toolState.dimensions = { width: img.naturalWidth, height: img.naturalHeight };
-            toolState.view = 'edit';
-            render();
-        };
+        img.onload = () => { toolState.dimensions = { width: img.naturalWidth, height: img.naturalHeight }; toolState.view = 'edit'; render(); };
         img.src = URL.createObjectURL(file);
     };
 
-    // --- Helper Functions ---
     const fileToBase64 = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); });
     const compressImage = (file) => new Promise((resolve, reject) => {
         const img = new Image();
@@ -250,6 +244,5 @@ document.addEventListener('DOMContentLoaded', () => {
         img.onerror = reject;
     });
 
-    // --- Initial Render ---
-    render();
+    render(); // Initial Render
 });
