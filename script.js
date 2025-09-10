@@ -7,26 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State Management ---
     const state = {
         activeTool: 'prompt-edit',
-        'prompt-edit': {
-            file: null,
-            prompt: '',
-            dimensions: { width: 0, height: 0 },
-            view: 'upload' // 'upload', 'edit', 'result'
-        },
-        'removal-tool': {
-            file: null,
-            prompt: '',
-            dimensions: { width: 0, height: 0 },
-            view: 'upload',
-            mode: 'background',
-            objectToRemove: ''
-        },
-        'artify': {
-            file: null,
-            prompt: '',
-            dimensions: { width: 0, height: 0 },
-            view: 'upload'
-        }
+        'prompt-edit': { file: null, prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload' },
+        'removal-tool': { file: null, prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '' },
+        'artify': { file: null, prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null }
     };
 
     // --- Dark Mode Logic ---
@@ -36,15 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', () => { const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme); });
     applyTheme(localStorage.getItem('theme') || 'light');
     
-    // --- Navigation Logic ---
+    // --- NAVIGATION LOGIC (FIXED) ---
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             state.activeTool = link.dataset.tool;
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
-            toolSections.forEach(section => section.classList.add('hidden'));
-            document.getElementById(state.activeTool).classList.remove('hidden');
+            toolSections.forEach(section => section.classList.remove('active'));
+            document.getElementById(state.activeTool).classList.add('active');
             render();
         });
     });
@@ -89,69 +72,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
 
         let content = '';
-
         if (toolState.view === 'upload') {
-            content = `
-                <section>
-                    <input type="file" id="${state.activeTool}-image-input" class="hidden" accept="image/*" />
-                    <div id="${state.activeTool}-dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg>
-                        <p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p>
-                        <p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p>
-                    </div>
-                </section>
-            `;
+            content = `<section><input type="file" id="${state.activeTool}-image-input" class="hidden" accept="image/*" /><div id="${state.activeTool}-dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
         } else if (toolState.view === 'edit') {
             let editControls = '';
             if (state.activeTool === 'prompt-edit') {
-                 editControls = `<div>
-                    <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
-                    <textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.prompt || ''}</textarea>
-                </div>`;
+                editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.prompt || ''}</textarea></div>`;
             } else if (state.activeTool === 'removal-tool') {
-                editControls = `<div class="my-4 space-y-2">
-                    <div class="flex items-center space-x-4">
-                        <label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label>
-                        <label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label>
-                    </div>
-                    <div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'}">
-                        <label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label>
-                        <input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}">
-                    </div>
-                </div>`;
+                editControls = `<div class="my-4 space-y-2"><div class="flex items-center space-x-4">
+                    <label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label>
+                    <label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label>
+                    <label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label>
+                </div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'}"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}"></div></div>`;
+            } else if (state.activeTool === 'artify') {
+                const styles = [
+                    { name: 'Anime', prompt: 'anime style, vibrant, detailed', img: 'https://placehold.co/100x80/f87171/ffffff?text=Anime' },
+                    { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city', img: 'https://placehold.co/100x80/60a5fa/ffffff?text=Cyber' },
+                    { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive brushstrokes', img: 'https://placehold.co/100x80/facc15/ffffff?text=Van+Gogh' },
+                    { name: 'Pixel Art', prompt: '16-bit pixel art style', img: 'https://placehold.co/100x80/4ade80/ffffff?text=Pixel' },
+                    { name: 'Sketch', prompt: 'pencil sketch, hand-drawn, shaded', img: 'https://placehold.co/100x80/a78bfa/ffffff?text=Sketch' },
+                    { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture', img: 'https://placehold.co/100x80/f472b6/ffffff?text=LEGO' }
+                ];
+                let styleGridHTML = styles.map(s => `<div class="style-btn ${toolState.selectedStyle === s.prompt ? 'active' : ''}" data-style-prompt="${s.prompt}"><img src="${s.img}" alt="${s.name} style preview"><span>${s.name}</span></div>`).join('');
+                editControls = `<div class="my-4"><label class="block text-sm font-bold mb-2">Choose a style:</label><div class="style-grid">${styleGridHTML}</div></div>`;
             }
-            content = `
-                <section>
-                    <div class="mb-4"><img id="${state.activeTool}-image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>
-                    ${editControls}
-                    <div class="mt-4 flex space-x-2">
-                        <button id="${state.activeTool}-generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span><div class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button>
-                        <button id="${state.activeTool}-reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button>
-                    </div>
-                </section>
-            `;
+
+            content = `<section><div class="mb-4"><img id="${state.activeTool}-image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>${editControls}<div class="mt-4 flex space-x-2"><button id="${state.activeTool}-generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span><div class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button><button id="${state.activeTool}-reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div></section>`;
         } else if (toolState.view === 'result') {
-            content = `
-                <section class="space-y-4">
-                    <div>
-                        <h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3>
-                        <p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.prompt}"</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-secondary mb-2">Original</label>
-                        <img src="${URL.createObjectURL(toolState.file)}" class="rounded-lg border border-primary w-full">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-secondary mb-2">Edited</label>
-                        <img src="${toolState.resultUrl}" class="rounded-lg border border-primary w-full">
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                        <button id="${state.activeTool}-download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button>
-                        <button id="${state.activeTool}-new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
-                    </div>
-                </section>
-            `;
+            content = `<section class="space-y-4"><div><h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3><p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.prompt}"</p></div><div><label class="block text-sm font-bold text-secondary mb-2">Original</label><img src="${URL.createObjectURL(toolState.file)}" class="rounded-lg border border-primary w-full"></div><div><label class="block text-sm font-bold text-secondary mb-2">Edited</label><img src="${toolState.resultUrl}" class="rounded-lg border border-primary w-full"></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><button id="${state.activeTool}-download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button><button id="${state.activeTool}-new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button></div></section>`;
         }
+        
         container.innerHTML = content;
         addEventListeners();
     };
@@ -175,12 +125,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     toolState.prompt = document.getElementById('prompt-input').value;
                 } else if (state.activeTool === 'removal-tool') {
                     if (toolState.mode === 'background') {
-                        // --- WATERMARK FIX: More specific prompt ---
                         toolState.prompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.';
-                    } else {
+                    } else if (toolState.mode === 'object') {
                         toolState.objectToRemove = document.getElementById('object-input').value;
                         toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally`;
+                    } else if (toolState.mode === 'watermark') {
+                        toolState.prompt = `remove the watermark from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
                     }
+                } else if (state.activeTool === 'artify') {
+                    if (!toolState.selectedStyle) { alert('Please select a style!'); return; }
+                    toolState.prompt = toolState.selectedStyle;
                 }
                 generateImage(toolState);
             });
@@ -188,13 +142,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const resetButton = document.getElementById(`${state.activeTool}-reset-button`);
         if(resetButton) resetButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; render(); });
-
+        
         const removalModeRadios = document.querySelectorAll('input[name="removal-mode"]');
         if (removalModeRadios) {
             removalModeRadios.forEach(radio => {
                 radio.addEventListener('change', (e) => {
                     toolState.mode = e.target.value;
                     document.getElementById('object-input-container').classList.toggle('hidden', e.target.value !== 'object');
+                });
+            });
+        }
+
+        const styleBtns = document.querySelectorAll('.style-btn');
+        if (styleBtns) {
+            styleBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    styleBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    toolState.selectedStyle = btn.dataset.stylePrompt;
                 });
             });
         }
@@ -244,5 +209,5 @@ document.addEventListener('DOMContentLoaded', () => {
         img.onerror = reject;
     });
 
-    render(); // Initial Render
+    render(); // Initial Render for Prompt Edit
 });
