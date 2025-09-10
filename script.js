@@ -1,8 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Navigation Elements ---
+    const navLinks = document.querySelectorAll('.nav-link');
+    const toolSections = document.querySelectorAll('.tool-section');
+
+    // --- Core App Elements ---
     const themeToggle = document.getElementById('theme-toggle');
-    const uploadView = document.getElementById('upload-view');
-    const editView = document.getElementById('edit-view');
-    const resultView = document.getElementById('result-view');
+    const uploadView = document.getElementById('prompt-edit-upload-view');
+    const editView = document.getElementById('prompt-edit-edit-view');
+    const resultView = document.getElementById('prompt-edit-result-view');
     const imageInput = document.getElementById('image-input');
     const dropzone = document.getElementById('dropzone');
     const imagePreview = document.getElementById('image-preview');
@@ -20,6 +25,27 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalFile = null, currentPrompt = '';
     let originalDimensions = { width: 0, height: 0 };
     
+    // --- Navigation Logic ---
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tool = link.dataset.tool;
+
+            navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+
+            toolSections.forEach(section => {
+                section.style.display = 'none'; // Use style.display for direct manipulation
+            });
+
+            const activeSection = document.getElementById(tool);
+            if (activeSection) {
+                activeSection.style.display = 'block';
+            }
+        });
+    });
+
+    // --- Dark Mode Logic ---
     const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
     const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
 
@@ -27,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', () => { const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme); });
     applyTheme(localStorage.getItem('theme') || 'light');
 
+    // --- App Logic ---
     const showView = (view) => { uploadView.classList.add('hidden'); editView.classList.add('hidden'); resultView.classList.add('hidden'); view.classList.remove('hidden'); };
     const resetToUpload = () => { originalFile = null; originalDimensions = { width: 0, height: 0 }; imageInput.value = ''; promptInput.value = ''; showView(uploadView); };
     const setLoadingState = (isLoading) => { generateButton.disabled = isLoading; generateLoader.classList.toggle('hidden', !isLoading); generateButtonText.textContent = isLoading ? 'Generating...' : 'Generate'; };
@@ -41,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
             imagePreview.src = fileUrl;
             beforeImageResult.src = fileUrl;
             showView(editView);
-            // No need to revoke here, it's fine for the session
         };
         img.src = fileUrl;
     };
@@ -91,10 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Download failed:", error);
-            alert("Could not download the image.");
-        }
+        } catch (error) { console.error("Download failed:", error); alert("Could not download the image."); }
     });
 
     const fileToBase64 = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); });

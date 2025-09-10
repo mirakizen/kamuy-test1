@@ -4,67 +4,122 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Kamuy ✨ AI Image Editor</title>
-    <!-- THIS SCRIPT IS ESSENTIAL AND IS NOW BACK IN THE HTML -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- This now correctly links to our custom styles -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen">
 
-    <div class="w-full max-w-3xl mx-auto">
-        <header class="text-center mb-6 flex justify-between items-center">
-            <div></div> <!-- Spacer -->
-            <div>
-                <h1 class="text-4xl font-bold">Kamuy ✨</h1>
-                <p class="text-lg text-secondary">Divine image editing, powered by AI.</p>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="text-2xl font-bold">Kamuy ✨</h1>
             </div>
-            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"></button>
-        </header>
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="#" class="nav-link active" data-tool="prompt-edit">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        <span>Prompt Edit</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" data-tool="background-tool">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 12.5c0-5.25-3.75-9.5-8.5-9.5s-8.5 4.25-8.5 9.5c0 5.02 3.2 9.22 7.5 9.47v-4.02c-1.5-.2-2.5-1.48-2.5-3.05 0-1.77 1.43-3.2 3.2-3.2s3.2 1.43 3.2 3.2c0 1.57-1 2.85-2.5 3.05v4.02c4.3-.25 7.5-4.45 7.5-9.47z"/><path d="M4.5 9.5c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4-4-1.79-4-4z"/></svg>
+                        <span>Background Tool</span>
+                    </a>
+                </li>
+                 <li>
+                    <a href="#" class="nav-link" data-tool="style-transfer">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="m5 12h14"/></svg>
+                        <span>Style Transfer</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"></button>
+            </div>
+        </nav>
 
-        <main id="app-container" class="main-container p-6">
-            <section id="upload-view">
-                <input type="file" id="image-input" class="hidden" accept="image/*" />
-                <div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg>
-                    <p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p>
-                    <p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Tool Section: Prompt Edit -->
+            <section id="prompt-edit" class="tool-section active">
+                <div id="prompt-edit-container" class="w-full max-w-3xl mx-auto">
+                     <header class="tool-header">
+                        <h2 class="text-3xl font-bold">Prompt Edit</h2>
+                        <p class="text-lg text-secondary">Use natural language to transform your image.</p>
+                    </header>
+                    <div id="prompt-edit-main" class="main-container p-6">
+                        <section id="prompt-edit-upload-view">
+                            <input type="file" id="image-input" class="hidden" accept="image/*" />
+                            <div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg>
+                                <p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p>
+                                <p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p>
+                            </div>
+                        </section>
+                        <section id="prompt-edit-edit-view" class="hidden">
+                             <div class="mb-4"><img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg w-full object-contain border border-primary p-1"></div>
+                            <div>
+                                <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
+                                <textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent focus:ring-2 focus:ring-accent-primary focus:outline-none transition" placeholder="e.g., Change the corgi into a felt wool figure"></textarea>
+                            </div>
+                            <div class="mt-4 flex space-x-2">
+                                <button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span id="generate-button-text">Generate</span><div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button>
+                                <button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button>
+                            </div>
+                        </section>
+                        <section id="prompt-edit-result-view" class="hidden space-y-4">
+                            <div>
+                                <h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3>
+                                <p id="result-prompt" class="text-center text-sm text-secondary italic break-words"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-secondary mb-2">Original</label>
+                                <img id="before-image-result" src="#" class="rounded-lg border border-primary w-full">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-secondary mb-2">Edited</label>
+                                <img id="after-image-result" src="#" class="rounded-lg border border-primary w-full">
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                                <button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button>
+                                <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </section>
 
-            <section id="edit-view" class="hidden">
-                <div class="mb-4"><img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg w-full object-contain border border-primary p-1"></div>
-                <div>
-                    <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
-                    <textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent focus:ring-2 focus:ring-accent-primary focus:outline-none transition" placeholder="e.g., Change the background to a sunny beach with palm trees"></textarea>
-                </div>
-                <div class="mt-4 flex space-x-2">
-                    <button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span id="generate-button-text">Generate</span><div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button>
-                    <button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button>
+            <!-- Tool Section: Background Tool (Placeholder) -->
+            <section id="background-tool" class="tool-section hidden">
+                <div class="w-full max-w-3xl mx-auto">
+                    <header class="tool-header">
+                        <h2 class="text-3xl font-bold">Background Tool</h2>
+                        <p class="text-lg text-secondary">Remove or replace the background of any image.</p>
+                    </header>
+                    <div class="main-container p-6 text-center">
+                        <p>Background Tool UI coming soon!</p>
+                    </div>
                 </div>
             </section>
 
-            <section id="result-view" class="hidden space-y-4">
-                <div>
-                    <h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3>
-                    <p id="result-prompt" class="text-center text-sm text-secondary italic break-words"></p>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-secondary mb-2">Original</label>
-                    <img id="before-image-result" src="#" class="rounded-lg border border-primary w-full">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-secondary mb-2">Edited</label>
-                    <img id="after-image-result" src="#" class="rounded-lg border border-primary w-full">
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button>
-                    <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
+             <!-- Tool Section: Style Transfer (Placeholder) -->
+            <section id="style-transfer" class="tool-section hidden">
+                <div class="w-full max-w-3xl mx-auto">
+                    <header class="tool-header">
+                        <h2 class="text-3xl font-bold">Style Transfer</h2>
+                        <p class="text-lg text-secondary">Apply any artistic style to your image.</p>
+                    </header>
+                    <div class="main-container p-6 text-center">
+                        <p>Style Transfer UI coming soon!</p>
+                    </div>
                 </div>
             </section>
+
         </main>
     </div>
 
-    <!-- Link to the JavaScript file -->
     <script src="script.js" defer></script>
 </body>
 </html>
