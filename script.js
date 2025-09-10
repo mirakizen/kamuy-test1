@@ -36,7 +36,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- RENDER FUNCTION (REBUILT) ---
+    // --- Generic API Call ---
+    const generateImage = async (toolState) => {
+        const generateButton = document.getElementById('generate-button');
+        const generateButtonText = generateButton.querySelector('span');
+        const generateLoader = generateButton.querySelector('div');
+
+        generateButton.disabled = true;
+        generateLoader.classList.remove('hidden');
+        generateButtonText.textContent = 'Generating...';
+
+        try {
+            const compressedFile = await compressImage(toolState.file);
+            const base64Image = await fileToBase64(compressedFile);
+            const response = await fetch('/api/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64Image, imageName: compressedFile.name, imageType: compressedFile.type, prompt: toolState.prompt, width: toolState.dimensions.width, height: toolState.dimensions.height }),
+            });
+            if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'The server returned an error.'); }
+            const data = await response.json();
+            if (data.edited_image_url) {
+                toolState.resultUrl = data.edited_image_url;
+                toolState.view = 'result';
+                render();
+            } else { throw new Error('Could not find the edited image in the response.'); }
+        } catch (error) { console.error('Generation failed:', error); alert(`Error: ${error.message}`);
+        } finally {
+            // Check if the button still exists before trying to modify it
+            if(document.getElementById('generate-button')) {
+                generateButton.disabled = false;
+                generateLoader.classList.add('hidden');
+                generateButtonText.textContent = 'Generate';
+            }
+        }
+    };
+
+    // --- RENDER FUNCTION ---
     function render() {
         const toolState = state[state.activeTool];
         const info = toolInfo[state.activeTool];
@@ -55,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label>
                 </div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'} mt-4"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}"></div></div>`;
             } else if (state.activeTool === 'artify') {
+                 // --- TWEAK: Using high-quality, descriptive images ---
                 const styles = [
                     { name: 'Anime', prompt: 'anime style, vibrant, detailed, studio ghibli', img: 'https://storage.googleapis.com/static.fal.ai/static/images/8b072591-c454-4286-a24a-1b57221e7842.jpeg' },
                     { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting', img: 'https://storage.googleapis.com/static.fal.ai/static/images/1e485e50-f831-48d6-a077-0c75402a5e44.jpeg' },
@@ -71,18 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
             contentHTML = `<section class="space-y-4"><div><h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3><p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.prompt}"</p></div><div><label class="block text-sm font-bold text-secondary mb-2">Original</label><img src="${URL.createObjectURL(toolState.file)}" class="rounded-lg border border-primary w-full"></div><div><label class="block text-sm font-bold text-secondary mb-2">Edited</label><img src="${toolState.resultUrl}" class="rounded-lg border border-primary w-full"></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button><button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button></div></section>`;
         }
         
-        mainContent.innerHTML = `
-            <div class="w-full max-w-3xl mx-auto">
-                <header class="tool-header">
-                    <h2 class="text-3xl font-bold">${info.title}</h2>
-                    <p class="text-lg text-secondary">${info.description}</p>
-                </header>
-                <div class="main-container p-6">${contentHTML}</div>
-            </div>
-        `;
+        mainContent.innerHTML = `<div class="w-full max-w-3xl mx-auto"><header class="tool-header"><h2 class="text-3xl font-bold">${info.title}</h2><p class="text-lg text-secondary">${info.description}</p></header><div class="main-container p-6">${contentHTML}</div></div>`;
         addEventListeners();
     };
 
+    // --- ROBUST EVENT LISTENER ATTACHMENT ---
     function addEventListeners() {
         const toolState = state[state.activeTool];
         const dropzone = document.getElementById("dropzone");
@@ -98,9 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const generateButton = document.getElementById('generate-button');
         if(generateButton) {
             generateButton.addEventListener('click', () => {
-                if (state.activeTool === 'prompt-edit') {
-                    toolState.prompt = document.getElementById('prompt-input').value;
-                } else if (state.activeTool === 'removal-tool') {
+                if (state.activeTool === 'prompt-edit') { toolState.prompt = document.getElementById('prompt-input').value; }
+                else if (state.activeTool === 'removal-tool') {
                     if (toolState.mode === 'background') { toolState.prompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.'; }
                     else if (toolState.mode === 'object') {
                         toolState.objectToRemove = document.getElementById('object-input').value;
@@ -150,13 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await fetch(toolState.resultUrl);
                     const blob = await response.blob();
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'kamuy-edit.png';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                    const a = document.createElement('a'); a.href = url; a.download = 'kamuy-edit.png'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 } catch (error) { console.error("Download failed:", error); alert("Could not download the image."); }
             });
         }
