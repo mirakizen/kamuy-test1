@@ -1,10 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Global Elements ---
     const themeToggle = document.getElementById('theme-toggle');
     const navLinks = document.querySelectorAll('.nav-link');
     const mainContent = document.getElementById('main-content');
 
-    // --- State Management ---
     const state = {
         activeTool: 'prompt-edit',
         'prompt-edit': { file: null, prompt: '', dimensions: { width: 0, height: 0 }, view: 'upload' },
@@ -18,14 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'artify': { title: 'Artify', description: 'Transform your image with creative styles.'}
     };
 
-    // --- Dark Mode Logic ---
     const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
     const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
     const applyTheme = (theme) => { document.documentElement.classList.toggle('dark', theme === 'dark'); themeToggle.innerHTML = theme === 'dark' ? sunIcon : moonIcon; };
     themeToggle.addEventListener('click', () => { const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme); });
     applyTheme(localStorage.getItem('theme') || 'light');
     
-    // --- Navigation Logic ---
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -36,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Generic API Call ---
     const generateImage = async (toolState) => {
         const generateButton = document.getElementById('generate-button');
         const generateButtonText = generateButton.querySelector('span');
@@ -49,7 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const compressedFile = await compressImage(toolState.file);
             const base64Image = await fileToBase64(compressedFile);
-            // Pass the original dimensions for API call, even if backend ignores it for some tasks
             const response = await fetch('/api/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -72,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- RENDER FUNCTION ---
     function render() {
         const toolState = state[state.activeTool];
         const info = toolInfo[state.activeTool];
@@ -127,14 +120,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(generateButton) {
             generateButton.addEventListener('click', () => {
                 if (state.activeTool === 'prompt-edit') {
-                    toolState.prompt = document.getElementById('prompt-input').value;
+                    const userInput = document.getElementById('prompt-input').value;
+                    toolState.prompt = `${userInput}, keeping all other elements and the overall style unchanged.`;
                 } else if (state.activeTool === 'removal-tool') {
                     if (toolState.mode === 'background') { toolState.prompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.'; }
                     else if (toolState.mode === 'object') {
                         toolState.objectToRemove = document.getElementById('object-input').value;
                         if (!toolState.objectToRemove) { alert('Please specify an object to remove.'); return; }
-                        // --- FIX: Better prompt for object removal ---
-                        toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally. The final image must have the same dimensions as the original.`;
+                        toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally. The final image must have the same dimensions and aspect ratio as the original.`;
                     } else if (toolState.mode === 'watermark') { toolState.prompt = `remove the watermark from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`; }
                 } else if (state.activeTool === 'artify') {
                     if (!toolState.selectedStyle) { alert('Please select a style!'); return; }
