@@ -24,11 +24,10 @@
         .btn-secondary:hover { background-color: var(--accent-secondary-hover); }
         .loader { border-color: rgba(255, 255, 255, 0.2); border-top-color: #fff; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        /* --- SLIDER FIX: aspect-ratio is set by JS to match the original image --- */
-        .comparison-slider { position: relative; overflow: hidden; border: 1px solid var(--border-primary); border-radius: 6px; width: 100%; }
-        .comparison-slider img { display: block; width: 100%; height: 100%; /* Force images to fill container */ object-fit: contain; }
-        .comparison-slider .after-image { position: absolute; top: 0; left: 0; clip-path: inset(0 50% 0 0); }
-        .comparison-slider .slider-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background-color: var(--accent-primary); cursor: ew-resize; display: flex; align-items: center; justify-content: center; }
+        /* --- THIS IS THE FIX: A robust canvas-based slider --- */
+        .comparison-slider { position: relative; width: 100%; border: 1px solid var(--border-primary); border-radius: 6px; line-height: 0; /* Prevents extra space below canvas */ }
+        .comparison-slider canvas { display: block; width: 100%; height: auto; }
+        .comparison-slider .slider-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background-color: var(--accent-primary); cursor: ew-resize; display: flex; align-items: center; justify-content: center; z-index: 10; }
         .comparison-slider .slider-handle-button { width: 30px; height: 30px; background-color: var(--accent-primary); border-radius: 50%; color: white; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.3); user-select: none; }
         .hidden { display: none; }
     </style>
@@ -37,7 +36,7 @@
 
     <div class="w-full max-w-3xl mx-auto">
         <header class="text-center mb-6 flex justify-between items-center">
-            <div></div> <!-- Spacer -->
+            <div></div>
             <div>
                 <h1 class="text-4xl font-bold">Kamuy ✨</h1>
                 <p class="text-lg text-secondary">Divine image editing, powered by AI.</p>
@@ -56,36 +55,30 @@
             </section>
 
             <section id="edit-view" class="hidden">
-                <div class="mb-4">
-                    <img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg w-full object-contain border border-primary p-1">
-                </div>
+                <div class="mb-4"><img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg w-full object-contain border border-primary p-1"></div>
                 <div>
                     <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
                     <textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent focus:ring-2 focus:ring-accent-primary focus:outline-none transition" placeholder="e.g., Change the background to a sunny beach with palm trees"></textarea>
                 </div>
                 <div class="mt-4 flex space-x-2">
-                    <button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center">
-                        <span id="generate-button-text">Generate</span>
-                        <div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div>
-                    </button>
+                    <button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span id="generate-button-text">Generate</span><div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button>
                     <button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button>
                 </div>
             </section>
 
             <section id="result-view" class="hidden">
                 <h2 class="text-xl font-bold mb-1 text-center">Your masterpiece is ready!</h2>
-                <!-- TWEAK: Added paragraph to display the prompt -->
                 <p id="result-prompt" class="text-center text-sm text-secondary mb-3 italic break-words"></p>
                 <div id="comparison-slider" class="comparison-slider">
-                    <img id="before-image" src="#" alt="Original Image">
-                    <img id="after-image" src="#" class="after-image" alt="Edited Image">
+                    <!-- The canvas replaces the two img tags -->
+                    <canvas id="comparison-canvas"></canvas>
                     <div id="slider-handle" class="slider-handle">
                         <div class="slider-handle-button">&#x2194;</div>
                     </div>
                 </div>
                 <p class="text-center text-sm text-secondary mt-1 italic">Slide to compare</p>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <a id="download-button" href="#" download="kamuy-edit.png" target="_blank" rel="noopener noreferrer" class="btn-secondary w-full py-2.5 rounded-md text-center">Download</a>
+                    <a id="download-button" download="kamuy-edit.png" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</a>
                     <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
                 </div>
             </section>
@@ -94,9 +87,18 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- Canvas elements ---
+        const canvas = document.getElementById('comparison-canvas');
+        const ctx = canvas.getContext('2d');
+        const beforeImage = new Image();
+        const afterImage = new Image();
+        afterImage.crossOrigin = "anonymous"; // Important for loading images from other domains (like fal.ai)
+
+        // --- Other elements ---
         const themeToggle = document.getElementById('theme-toggle');
         const uploadView = document.getElementById('upload-view');
         const editView = document.getElementById('edit-view');
+        // ... (rest of element selections are the same)
         const resultView = document.getElementById('result-view');
         const imageInput = document.getElementById('image-input');
         const dropzone = document.getElementById('dropzone');
@@ -107,73 +109,35 @@
         const generateLoader = document.getElementById('generate-loader');
         const resetButton = document.getElementById('reset-button');
         const newEditButton = document.getElementById('new-edit-button');
-        const beforeImage = document.getElementById('before-image');
-        const afterImage = document.getElementById('after-image');
         const downloadButton = document.getElementById('download-button');
         const comparisonSlider = document.getElementById('comparison-slider');
         const resultPrompt = document.getElementById('result-prompt');
         
-        let originalFile = null;
-        let originalFileUrl = null;
+        let originalFile = null, currentPrompt = '';
         let originalDimensions = { width: 0, height: 0 };
-        let currentPrompt = '';
-
+        
         const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
         const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
 
-        const applyTheme = (theme) => {
-            document.documentElement.classList.toggle('dark', theme === 'dark');
-            themeToggle.innerHTML = theme === 'dark' ? sunIcon : moonIcon;
-        };
-
-        themeToggle.addEventListener('click', () => {
-            const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
-            localStorage.setItem('theme', newTheme);
-            applyTheme(newTheme);
-        });
+        const applyTheme = (theme) => { document.documentElement.classList.toggle('dark', theme === 'dark'); themeToggle.innerHTML = theme === 'dark' ? sunIcon : moonIcon; };
+        themeToggle.addEventListener('click', () => { const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme); });
         applyTheme(localStorage.getItem('theme') || 'light');
 
-        const showView = (view) => {
-            uploadView.classList.add('hidden');
-            editView.classList.add('hidden');
-            resultView.classList.add('hidden');
-            view.classList.remove('hidden');
-        };
-
-        const resetToUpload = () => {
-            if (originalFileUrl) URL.revokeObjectURL(originalFileUrl);
-            originalFile = null;
-            originalFileUrl = null;
-            originalDimensions = { width: 0, height: 0 };
-            imageInput.value = '';
-            promptInput.value = '';
-            showView(uploadView);
-        };
-        
-        const setLoadingState = (isLoading) => {
-            generateButton.disabled = isLoading;
-            generateLoader.classList.toggle('hidden', !isLoading);
-            generateButtonText.textContent = isLoading ? 'Generating...' : 'Generate';
-        };
+        const showView = (view) => { uploadView.classList.add('hidden'); editView.classList.add('hidden'); resultView.classList.add('hidden'); view.classList.remove('hidden'); };
+        const resetToUpload = () => { originalFile = null; originalDimensions = { width: 0, height: 0 }; imageInput.value = ''; promptInput.value = ''; showView(uploadView); };
+        const setLoadingState = (isLoading) => { generateButton.disabled = isLoading; generateLoader.classList.toggle('hidden', !isLoading); generateButtonText.textContent = isLoading ? 'Generating...' : 'Generate'; };
 
         const handleFileSelect = (file) => {
-            if (!file || !file.type.startsWith('image/')) {
-                alert('Please select a valid image file.');
-                return;
-            }
+            if (!file || !file.type.startsWith('image/')) { alert('Please select a valid image file.'); return; }
             originalFile = file;
-            originalFileUrl = URL.createObjectURL(file);
+            const fileUrl = URL.createObjectURL(file);
             
-            const img = new Image();
-            img.onload = () => {
-                originalDimensions = { width: img.naturalWidth, height: img.naturalHeight };
-                // --- THIS IS THE FIX: Set aspect ratio on the slider container ---
-                comparisonSlider.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
-                imagePreview.src = originalFileUrl;
-                beforeImage.src = originalFileUrl;
+            beforeImage.onload = () => {
+                originalDimensions = { width: beforeImage.naturalWidth, height: beforeImage.naturalHeight };
+                imagePreview.src = fileUrl; // For edit view preview
                 showView(editView);
             };
-            img.src = originalFileUrl;
+            beforeImage.src = fileUrl;
         };
 
         dropzone.addEventListener('click', () => imageInput.click());
@@ -187,101 +151,95 @@
 
         generateButton.addEventListener('click', async () => {
             currentPrompt = promptInput.value.trim();
-            if (!currentPrompt) {
-                alert('Please describe your edit.');
-                return;
-            }
-            
+            if (!currentPrompt) { alert('Please describe your edit.'); return; }
             setLoadingState(true);
-
             try {
                 const compressedFile = await compressImage(originalFile);
                 const base64Image = await fileToBase64(compressedFile);
-
                 const response = await fetch('/api/edit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        image: base64Image,
-                        imageName: compressedFile.name,
-                        imageType: compressedFile.type,
-                        prompt: currentPrompt,
-                        width: originalDimensions.width,
-                        height: originalDimensions.height,
-                    }),
+                    body: JSON.stringify({ image: base64Image, imageName: compressedFile.name, imageType: compressedFile.type, prompt: currentPrompt, width: originalDimensions.width, height: originalDimensions.height }),
                 });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'The server returned an error.');
-                }
-                
+                if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'The server returned an error.'); }
                 const data = await response.json();
-                
                 if (data.edited_image_url) {
+                    afterImage.onload = () => {
+                        setupCanvasAndSlider();
+                        showView(resultView);
+                    };
                     afterImage.src = data.edited_image_url;
-                    downloadButton.href = data.edited_image_url;
-                    // --- TWEAK: Display the prompt ---
                     resultPrompt.textContent = `Prompt: "${currentPrompt}"`;
-                    showView(resultView);
-                } else {
-                    throw new Error('Could not find the edited image in the response.');
-                }
-            } catch (error) {
-                console.error('Generation failed:', error);
-                alert(`Error: ${error.message}`);
-            } finally {
-                setLoadingState(false);
-            }
+                } else { throw new Error('Could not find the edited image in the response.'); }
+            } catch (error) { console.error('Generation failed:', error); alert(`Error: ${error.message}`);
+            } finally { setLoadingState(false); }
         });
 
         const sliderHandle = document.getElementById('slider-handle');
+        let sliderPosition = 0.5; // From 0 to 1
         let isDragging = false;
-        const startDragging = (e) => { e.preventDefault(); isDragging = true; };
-        const stopDragging = () => { isDragging = false; };
+
+        function drawImages() {
+            if (!canvas || !ctx || !beforeImage.complete || !afterImage.complete) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw the "before" image fully
+            ctx.drawImage(beforeImage, 0, 0, canvas.width, canvas.height);
+
+            // Calculate the clipping width for the "after" image
+            const clipWidth = canvas.width * sliderPosition;
+            if (clipWidth > 0) {
+                // Draw the clipped portion of the "after" image on top
+                ctx.drawImage(afterImage, 0, 0, clipWidth, canvas.height, 0, 0, clipWidth, canvas.height);
+            }
+        }
+
+        function setupCanvasAndSlider() {
+            canvas.width = originalDimensions.width;
+            canvas.height = originalDimensions.height;
+            sliderHandle.style.left = '50%';
+            sliderPosition = 0.5;
+            drawImages();
+        }
+
         const moveSlider = (clientX) => {
             if (!isDragging) return;
             const rect = comparisonSlider.getBoundingClientRect();
             let x = clientX - rect.left;
             x = Math.max(0, Math.min(x, rect.width));
-            const percent = (x / rect.width) * 100;
-            sliderHandle.style.left = `${percent}%`;
-            afterImage.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+            sliderPosition = x / rect.width;
+            sliderHandle.style.left = `${sliderPosition * 100}%`;
+            drawImages();
         };
 
+        const startDragging = (e) => { e.preventDefault(); isDragging = true; };
+        const stopDragging = () => { isDragging = false; };
+        
         comparisonSlider.addEventListener('mousedown', startDragging);
-        comparisonSlider.addEventListener('touchstart', startDragging, { passive: false });
         document.addEventListener('mouseup', stopDragging);
-        document.addEventListener('touchend', stopDragging);
         document.addEventListener('mousemove', (e) => moveSlider(e.clientX));
+        comparisonSlider.addEventListener('touchstart', (e) => { e.preventDefault(); isDragging = true; }, { passive: false });
+        document.addEventListener('touchend', stopDragging);
         document.addEventListener('touchmove', (e) => moveSlider(e.touches[0].clientX), { passive: false });
 
-        const fileToBase64 = (file) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+        downloadButton.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'kamuy-edit.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         });
-        
+
+        const fileToBase64 = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); });
         const compressImage = (file) => new Promise((resolve, reject) => {
             const img = new Image();
             img.src = URL.createObjectURL(file);
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let { width, height } = img;
-                const maxDim = 1920;
-                if (width > maxDim || height > maxDim) {
-                    if (width > height) { height = (height / width) * maxDim; width = maxDim; }
-                    else { width = (width / height) * maxDim; height = maxDim; }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                canvas.toBlob((blob) => {
-                    URL.revokeObjectURL(img.src);
-                    resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
-                }, 'image/jpeg', 0.9);
+                const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920;
+                if (width > maxDim || height > maxDim) { if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; } }
+                canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => { URL.revokeObjectURL(img.src); resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })); }, 'image/jpeg', 0.9);
             };
             img.onerror = reject;
         });
