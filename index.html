@@ -24,11 +24,11 @@
         .btn-secondary:hover { background-color: var(--accent-secondary-hover); }
         .loader { border-color: rgba(255, 255, 255, 0.2); border-top-color: #fff; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        /* --- Robust canvas-based slider --- */
-        .comparison-slider { position: relative; width: 100%; border: 1px solid var(--border-primary); border-radius: 6px; line-height: 0; /* Prevents extra space below canvas */ }
-        .comparison-slider canvas { display: block; width: 100%; height: auto; }
-        .comparison-slider .slider-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background-color: var(--accent-primary); cursor: ew-resize; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .comparison-slider .slider-handle-button { width: 30px; height: 30px; background-color: var(--accent-primary); border-radius: 50%; color: white; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.3); user-select: none; }
+        /* --- NEW INTERACTION STYLE: Click/Hold to Compare --- */
+        .comparison-container { position: relative; width: 100%; border: 1px solid var(--border-primary); border-radius: 6px; cursor: pointer; user-select: none; }
+        .comparison-container img { display: block; width: 100%; height: auto; object-fit: contain; }
+        .comparison-container .before-image { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.1s ease-in-out; }
+        .comparison-container.showing-before .before-image { opacity: 1; }
         .hidden { display: none; }
     </style>
 </head>
@@ -69,13 +69,14 @@
             <section id="result-view" class="hidden">
                 <h2 class="text-xl font-bold mb-1 text-center">Your masterpiece is ready!</h2>
                 <p id="result-prompt" class="text-center text-sm text-secondary mb-3 italic break-words"></p>
-                <div id="comparison-slider" class="comparison-slider">
-                    <canvas id="comparison-canvas"></canvas>
-                    <div id="slider-handle" class="slider-handle"><div class="slider-handle-button">&#x2194;</div></div>
+                <!-- NEW INTERACTION: Simplified container for click/hold -->
+                <div id="comparison-container" class="comparison-container">
+                    <img id="after-image" src="#" alt="Edited Image">
+                    <img id="before-image" src="#" alt="Original Image" class="before-image">
                 </div>
-                <p class="text-center text-sm text-secondary mt-1 italic">Slide to compare</p>
+                <p class="text-center text-sm text-secondary mt-1 italic">Press and hold image to compare</p>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <a id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</a>
+                    <a id="download-button" download="kamuy-edit.png" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</a>
                     <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
                 </div>
             </section>
@@ -84,12 +85,6 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const canvas = document.getElementById('comparison-canvas');
-        const ctx = canvas.getContext('2d');
-        const beforeImage = new Image();
-        const afterImage = new Image();
-        afterImage.crossOrigin = "anonymous";
-        
         const themeToggle = document.getElementById('theme-toggle');
         const uploadView = document.getElementById('upload-view');
         const editView = document.getElementById('edit-view');
@@ -104,7 +99,9 @@
         const resetButton = document.getElementById('reset-button');
         const newEditButton = document.getElementById('new-edit-button');
         const downloadButton = document.getElementById('download-button');
-        const comparisonSlider = document.getElementById('comparison-slider');
+        const comparisonContainer = document.getElementById('comparison-container');
+        const beforeImage = document.getElementById('before-image');
+        const afterImage = document.getElementById('after-image');
         const resultPrompt = document.getElementById('result-prompt');
         
         let originalFile = null, currentPrompt = '';
@@ -125,8 +122,14 @@
             if (!file || !file.type.startsWith('image/')) { alert('Please select a valid image file.'); return; }
             originalFile = file;
             const fileUrl = URL.createObjectURL(file);
-            beforeImage.onload = () => { originalDimensions = { width: beforeImage.naturalWidth, height: beforeImage.naturalHeight }; imagePreview.src = fileUrl; showView(editView); URL.revokeObjectURL(fileUrl); };
-            beforeImage.src = fileUrl;
+            const img = new Image();
+            img.onload = () => {
+                originalDimensions = { width: img.naturalWidth, height: img.naturalHeight };
+                imagePreview.src = fileUrl;
+                beforeImage.src = fileUrl;
+                showView(editView);
+            };
+            img.src = fileUrl;
         };
 
         dropzone.addEventListener('click', () => imageInput.click());
@@ -153,97 +156,24 @@
                 if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'The server returned an error.'); }
                 const data = await response.json();
                 if (data.edited_image_url) {
-                    afterImage.onload = () => { setupCanvasAndSlider(); showView(resultView); };
                     afterImage.src = data.edited_image_url;
+                    downloadButton.href = data.edited_image_url; // Set direct download link
                     resultPrompt.textContent = `Prompt: "${currentPrompt}"`;
+                    showView(resultView);
                 } else { throw new Error('Could not find the edited image in the response.'); }
             } catch (error) { console.error('Generation failed:', error); alert(`Error: ${error.message}`);
             } finally { setLoadingState(false); }
         });
-        
-        // --- ROBUST CANVAS DRAWING LOGIC ---
-        const sliderHandle = document.getElementById('slider-handle');
-        let sliderPosition = 0.5;
-        let isDragging = false;
 
-        function drawImages() {
-            if (!canvas || !ctx || !beforeImage.complete || !afterImage.complete) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // --- THIS IS THE FIX: Aspect-ratio aware drawing ---
-            const drawImageWithAspectRatio = (img) => {
-                const canvasRatio = canvas.width / canvas.height;
-                const imgRatio = img.width / img.height;
-                let drawWidth = canvas.width;
-                let drawHeight = canvas.height;
-                let x = 0;
-                let y = 0;
+        // --- NEW INTERACTION LOGIC: Press and hold ---
+        const showOriginal = () => comparisonContainer.classList.add('showing-before');
+        const showResult = () => comparisonContainer.classList.remove('showing-before');
 
-                if (canvasRatio > imgRatio) { // Canvas is wider than image
-                    drawWidth = canvas.height * imgRatio;
-                    x = (canvas.width - drawWidth) / 2;
-                } else { // Canvas is taller than or same ratio as image
-                    drawHeight = canvas.width / imgRatio;
-                    y = (canvas.height - drawHeight) / 2;
-                }
-                ctx.drawImage(img, x, y, drawWidth, drawHeight);
-            }
-            
-            drawImageWithAspectRatio(beforeImage);
-
-            const clipWidth = canvas.width * sliderPosition;
-            if (clipWidth > 0) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(0, 0, clipWidth, canvas.height);
-                ctx.clip();
-                drawImageWithAspectRatio(afterImage);
-                ctx.restore();
-            }
-        }
-
-        function setupCanvasAndSlider() {
-            canvas.width = originalDimensions.width;
-            canvas.height = originalDimensions.height;
-            sliderHandle.style.left = '50%';
-            sliderPosition = 0.5;
-            drawImages();
-        }
-
-        const moveSlider = (clientX) => {
-            if (!isDragging) return;
-            const rect = comparisonSlider.getBoundingClientRect();
-            let x = clientX - rect.left;
-            x = Math.max(0, Math.min(x, rect.width));
-            sliderPosition = x / rect.width;
-            sliderHandle.style.left = `${sliderPosition * 100}%`;
-            drawImages();
-        };
-        
-        // --- Event Listeners for Slider ---
-        const startDragging = (e) => { e.preventDefault(); isDragging = true; };
-        const stopDragging = () => { isDragging = false; };
-        comparisonSlider.addEventListener('mousedown', startDragging);
-        document.addEventListener('mouseup', stopDragging);
-        document.addEventListener('mousemove', (e) => moveSlider(e.clientX));
-        comparisonSlider.addEventListener('touchstart', (e) => { e.preventDefault(); isDragging = true; }, { passive: false });
-        document.addEventListener('touchend', stopDragging);
-        document.addEventListener('touchmove', (e) => moveSlider(e.touches[0].clientX), { passive: false });
-
-        // --- ROBUST DOWNLOAD LOGIC ---
-        downloadButton.addEventListener('click', () => {
-            if (!afterImage.complete) { alert("Result image is not ready yet."); return; }
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = originalDimensions.width;
-            tempCanvas.height = originalDimensions.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(afterImage, 0, 0, originalDimensions.width, originalDimensions.height);
-            
-            const link = document.createElement('a');
-            link.download = 'kamuy-edit.png';
-            link.href = tempCanvas.toDataURL('image/png');
-            link.click();
-        });
+        comparisonContainer.addEventListener('mousedown', showOriginal);
+        comparisonContainer.addEventListener('mouseup', showResult);
+        comparisonContainer.addEventListener('mouseleave', showResult);
+        comparisonContainer.addEventListener('touchstart', showOriginal, { passive: true });
+        comparisonContainer.addEventListener('touchend', showResult);
 
         const fileToBase64 = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); });
         const compressImage = (file) => new Promise((resolve, reject) => {
