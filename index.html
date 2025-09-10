@@ -26,12 +26,7 @@
             --accent-primary: #2d88ff;
             --accent-primary-hover: #297be2;
         }
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            transition: background-color 0.2s, color 0.2s;
-        }
+        body { background-color: var(--bg-primary); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; transition: background-color 0.2s, color 0.2s; }
         .main-container { background-color: var(--bg-secondary); border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1); }
         .dropzone { border: 2px dashed var(--border-primary); transition: border-color 0.2s, background-color 0.2s; }
         .dropzone.dragover { border-color: var(--accent-primary); background-color: rgba(var(--accent-primary-raw, 27, 116, 228), 0.05); }
@@ -53,7 +48,6 @@
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <!-- THIS IS THE FIX: Changed max-w-lg to max-w-3xl -->
     <div class="w-full max-w-3xl mx-auto">
         <header class="text-center mb-6 flex justify-between items-center">
             <div></div> <!-- Spacer -->
@@ -61,13 +55,10 @@
                 <h1 class="text-4xl font-bold">Kamuy ✨</h1>
                 <p class="text-lg text-secondary">Divine image editing, powered by AI.</p>
             </div>
-            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <!-- Icons will be injected by JS -->
-            </button>
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"></button>
         </header>
 
         <main id="app-container" class="main-container p-6">
-            <!-- Upload View -->
             <section id="upload-view">
                 <input type="file" id="image-input" class="hidden" accept="image/*" />
                 <div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer">
@@ -77,7 +68,6 @@
                 </div>
             </section>
 
-            <!-- Edit View -->
             <section id="edit-view" class="hidden">
                 <div class="mb-4">
                     <img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg w-full object-contain border border-primary p-1">
@@ -95,7 +85,6 @@
                 </div>
             </section>
 
-            <!-- Result View -->
             <section id="result-view" class="hidden">
                 <h2 class="text-xl font-bold mb-3 text-center">Your masterpiece is ready!</h2>
                 <div id="comparison-slider" class="comparison-slider">
@@ -135,23 +124,18 @@
         
         let originalFile = null;
         let originalFileUrl = null;
+        let originalDimensions = { width: 0, height: 0 }; // Store original dimensions
 
         const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
         const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
 
         const applyTheme = (theme) => {
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-                themeToggle.innerHTML = sunIcon;
-            } else {
-                document.documentElement.classList.remove('dark');
-                themeToggle.innerHTML = moonIcon;
-            }
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            themeToggle.innerHTML = theme === 'dark' ? sunIcon : moonIcon;
         };
 
         themeToggle.addEventListener('click', () => {
-            const currentTheme = localStorage.getItem('theme') || 'light';
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
             localStorage.setItem('theme', newTheme);
             applyTheme(newTheme);
         });
@@ -165,11 +149,10 @@
         };
 
         const resetToUpload = () => {
-            if (originalFileUrl) {
-                URL.revokeObjectURL(originalFileUrl);
-            }
+            if (originalFileUrl) URL.revokeObjectURL(originalFileUrl);
             originalFile = null;
             originalFileUrl = null;
+            originalDimensions = { width: 0, height: 0 };
             imageInput.value = '';
             promptInput.value = '';
             showView(uploadView);
@@ -188,9 +171,17 @@
             }
             originalFile = file;
             originalFileUrl = URL.createObjectURL(file);
-            imagePreview.src = originalFileUrl;
-            beforeImage.src = originalFileUrl;
-            showView(editView);
+            
+            // --- THIS IS THE FIX: Get the image dimensions ---
+            const img = new Image();
+            img.onload = () => {
+                originalDimensions = { width: img.naturalWidth, height: img.naturalHeight };
+                URL.revokeObjectURL(img.src); // Clean up temp object URL
+                imagePreview.src = originalFileUrl;
+                beforeImage.src = originalFileUrl;
+                showView(editView);
+            };
+            img.src = originalFileUrl;
         };
 
         dropzone.addEventListener('click', () => imageInput.click());
@@ -216,6 +207,7 @@
             setLoadingState(true);
 
             try {
+                // We use originalFile for compression to keep quality high
                 const compressedFile = await compressImage(originalFile);
                 const base64Image = await fileToBase64(compressedFile);
 
@@ -227,6 +219,9 @@
                         imageName: compressedFile.name,
                         imageType: compressedFile.type,
                         prompt: prompt,
+                        // --- THIS IS THE FIX: Send the dimensions to the backend ---
+                        width: originalDimensions.width,
+                        height: originalDimensions.height,
                     }),
                 });
 
