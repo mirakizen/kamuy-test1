@@ -32,106 +32,42 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             transition: background-color 0.2s, color 0.2s;
         }
-        .main-container {
-            background-color: var(--bg-secondary);
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-        }
-        .dropzone {
-            border: 2px dashed var(--border-primary);
-            transition: border-color 0.2s, background-color 0.2s;
-        }
-        .dropzone.dragover {
-            border-color: var(--accent-primary);
-            background-color: rgba(27, 116, 228, 0.05);
-        }
-        .btn-primary {
-            background-color: var(--accent-primary);
-            color: white;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        .btn-primary:hover:not(:disabled) {
-            background-color: var(--accent-primary-hover);
-        }
-        .btn-primary:disabled {
-            background-color: #a0c3f0;
-            cursor: not-allowed;
-        }
-        html.dark .btn-primary:disabled {
-            background-color: #4a5d75;
-        }
-        .btn-secondary {
-            background-color: var(--accent-secondary);
-            color: white;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        .btn-secondary:hover {
-            background-color: var(--accent-secondary-hover);
-        }
-        .loader {
-            border-color: rgba(255, 255, 255, 0.2);
-            border-top-color: #fff;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .comparison-slider {
-            position: relative;
-            overflow: hidden;
-            border: 1px solid var(--border-primary);
-            border-radius: 6px;
-        }
-        .comparison-slider .after-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            clip-path: inset(0 50% 0 0);
-        }
-        .comparison-slider .slider-handle {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 4px;
-            height: 100%;
-            background-color: var(--accent-primary);
-            cursor: ew-resize;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .comparison-slider .slider-handle-button {
-            width: 30px;
-            height: 30px;
-            background-color: var(--accent-primary);
-            border-radius: 50%;
-            color: white;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            user-select: none;
-        }
+        .main-container { background-color: var(--bg-secondary); border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1); }
+        .dropzone { border: 2px dashed var(--border-primary); transition: border-color 0.2s, background-color 0.2s; }
+        .dropzone.dragover { border-color: var(--accent-primary); background-color: rgba(var(--accent-primary-raw, 27, 116, 228), 0.05); }
+        .btn-primary { background-color: var(--accent-primary); color: white; font-weight: bold; transition: background-color 0.2s; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--accent-primary-hover); }
+        .btn-primary:disabled { background-color: #a0c3f0; cursor: not-allowed; }
+        html.dark .btn-primary:disabled { background-color: #4a5d75; }
+        .btn-secondary { background-color: var(--accent-secondary); color: white; font-weight: bold; transition: background-color 0.2s; }
+        .btn-secondary:hover { background-color: var(--accent-secondary-hover); }
+        .loader { border-color: rgba(255, 255, 255, 0.2); border-top-color: #fff; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* --- SLIDER FIX: Let the container be flexible --- */
+        .comparison-slider { position: relative; overflow: hidden; border: 1px solid var(--border-primary); border-radius: 6px; width: 100%; /* Ensure it takes full width of its parent */ }
+        .comparison-slider img { display: block; width: 100%; height: auto; object-fit: contain; } /* Let images define the aspect ratio */
+        .comparison-slider .after-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; clip-path: inset(0 50% 0 0); }
+        .comparison-slider .slider-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background-color: var(--accent-primary); cursor: ew-resize; display: flex; align-items: center; justify-content: center; }
+        .comparison-slider .slider-handle-button { width: 30px; height: 30px; background-color: var(--accent-primary); border-radius: 50%; color: white; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.3); user-select: none; }
         .hidden { display: none; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
     <div class="w-full max-w-lg mx-auto">
-        <header class="text-center mb-6">
-            <h1 class="text-4xl font-bold">Kamuy ✨</h1>
-            <p class="text-lg text-secondary">Divine image editing, powered by AI.</p>
+        <header class="text-center mb-6 flex justify-between items-center">
+            <div></div> <!-- Spacer -->
+            <div>
+                <h1 class="text-4xl font-bold">Kamuy ✨</h1>
+                <p class="text-lg text-secondary">Divine image editing, powered by AI.</p>
+            </div>
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <!-- Icons will be injected by JS -->
+            </button>
         </header>
 
         <main id="app-container" class="main-container p-6">
-            <!-- 1. Upload View -->
+            <!-- Upload View -->
             <section id="upload-view">
                 <input type="file" id="image-input" class="hidden" accept="image/*" />
                 <div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer">
@@ -141,10 +77,11 @@
                 </div>
             </section>
 
-            <!-- 2. Edit View -->
+            <!-- Edit View -->
             <section id="edit-view" class="hidden">
                 <div class="mb-4">
-                    <img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg max-h-64 w-full object-contain border border-primary p-1">
+                     <!-- SLIDER FIX: Removed max-height from image preview -->
+                    <img id="image-preview" src="#" alt="Your uploaded image" class="rounded-lg w-full object-contain border border-primary p-1">
                 </div>
                 <div>
                     <label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label>
@@ -159,11 +96,12 @@
                 </div>
             </section>
 
-            <!-- 3. Result View -->
+            <!-- Result View -->
             <section id="result-view" class="hidden">
                 <h2 class="text-xl font-bold mb-3 text-center">Your masterpiece is ready!</h2>
+                <!-- SLIDER FIX: Container is now flexible -->
                 <div id="comparison-slider" class="comparison-slider">
-                    <img id="before-image" src="#" class="block w-full h-auto object-contain" alt="Original Image">
+                    <img id="before-image" src="#" alt="Original Image">
                     <img id="after-image" src="#" class="after-image" alt="Edited Image">
                     <div id="slider-handle" class="slider-handle">
                         <div class="slider-handle-button">&#x2194;</div>
@@ -171,7 +109,8 @@
                 </div>
                 <p class="text-center text-sm text-secondary mt-1 italic">Slide to compare</p>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <a id="download-button" href="#" download="kamuy-edit.png" class="btn-secondary w-full py-2.5 rounded-md text-center">Download</a>
+                     <!-- DOWNLOAD FIX: Added target="_blank" -->
+                    <a id="download-button" href="#" download="kamuy-edit.png" target="_blank" rel="noopener noreferrer" class="btn-secondary w-full py-2.5 rounded-md text-center">Download</a>
                     <button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button>
                 </div>
             </section>
@@ -181,8 +120,10 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- DOM Elements ---
+        const themeToggle = document.getElementById('theme-toggle');
         const uploadView = document.getElementById('upload-view');
         const editView = document.getElementById('edit-view');
+        // ... (rest of the elements are the same)
         const resultView = document.getElementById('result-view');
         const imageInput = document.getElementById('image-input');
         const dropzone = document.getElementById('dropzone');
@@ -200,6 +141,31 @@
         let originalFile = null;
         let originalFileUrl = null;
 
+        // --- DARK MODE LOGIC ---
+        const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
+        const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
+
+        const applyTheme = (theme) => {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                themeToggle.innerHTML = sunIcon;
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeToggle.innerHTML = moonIcon;
+            }
+        };
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+
+        // Apply theme on initial load
+        applyTheme(localStorage.getItem('theme') || 'light');
+
+
         // --- State Management ---
         const showView = (view) => {
             uploadView.classList.add('hidden');
@@ -210,11 +176,11 @@
 
         const resetToUpload = () => {
             if (originalFileUrl) {
-                URL.revokeObjectURL(originalFileUrl); // Clean up memory
+                URL.revokeObjectURL(originalFileUrl);
             }
             originalFile = null;
             originalFileUrl = null;
-            imageInput.value = ''; // Clear file input
+            imageInput.value = '';
             promptInput.value = '';
             showView(uploadView);
         };
@@ -225,7 +191,7 @@
             generateButtonText.textContent = isLoading ? 'Generating...' : 'Generate';
         };
 
-        // --- File Handling ---
+        // --- File Handling & API Call (largely unchanged) ---
         const handleFileSelect = (file) => {
             if (!file || !file.type.startsWith('image/')) {
                 alert('Please select a valid image file.');
@@ -238,25 +204,15 @@
             showView(editView);
         };
 
-        // --- Event Listeners ---
         dropzone.addEventListener('click', () => imageInput.click());
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.classList.add('dragover');
-        });
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
         dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropzone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) {
-                handleFileSelect(e.dataTransfer.files[0]);
-            }
+            if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files[0]);
         });
-        imageInput.addEventListener('change', (e) => {
-            if (e.target.files.length) {
-                handleFileSelect(e.target.files[0]);
-            }
-        });
+        imageInput.addEventListener('change', (e) => { if (e.target.files.length) handleFileSelect(e.target.files[0]); });
         
         resetButton.addEventListener('click', resetToUpload);
         newEditButton.addEventListener('click', resetToUpload);
@@ -308,13 +264,12 @@
             }
         });
 
-        // --- Comparison Slider Logic ---
+        // --- Comparison Slider Logic (unchanged) ---
         const slider = document.getElementById('comparison-slider');
         const sliderHandle = document.getElementById('slider-handle');
-        const afterImageContainer = document.querySelector('.after-image');
 
         let isDragging = false;
-        const startDragging = () => { isDragging = true; };
+        const startDragging = (e) => { e.preventDefault(); isDragging = true; };
         const stopDragging = () => { isDragging = false; };
         const moveSlider = (clientX) => {
             if (!isDragging) return;
@@ -326,15 +281,14 @@
             afterImage.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
         };
 
-        sliderHandle.addEventListener('mousedown', startDragging);
-        sliderHandle.addEventListener('touchstart', startDragging);
+        slider.addEventListener('mousedown', startDragging);
+        slider.addEventListener('touchstart', startDragging, { passive: false });
         document.addEventListener('mouseup', stopDragging);
         document.addEventListener('touchend', stopDragging);
         document.addEventListener('mousemove', (e) => moveSlider(e.clientX));
-        document.addEventListener('touchmove', (e) => moveSlider(e.touches[0].clientX));
+        document.addEventListener('touchmove', (e) => moveSlider(e.touches[0].clientX), { passive: false });
 
-
-        // --- Helper Functions ---
+        // --- Helper Functions (unchanged) ---
         const fileToBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -363,9 +317,9 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 canvas.toBlob((blob) => {
-                    URL.revokeObjectURL(img.src); // Clean up original object URL
+                    URL.revokeObjectURL(img.src);
                     resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
-                }, 'image/jpeg', 0.9); // Use JPEG for better compression
+                }, 'image/jpeg', 0.9);
             };
             img.onerror = reject;
         });
