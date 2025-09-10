@@ -36,11 +36,11 @@ export default async function handler(req, res) {
     const imageUrl = await fal.storage.upload(file);
 
     // Call the Seedream 4.0 model via the Fal.ai client
-    // This is the key change: we are now using the correct model ID.
+    // THIS IS THE FIX: The model requires `image_urls` as an array.
     const result = await fal.subscribe('fal-ai/bytedance/seedream/v4/edit', {
       input: {
         prompt: prompt,
-        image_url: imageUrl,
+        image_urls: [imageUrl], // Corrected parameter name and format
       },
       logs: true, // Enable logs for easier debugging on the fal.ai side
     });
