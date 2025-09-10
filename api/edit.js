@@ -10,12 +10,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // --- THIS IS THE FIX: Receive width and height from the request body ---
-    const { image, imageName, imageType, prompt, width, height } = req.body;
+    // We no longer need width and height, the model infers it from the image
+    const { image, imageName, imageType, prompt } = req.body;
 
-    if (!image || !prompt || !width || !height) {
+    if (!image || !prompt) {
       return res.status(400).json({
-        error: 'Bad request: Missing image, prompt, or dimensions'
+        error: 'Bad request: Missing image or prompt'
       });
     }
 
@@ -30,13 +30,13 @@ export default async function handler(req, res) {
 
     const imageUrl = await fal.storage.upload(file);
 
-    // --- THIS IS THE FIX: Add width and height to the API input ---
+    // --- THIS IS THE FIX ---
+    // The `width` and `height` parameters were causing conflicts with image-to-image tasks.
+    // Removing them allows the model to correctly use the uploaded image's dimensions.
     const result = await fal.subscribe('fal-ai/bytedance/seedream/v4/edit', {
       input: {
         prompt: prompt,
         image_urls: [imageUrl],
-        width: width,
-        height: height,
       },
       logs: true,
     });

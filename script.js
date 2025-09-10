@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const compressedFile = await compressImage(toolState.file);
             const base64Image = await fileToBase64(compressedFile);
+            // Pass the original dimensions for API call, even if backend ignores it for some tasks
             const response = await fetch('/api/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -63,7 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else { throw new Error('Could not find the edited image in the response.'); }
         } catch (error) { console.error('Generation failed:', error); alert(`Error: ${error.message}`);
         } finally {
-            // Check if the button still exists before trying to modify it
             if(document.getElementById('generate-button')) {
                 generateButton.disabled = false;
                 generateLoader.classList.add('hidden');
@@ -91,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label>
                 </div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'} mt-4"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}"></div></div>`;
             } else if (state.activeTool === 'artify') {
-                 // --- TWEAK: Using high-quality, descriptive images ---
                 const styles = [
                     { name: 'Anime', prompt: 'anime style, vibrant, detailed, studio ghibli', img: 'https://storage.googleapis.com/static.fal.ai/static/images/8b072591-c454-4286-a24a-1b57221e7842.jpeg' },
                     { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting', img: 'https://storage.googleapis.com/static.fal.ai/static/images/1e485e50-f831-48d6-a077-0c75402a5e44.jpeg' },
@@ -112,7 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
         addEventListeners();
     };
 
-    // --- ROBUST EVENT LISTENER ATTACHMENT ---
     function addEventListeners() {
         const toolState = state[state.activeTool];
         const dropzone = document.getElementById("dropzone");
@@ -128,13 +126,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const generateButton = document.getElementById('generate-button');
         if(generateButton) {
             generateButton.addEventListener('click', () => {
-                if (state.activeTool === 'prompt-edit') { toolState.prompt = document.getElementById('prompt-input').value; }
-                else if (state.activeTool === 'removal-tool') {
+                if (state.activeTool === 'prompt-edit') {
+                    toolState.prompt = document.getElementById('prompt-input').value;
+                } else if (state.activeTool === 'removal-tool') {
                     if (toolState.mode === 'background') { toolState.prompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.'; }
                     else if (toolState.mode === 'object') {
                         toolState.objectToRemove = document.getElementById('object-input').value;
                         if (!toolState.objectToRemove) { alert('Please specify an object to remove.'); return; }
-                        toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally`;
+                        // --- FIX: Better prompt for object removal ---
+                        toolState.prompt = `remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally. The final image must have the same dimensions as the original.`;
                     } else if (toolState.mode === 'watermark') { toolState.prompt = `remove the watermark from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`; }
                 } else if (state.activeTool === 'artify') {
                     if (!toolState.selectedStyle) { alert('Please select a style!'); return; }
@@ -150,21 +150,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const removalModeRadios = document.querySelectorAll('input[name="removal-mode"]');
         if (removalModeRadios) {
             removalModeRadios.forEach(radio => {
-                radio.addEventListener('change', (e) => {
-                    toolState.mode = e.target.value;
-                    document.getElementById('object-input-container').classList.toggle('hidden', e.target.value !== 'object');
-                });
+                radio.addEventListener('change', (e) => { toolState.mode = e.target.value; document.getElementById('object-input-container').classList.toggle('hidden', e.target.value !== 'object'); });
             });
         }
 
         const styleBtns = document.querySelectorAll('.style-btn');
         if (styleBtns) {
             styleBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    styleBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    toolState.selectedStyle = btn.dataset.stylePrompt;
-                });
+                btn.addEventListener('click', () => { styleBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); toolState.selectedStyle = btn.dataset.stylePrompt; });
             });
         }
         
@@ -176,9 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             downloadButton.addEventListener('click', async (e) => {
                 e.preventDefault();
                 try {
-                    const response = await fetch(toolState.resultUrl);
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
+                    const response = await fetch(toolState.resultUrl); const blob = await response.blob(); const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url; a.download = 'kamuy-edit.png'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 } catch (error) { console.error("Download failed:", error); alert("Could not download the image."); }
             });
