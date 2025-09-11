@@ -28,26 +28,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const createEngineeredPrompt = (tool, toolState) => {
         const preservationPrompt = " Based on the reference image, it is crucial to preserve the identity, facial features, expressions, skin tones, and poses of all subjects. All other elements and the overall style of the image must remain unchanged.";
-        if (tool === 'prompt-edit') {
-            return toolState.userInput + preservationPrompt;
-        } else if (tool === 'removal-tool') {
+        if (tool === 'prompt-edit') { return toolState.userInput + preservationPrompt; }
+        if (tool === 'removal-tool') {
             if (toolState.mode === 'background') return 'remove the background, keeping the subject perfectly intact. Output with a transparent background. Do not add a watermark.';
             if (toolState.mode === 'object') return `[Deletion] Remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally, keeping all other elements unchanged.`;
             if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
-        } else if (tool === 'artify') {
-            return toolState.selectedStyle;
         }
-        return toolState.userInput; // Fallback
+        if (tool === 'artify') { return toolState.selectedStyle; }
+        return toolState.userInput;
     };
     
+    let progressInterval = null;
     const generateImage = async () => {
         const toolState = state[state.activeTool];
         toolState.engineeredPrompt = createEngineeredPrompt(state.activeTool, toolState);
         
-        const generateButton = document.getElementById('generate-button'), generateButtonText = document.getElementById('generate-button-text'), generateLoader = document.getElementById('generate-loader');
-        generateButton.disabled = true;
-        generateLoader.classList.remove('hidden');
-        generateButtonText.textContent = 'Generating...';
+        const generateButton = document.getElementById('generate-button');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        generateButton.classList.add('hidden');
+        progressContainer.classList.remove('hidden');
+        
+        let progress = 0;
+        clearInterval(progressInterval);
+        progressInterval = setInterval(() => {
+            progress = Math.min(progress + 5, 95);
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+        }, 500);
+
         try {
             const compressedFile = await compressImage(toolState.file);
             const base64Image = await fileToBase64(compressedFile);
@@ -56,30 +67,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image: base64Image, imageName: compressedFile.name, imageType: compressedFile.type, prompt: toolState.engineeredPrompt, width: toolState.dimensions.width, height: toolState.dimensions.height }),
             });
+            clearInterval(progressInterval);
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'The server returned an error.'); }
             const data = await response.json();
             if (data.edited_image_url) {
-                toolState.resultUrl = data.edited_image_url;
-                toolState.view = 'result';
-                render();
+                progressBar.style.width = '100%';
+                progressText.textContent = '100%';
+                setTimeout(() => {
+                    progressText.innerHTML = `<span class="arrow-bounce"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span>`;
+                }, 500);
+                setTimeout(() => {
+                    toolState.resultUrl = data.edited_image_url;
+                    toolState.view = 'result';
+                    render();
+                }, 1500);
             } else { throw new Error('Could not find the edited image in the response.'); }
-        } catch (error) { console.error('Generation failed:', error); alert(`Error: ${error.message}`);
-        } finally {
-            if (document.getElementById('generate-button')) {
-                generateButton.disabled = false;
-                generateLoader.classList.add('hidden');
-                generateButtonText.textContent = 'Generate';
-            }
+        } catch (error) {
+            console.error('Generation failed:', error);
+            alert(`Error: ${error.message}`);
+            clearInterval(progressInterval);
+            progressContainer.classList.add('hidden');
+            generateButton.classList.remove('hidden');
         }
     };
 
     const render = () => {
         const toolState = state[state.activeTool];
-        const toolHeaders = {
-            'prompt-edit': `<header class="tool-header"><h2 class="text-3xl font-bold">Prompt Edit</h2><p class="text-lg text-secondary">Use natural language to transform your image.</p></header>`,
-            'removal-tool': `<header class="tool-header"><h2 class="text-3xl font-bold">Removal Tool</h2><p class="text-lg text-secondary">Remove backgrounds, objects, or watermarks.</p></header>`,
-            'artify': `<header class="tool-header"><h2 class="text-3xl font-bold">Artify</h2><p class="text-lg text-secondary">Transform your image with creative styles.</p></header>`
+        const headers = {
+            'prompt-edit': { title: 'Prompt Edit', subtitle: 'Use natural language to transform your image.' },
+            'removal-tool': { title: 'Removal Tool', subtitle: 'Remove backgrounds, objects, or watermarks.' },
+            'artify': { title: 'Artify', subtitle: 'Transform your image with creative styles.' }
         };
+        const header = headers[state.activeTool];
 
         let viewContent = '';
         if (toolState.view === 'upload') {
@@ -93,14 +112,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 let styleGridHTML = styles.map(s => `<div class="style-btn ${toolState.selectedStyle === s.prompt ? 'active' : ''}" data-style-prompt="${s.prompt}"><span>${s.name}</span></div>`).join('');
                 editControls = `<div class="my-4"><label class="block text-sm font-bold mb-2">Choose a style:</label><div class="style-grid">${styleGridHTML}</div></div>`;
             }
-            viewContent = `<section><div class="mb-4"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span><div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div></section>`;
+            viewContent = `<section><div class="mb-4"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div><div id="progress-container" class="mt-4 hidden"><div id="progress-bar" style="width: 0%;"></div><span id="progress-text">0%</span></div></section>`;
         } else if (toolState.view === 'result') {
             viewContent = `<section class="space-y-4"><div><h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3><p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.userInput}"</p></div><div><label class="block text-sm font-bold text-secondary mb-2">Original</label><div class="result-image-container"><img src="${URL.createObjectURL(toolState.file)}"></div></div><div><label class="block text-sm font-bold text-secondary mb-2">Edited</label><div class="result-image-container"><img src="${toolState.resultUrl}"></div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button><button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button></div></section>`;
         }
         
-        contentContainer.innerHTML = `${toolHeaders[state.activeTool]}<div class="main-container p-6">${viewContent}</div>`;
+        contentContainer.innerHTML = `<header class="tool-header"><h2 class="text-3xl font-bold">${header.title}</h2><p class="text-lg text-secondary">${header.subtitle}</p></header><div class="main-container p-6">${viewContent}</div>`;
         addEventListeners();
-
         if (toolState.view === 'result') {
             const resultContainers = contentContainer.querySelectorAll('.result-image-container');
             resultContainers.forEach(c => { c.style.aspectRatio = `${toolState.dimensions.width} / ${toolState.dimensions.height}`; });
