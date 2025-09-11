@@ -4,6 +4,18 @@ fal.config({
   credentials: process.env.FAL_KEY,
 });
 
+// Helper function to convert base64 to a File object
+async function fileFromBase64(base64, name, type) {
+    const byteString = atob(base64);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < byteString.length; i++) {
+        uint8Array[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([arrayBuffer], { type: type });
+    return new File([blob], name, { type: type });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed, please use POST' });
@@ -16,23 +28,33 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Bad request: Missing required parameters' });
     }
 
-    const file = await bufferFromBase64(image, imageName, imageType);
-    const imageUrl = await fal.storage.upload(file);
+    // Upload the main image
+    const imageFile = await fileFromBase64(image, imageName, imageType);
+    const imageUrl = await fal.storage.upload(imageFile);
     
+    // --- THIS IS THE FIX: Properly handle the mask ---
     let maskUrl = null;
     if (mask) {
-        const maskFile = await bufferFromBase64(mask, 'mask.png', 'image/png');
+        // If a mask is provided, convert and upload it to get a URL
+        const maskFile = await fileFromBase64(mask, 'mask.png', 'image/png');
         maskUrl = await fal.storage.upload(maskFile);
     }
 
-    const result = await fal.subscribe('fal-ai/bytedance/seedream/v4/edit', {
-      input: {
+    // Construct the input for the AI model
+    const input = {
         prompt: prompt,
         image_urls: [imageUrl],
-        mask_url: maskUrl, // Will be null if no mask is provided, which is fine
         width: width,
         height: height,
-      },
+    };
+    
+    // Only add mask_url to the input if it exists
+    if (maskUrl) {
+        input.mask_url = maskUrl;
+    }
+
+    const result = await fal.subscribe('fal-ai/bytedance/seedream/v4/edit', {
+      input: input,
       logs: true,
     });
 
@@ -47,17 +69,6 @@ export default async function handler(req, res) {
     console.error('Server-side error:', error);
     return res.status(500).json({ error: 'An unexpected error occurred: ' + error.message });
   }
-}
-
-async function bufferFromBase64(base64, name, type) {
-    const byteString = atob(base64);
-    const arrayBuffer = new ArrayBuffer(byteString.length);
-    const uint8Array = new Uint8Array(arrayBuffer);
-    for (let i = 0; i < byteString.length; i++) {
-        uint8Array[i] = byteString.charCodeAt(i);
-    }
-    const blob = new Blob([arrayBuffer], { type: type });
-    return new File([blob], name, { type: type });
 }
 
 export const config = {
