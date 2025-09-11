@@ -29,11 +29,32 @@ html.dark .btn-primary:disabled { background-color: #4a5d75; }
 .btn-secondary { background-color: var(--accent-secondary); color: white; font-weight: bold; transition: background-color 0.2s; }
 .btn-secondary:hover { background-color: var(--accent-secondary-hover); }
 .hidden { display: none; }
-.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 1rem; }
-.style-btn { padding: 0.5rem; border: 2px solid var(--border-primary); border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
+
+/* Styles for Artify Tool */
+.style-category-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-primary);
+}
+.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+.style-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 2px solid var(--border-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
 .style-btn:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
-.style-btn.active { border-color: var(--accent-primary); background-color: var(--sidebar-link-active-bg); }
-.style-btn img { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 0.5rem; }
+.style-btn.active { border-color: var(--accent-primary); background-color: var(--sidebar-link-active-bg); color: var(--sidebar-link-active-text); }
+.style-btn svg { width: 24px; height: 24px; flex-shrink: 0; }
+.style-btn span { font-weight: 500; }
+
 .result-image-container { width: 100%; border-radius: 0.5rem; border: 1px solid var(--border-primary); background-color: var(--bg-primary); }
 .result-image-container img { width: 100%; height: 100%; object-fit: contain; }
 #progress-container { width: 100%; height: 2.5rem; background-color: var(--border-primary); border-radius: 9999px; overflow: hidden; position: relative; }
