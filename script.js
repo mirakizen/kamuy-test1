@@ -30,7 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
         }
         if (tool === 'artify') { return toolState.selectedStyle; }
-        if (tool === 'precision-edit') { return `Apply the following change ONLY to the masked area: "${toolState.userInput}".` + preservationPrompt; }
+        // --- PRECISION EDIT PROMPT FIX ---
+        if (tool === 'precision-edit') {
+            return `Apply the following change ONLY to the masked area: "${toolState.userInput}".` + preservationPrompt;
+        }
         return toolState.userInput;
     };
     
@@ -97,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (state.activeTool === 'precision-edit') {
                 editControls = `<div class="mb-4 relative canvas-container" id="canvas-container"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg border border-primary"><canvas id="drawing-canvas" class="rounded-lg"></canvas></div><div class="drawing-controls mb-4"><label for="brush-size">Brush Size:</label><input type="range" id="brush-size" min="5" max="100" value="40" class="w-48"><button id="clear-mask-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 py-2 rounded-md font-semibold">Clear</button></div><div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit for the selected area:</label><textarea id="prompt-input" rows="2" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., turn hair bright pink">${toolState.userInput || ''}</textarea></div>`;
             }
-            viewContent = `<section>${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div><div id="progress-container" class="mt-4 hidden"><div id="progress-bar" style="width: 0%;"></div><div id="progress-text">0%</div></div></section>`;
+            viewContent = `<section><div class="mb-4" id="image-preview-container"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div><div id="progress-container" class="mt-4 hidden"><div id="progress-bar" style="width: 0%;"></div><div id="progress-text">0%</div></div></section>`;
         } else if (toolState.view === 'result') {
             viewContent = `<section class="space-y-4"><div><h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3><p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.userInput}"</p></div><div><label class="block text-sm font-bold text-secondary mb-2">Original</label><div class="result-image-container"><img src="${URL.createObjectURL(toolState.file)}"></div></div><div><label class="block text-sm font-bold text-secondary mb-2">Edited</label><div class="result-image-container"><img src="${toolState.resultUrl}"></div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button><button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button></div></section>`;
         }
@@ -123,8 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const generateButton = document.getElementById('generate-button');
-        if (generateButton) {
-            generateButton.addEventListener('click', () => {
+        if(generateButton) { generateButton.addEventListener('click', () => {
                 if (state.activeTool === 'prompt-edit') { toolState.userInput = document.getElementById('prompt-input').value; }
                 else if (state.activeTool === 'removal-tool') { toolState.mode = document.querySelector('input[name="removal-mode"]:checked').value; if (toolState.mode === 'object') { toolState.objectToRemove = document.getElementById('object-input').value; } }
                 else if (state.activeTool === 'artify') {
@@ -136,8 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 else if (state.activeTool === 'precision-edit') { toolState.userInput = document.getElementById('prompt-input').value; }
                 generateImage();
-            });
-        }
+        });}
 
         const resetButton = document.getElementById('reset-button');
         if(resetButton) resetButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; toolState.userInput = ''; render(); });
@@ -168,55 +169,51 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupDrawingCanvas() {
         const canvas = document.getElementById('drawing-canvas');
         const imagePreview = document.getElementById('image-preview');
-        const brushSizeSlider = document.getElementById('brush-size');
-        const clearButton = document.getElementById('clear-mask-button');
-        if (!canvas || !imagePreview || !brushSizeSlider || !clearButton) return;
+        if (!canvas || !imagePreview) return;
         
-        const ctx = canvas.getContext('2d');
-        let isDrawing = false;
-        
-        const resizeCanvas = () => { canvas.width = imagePreview.clientWidth; canvas.height = imagePreview.clientHeight; };
-        
-        // --- BRUSH BUG FIX: Wait for image to be fully rendered before sizing canvas ---
-        imagePreview.onload = () => {
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
+        const setup = () => {
+            canvas.width = imagePreview.clientWidth;
+            canvas.height = imagePreview.clientHeight;
+            const ctx = canvas.getContext('2d');
+            let isDrawing = false;
+            let brushSize = 40;
+
+            const brushSizeSlider = document.getElementById('brush-size');
+            const clearButton = document.getElementById('clear-mask-button');
+            if(brushSizeSlider) brushSizeSlider.addEventListener('input', (e) => { brushSize = e.target.value; });
+            if(clearButton) clearButton.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); state['precision-edit'].maskData = null; });
+
+            const getMousePos = (e) => {
+                const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+                const clientX = e.clientX || e.touches[0].clientX; const clientY = e.clientY || e.touches[0].clientY;
+                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+            };
+            const draw = (e) => { if (!isDrawing) return; const pos = getMousePos(e); ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; ctx.beginPath(); ctx.arc(pos.x, pos.y, brushSize / 2, 0, Math.PI * 2); ctx.fill(); };
+            canvas.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', () => isDrawing = false);
+            canvas.addEventListener('mouseout', () => isDrawing = false);
+            canvas.addEventListener('touchstart', (e) => { isDrawing = true; draw(e); }, { passive: true });
+            canvas.addEventListener('touchmove', draw, { passive: true });
+            canvas.addEventListener('touchend', () => isDrawing = false);
+
+            const generateButton = document.getElementById('generate-button');
+            if (generateButton) { generateButton.addEventListener('click', () => {
+                const maskCanvas = document.createElement('canvas');
+                maskCanvas.width = state['precision-edit'].dimensions.width; maskCanvas.height = state['precision-edit'].dimensions.height;
+                const maskCtx = maskCanvas.getContext('2d');
+                maskCtx.drawImage(canvas, 0, 0, maskCanvas.width, maskCanvas.height);
+                const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                const data = imageData.data; let hasMask = false;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] > 0) { data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; hasMask = true; }
+                    else { data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; }
+                    data[i + 3] = 255;
+                }
+                state['precision-edit'].maskData = hasMask ? maskCanvas.toDataURL('image/png').split(',')[1] : null;
+            }); }
         };
-        // If image is already loaded (from cache), fire immediately
-        if (imagePreview.complete) { imagePreview.onload(); }
-
-        const getMousePos = (e) => {
-            const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
-            const clientX = e.clientX || e.touches[0].clientX; const clientY = e.clientY || e.touches[0].clientY;
-            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-        };
-        const draw = (e) => { if (!isDrawing) return; const pos = getMousePos(e); ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; ctx.beginPath(); ctx.arc(pos.x, pos.y, brushSizeSlider.value / 2, 0, Math.PI * 2); ctx.fill(); };
-
-        canvas.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', () => isDrawing = false);
-        canvas.addEventListener('mouseout', () => isDrawing = false);
-        canvas.addEventListener('touchstart', (e) => { isDrawing = true; draw(e); }, { passive: true });
-        canvas.addEventListener('touchmove', draw, { passive: true });
-        canvas.addEventListener('touchend', () => isDrawing = false);
-
-        clearButton.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); state['precision-edit'].maskData = null; });
-
-        const generateButton = document.getElementById('generate-button');
-        generateButton.addEventListener('click', () => {
-            const maskCanvas = document.createElement('canvas');
-            maskCanvas.width = state['precision-edit'].dimensions.width; maskCanvas.height = state['precision-edit'].dimensions.height;
-            const maskCtx = maskCanvas.getContext('2d');
-            maskCtx.drawImage(canvas, 0, 0, maskCanvas.width, maskCanvas.height);
-            const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-            const data = imageData.data; let hasMask = false;
-            for (let i = 0; i < data.length; i += 4) {
-                if (data[i + 3] > 0) { data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; hasMask = true; }
-                else { data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; }
-                data[i + 3] = 255;
-            }
-            state['precision-edit'].maskData = hasMask ? maskCanvas.toDataURL('image/png').split(',')[1] : null;
-        });
+        if (imagePreview.complete) { setup(); } else { imagePreview.onload = setup; }
     }
 
     const handleFileSelect = (file) => {
