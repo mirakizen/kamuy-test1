@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('theme-toggle');
     const navLinks = document.querySelectorAll('.nav-link');
-    const toolSections = document.querySelectorAll('.tool-section');
+    const contentContainer = document.getElementById('content-container');
 
     const state = {
         activeTool: 'prompt-edit',
@@ -22,16 +22,29 @@ document.addEventListener('DOMContentLoaded', () => {
             state.activeTool = link.dataset.tool;
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
-            toolSections.forEach(section => section.classList.remove('active'));
-            document.getElementById(state.activeTool).classList.add('active');
             render();
         });
     });
 
-    const generateImage = async (toolState) => {
-        const generateButton = document.querySelector(`#${state.activeTool} button[id^="generate-"]`);
-        const generateButtonText = generateButton.querySelector('span');
-        const generateLoader = generateButton.querySelector('div');
+    const createEngineeredPrompt = (tool, toolState) => {
+        const preservationPrompt = " Based on the reference image, it is crucial to preserve the identity, facial features, expressions, skin tones, and poses of all subjects. All other elements and the overall style of the image must remain unchanged.";
+        if (tool === 'prompt-edit') {
+            return toolState.userInput + preservationPrompt;
+        } else if (tool === 'removal-tool') {
+            if (toolState.mode === 'background') return 'remove the background, keeping the subject perfectly intact. Output with a transparent background. Do not add a watermark.';
+            if (toolState.mode === 'object') return `[Deletion] Remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally, keeping all other elements unchanged.`;
+            if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
+        } else if (tool === 'artify') {
+            return toolState.selectedStyle;
+        }
+        return toolState.userInput; // Fallback
+    };
+    
+    const generateImage = async () => {
+        const toolState = state[state.activeTool];
+        toolState.engineeredPrompt = createEngineeredPrompt(state.activeTool, toolState);
+        
+        const generateButton = document.getElementById('generate-button'), generateButtonText = document.getElementById('generate-button-text'), generateLoader = document.getElementById('generate-loader');
         generateButton.disabled = true;
         generateLoader.classList.remove('hidden');
         generateButtonText.textContent = 'Generating...';
@@ -52,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else { throw new Error('Could not find the edited image in the response.'); }
         } catch (error) { console.error('Generation failed:', error); alert(`Error: ${error.message}`);
         } finally {
-            if (document.getElementById(`${state.activeTool}-generate-button`)) {
+            if (document.getElementById('generate-button')) {
                 generateButton.disabled = false;
                 generateLoader.classList.add('hidden');
                 generateButtonText.textContent = 'Generate';
@@ -60,13 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- NEW RENDER LOGIC ---
     const render = () => {
         const toolState = state[state.activeTool];
-        const sectionContainer = document.getElementById(state.activeTool); // Target the main section
-        if (!sectionContainer) return;
-
-        let content = '';
         const toolHeaders = {
             'prompt-edit': `<header class="tool-header"><h2 class="text-3xl font-bold">Prompt Edit</h2><p class="text-lg text-secondary">Use natural language to transform your image.</p></header>`,
             'removal-tool': `<header class="tool-header"><h2 class="text-3xl font-bold">Removal Tool</h2><p class="text-lg text-secondary">Remove backgrounds, objects, or watermarks.</p></header>`,
@@ -75,35 +83,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let viewContent = '';
         if (toolState.view === 'upload') {
-            viewContent = `<section><input type="file" id="${state.activeTool}-image-input" class="hidden" accept="image/*" /><div id="${state.activeTool}-dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
+            viewContent = `<section><input type="file" id="image-input" class="hidden" accept="image/*" /><div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
         } else if (toolState.view === 'edit') {
             let editControls = '';
-            if (state.activeTool === 'prompt-edit') { editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., Change the corgi into a felt wool figure">${toolState.userInput || ''}</textarea></div>`; }
-            else if (state.activeTool === 'removal-tool') { editControls = `<div class="my-4 space-y-2"><div class="flex items-center space-x-4"><label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label><label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label><label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label></div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'}"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the red car" value="${toolState.objectToRemove || ''}"></div></div>`; }
+            if (state.activeTool === 'prompt-edit') { editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., add sunglasses to the corgi">${toolState.userInput || ''}</textarea></div>`; }
+            else if (state.activeTool === 'removal-tool') { editControls = `<div class="my-4 space-y-2"><div class="flex items-center space-x-4"><label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label><label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label><label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label></div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'}"><label for="object-input" class="block text-sm font-bold mb-2">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the cat on the right" value="${toolState.objectToRemove || ''}"></div></div>`; }
             else if (state.activeTool === 'artify') {
-                const styles = [ { name: 'Anime', prompt: 'anime style, vibrant, detailed, studio ghibli', img: 'https://storage.googleapis.com/static.fal.ai/static/images/8b072591-c454-4286-a24a-1b57221e7842.jpeg' }, { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting', img: 'https://storage.googleapis.com/static.fal.ai/static/images/1e485e50-f831-48d6-a077-0c75402a5e44.jpeg' }, { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive impasto brushstrokes', img: 'https://storage.googleapis.com/static.fal.ai/static/images/a0e1b033-a337-4148-a0fd-1481b764b8a4.jpeg' }, { name: 'Pixel Art', prompt: '16-bit pixel art style, detailed, vibrant palette', img: 'https://storage.googleapis.com/static.fal.ai/static/images/862089f8-22fd-4a1a-9a9c-a15d7f1b7a2d.jpeg' }, { name: 'Sketch', prompt: 'pencil sketch, hand-drawn, monochrome, detailed shading', img: 'https://storage.googleapis.com/static.fal.ai/static/images/4295e89a-a82f-4824-85b5-227563f03b5f.jpeg' }, { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture, 3d render', img: 'https://storage.googleapis.com/static.fal.ai/static/images/b216d4c6-9937-44ab-8a50-02588c757c2a.jpeg' }];
-                let styleGridHTML = styles.map(s => `<div class="style-btn ${toolState.selectedStyle === s.prompt ? 'active' : ''}" data-style-prompt="${s.prompt}"><img src="${s.img}" alt="${s.name} style preview"><span>${s.name}</span></div>`).join('');
+                const styles = [ { name: 'Anime', prompt: 'anime style, vibrant, detailed, studio ghibli' }, { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting' }, { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive impasto brushstrokes' }, { name: 'Pixel Art', prompt: '16-bit pixel art style, detailed, vibrant palette' }, { name: 'Sketch', prompt: 'pencil sketch, hand-drawn, monochrome, detailed shading' }, { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture, 3d render' }];
+                let styleGridHTML = styles.map(s => `<div class="style-btn ${toolState.selectedStyle === s.prompt ? 'active' : ''}" data-style-prompt="${s.prompt}"><span>${s.name}</span></div>`).join('');
                 editControls = `<div class="my-4"><label class="block text-sm font-bold mb-2">Choose a style:</label><div class="style-grid">${styleGridHTML}</div></div>`;
             }
-            viewContent = `<section><div class="mb-4"><img id="${state.activeTool}-image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>${editControls}<div class="mt-4 flex space-x-2"><button id="${state.activeTool}-generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span><div class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button><button id="${state.activeTool}-reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div></section>`;
+            viewContent = `<section><div class="mb-4"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span><div id="generate-loader" class="loader w-5 h-5 rounded-full border-2 hidden ml-2"></div></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div></section>`;
         } else if (toolState.view === 'result') {
-            viewContent = `<section class="space-y-4"><div><h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3><p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.userInput}"</p></div><div><label class="block text-sm font-bold text-secondary mb-2">Original</label><div class="result-image-container"><img src="${URL.createObjectURL(toolState.file)}"></div></div><div><label class="block text-sm font-bold text-secondary mb-2">Edited</label><div class="result-image-container"><img src="${toolState.resultUrl}"></div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><button id="${state.activeTool}-download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button><button id="${state.activeTool}-new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button></div></section>`;
+            viewContent = `<section class="space-y-4"><div><h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3><p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.userInput}"</p></div><div><label class="block text-sm font-bold text-secondary mb-2">Original</label><div class="result-image-container"><img src="${URL.createObjectURL(toolState.file)}"></div></div><div><label class="block text-sm font-bold text-secondary mb-2">Edited</label><div class="result-image-container"><img src="${toolState.resultUrl}"></div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button><button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button></div></section>`;
         }
         
-        sectionContainer.innerHTML = `<div class="w-full max-w-3xl mx-auto">${toolHeaders[state.activeTool]}<div class="main-container p-6">${viewContent}</div></div>`;
+        contentContainer.innerHTML = `${toolHeaders[state.activeTool]}<div class="main-container p-6">${viewContent}</div>`;
         addEventListeners();
 
         if (toolState.view === 'result') {
-            const resultContainers = sectionContainer.querySelectorAll('.result-image-container');
+            const resultContainers = contentContainer.querySelectorAll('.result-image-container');
             resultContainers.forEach(c => { c.style.aspectRatio = `${toolState.dimensions.width} / ${toolState.dimensions.height}`; });
         }
     };
 
     function addEventListeners() {
         const toolState = state[state.activeTool];
-        const dropzone = document.getElementById(`${state.activeTool}-dropzone`);
+        const dropzone = document.getElementById('dropzone');
         if (dropzone) {
-            const imageInput = document.getElementById(`${state.activeTool}-image-input`);
+            const imageInput = document.getElementById('image-input');
             dropzone.addEventListener('click', () => imageInput.click());
             dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
             dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
@@ -111,56 +119,28 @@ document.addEventListener('DOMContentLoaded', () => {
             imageInput.addEventListener('change', (e) => { if (e.target.files.length) handleFileSelect(e.target.files[0]); });
         }
         
-        const generateButton = document.getElementById(`${state.activeTool}-generate-button`);
-        if(generateButton) {
-            generateButton.addEventListener('click', () => {
-                const preservationPrompt = " Preserve all facial features, skin tones, and background elements not mentioned in the prompt. Keep the overall style unchanged.";
-                if (state.activeTool === 'prompt-edit') {
-                    toolState.userInput = document.getElementById('prompt-input').value;
-                    toolState.engineeredPrompt = toolState.userInput + preservationPrompt;
-                } else if (state.activeTool === 'removal-tool') {
-                    if (toolState.mode === 'background') { toolState.userInput = 'Remove background'; toolState.engineeredPrompt = 'remove the background, keeping the subject. Output with a transparent background. Do not add a watermark.'; }
-                    else if (toolState.mode === 'object') {
-                        toolState.objectToRemove = document.getElementById('object-input').value;
-                        if (!toolState.objectToRemove) { alert('Please specify an object to remove.'); return; }
-                        toolState.userInput = `Remove "${toolState.objectToRemove}"`;
-                        toolState.engineeredPrompt = `[Deletion] Remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally, keeping all other elements unchanged.`;
-                    } else if (toolState.mode === 'watermark') { toolState.userInput = 'Remove watermark'; toolState.engineeredPrompt = `remove the watermark from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`; }
-                } else if (state.activeTool === 'artify') {
-                    if (!toolState.selectedStyle) { alert('Please select a style!'); return; }
-                    const styleName = document.querySelector(`#artify .style-btn.active span`).textContent;
-                    toolState.userInput = `Artify with ${styleName} style`;
-                    toolState.engineeredPrompt = toolState.selectedStyle;
-                }
-                generateImage(toolState);
-            });
-        }
+        const generateButton = document.getElementById('generate-button');
+        if(generateButton) { generateButton.addEventListener('click', () => {
+                if (state.activeTool === 'prompt-edit') { toolState.userInput = document.getElementById('prompt-input').value; }
+                else if (state.activeTool === 'removal-tool') { toolState.objectToRemove = document.getElementById('object-input') ? document.getElementById('object-input').value : ''; }
+                else if (state.activeTool === 'artify') { if (!toolState.selectedStyle) { alert('Please select a style!'); return; } }
+                generateImage();
+        });}
 
-        const resetButton = document.getElementById(`${state.activeTool}-reset-button`);
+        const resetButton = document.getElementById('reset-button');
         if(resetButton) resetButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; toolState.userInput = ''; render(); });
         
         const removalModeRadios = document.querySelectorAll('input[name="removal-mode"]');
-        if (removalModeRadios) {
-            removalModeRadios.forEach(radio => { radio.addEventListener('change', (e) => { toolState.mode = e.target.value; document.getElementById('object-input-container').classList.toggle('hidden', e.target.value !== 'object'); }); });
-        }
+        if (removalModeRadios) { removalModeRadios.forEach(radio => { radio.addEventListener('change', (e) => { toolState.mode = e.target.value; document.getElementById('object-input-container').classList.toggle('hidden', e.target.value !== 'object'); }); }); }
 
         const styleBtns = document.querySelectorAll('.style-btn');
-        if (styleBtns) {
-            styleBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    styleBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    toolState.selectedStyle = btn.dataset.stylePrompt;
-                });
-            });
-        }
+        if (styleBtns) { styleBtns.forEach(btn => { btn.addEventListener('click', () => { styleBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); toolState.selectedStyle = btn.dataset.stylePrompt; }); }); }
         
-        const newEditButton = document.getElementById(`${state.activeTool}-new-edit-button`);
+        const newEditButton = document.getElementById('new-edit-button');
         if(newEditButton) newEditButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; toolState.userInput = ''; render(); });
         
-        const downloadButton = document.getElementById(`${state.activeTool}-download-button`);
-        if (downloadButton) {
-            downloadButton.addEventListener('click', async (e) => {
+        const downloadButton = document.getElementById('download-button');
+        if (downloadButton) { downloadButton.addEventListener('click', async (e) => {
                 e.preventDefault();
                 try {
                     const response = await fetch(toolState.resultUrl);
@@ -168,8 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url; a.download = 'kamuy-edit.png'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 } catch (error) { console.error("Download failed:", error); alert("Could not download the image."); }
-            });
-        }
+        }); }
     }
 
     const handleFileSelect = (file) => {

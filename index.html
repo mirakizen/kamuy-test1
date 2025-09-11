@@ -10,7 +10,6 @@
 <body class="min-h-screen">
 
     <div class="app-layout">
-        <!-- Sidebar Navigation -->
         <nav class="sidebar">
             <div class="sidebar-header"><h1 class="text-2xl font-bold">Kamuy ✨</h1></div>
             <ul class="sidebar-menu">
@@ -21,12 +20,10 @@
             <div class="sidebar-footer"><button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"></button></div>
         </nav>
 
-        <!-- Main Content Area -->
         <main class="main-content">
-            <!-- These sections are now just containers. JS will build EVERYTHING inside them. -->
-            <section id="prompt-edit" class="tool-section active"></section>
-            <section id="removal-tool" class="tool-section hidden"></section>
-            <section id="artify" class="tool-section hidden"></section>
+            <div id="content-container" class="w-full max-w-3xl mx-auto">
+                <!-- All tool UIs will be injected here by script.js -->
+            </div>
         </main>
     </div>
 

@@ -19,9 +19,6 @@ body { background-color: var(--bg-primary); color: var(--text-primary); font-fam
 .nav-link svg { margin-right: 0.75rem; flex-shrink: 0; }
 .sidebar-footer { margin-top: auto; padding: 0.5rem; }
 .main-content { flex-grow: 1; overflow-y: auto; padding: 2rem; }
-.tool-header { margin-bottom: 2rem; }
-.tool-section { display: none; }
-.tool-section.active { display: block; }
 .main-container { background-color: var(--bg-secondary); border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1); }
 .dropzone { border: 2px dashed var(--border-primary); transition: border-color 0.2s, background-color 0.2s; }
 .dropzone.dragover { border-color: var(--accent-primary); background-color: rgba(27, 116, 228, 0.05); }
@@ -34,21 +31,13 @@ html.dark .btn-primary:disabled { background-color: #4a5d75; }
 .loader { border-color: rgba(255, 255, 255, 0.2); border-top-color: #fff; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hidden { display: none; }
-.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 1rem; }
-.style-btn { padding: 0.5rem; border: 2px solid var(--border-primary); border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
-.style-btn:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
-.style-btn.active { border-color: var(--accent-primary); background-color: var(--sidebar-link-active-bg); }
-.style-btn img { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 0.5rem; }
 
-/* --- DIMENSION FIX: Enforce aspect ratio and contain images --- */
-.result-image-container {
-    width: 100%;
-    border-radius: 0.5rem;
-    border: 1px solid var(--border-primary);
-    background-color: var(--bg-primary); /* Helps visualize the container */
-}
-.result-image-container img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain; /* This is key: scales image to fit without distortion */
-}
+/* Styles for Artify Tool */
+.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.75rem; }
+.style-btn { padding: 0.75rem; border: 2px solid var(--border-primary); border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; font-weight: 500; }
+.style-btn:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
+.style-btn.active { border-color: var(--accent-primary); background-color: var(--sidebar-link-active-bg); color: var(--sidebar-link-active-text); }
+
+/* Dimension Fix */
+.result-image-container { width: 100%; border-radius: 0.5rem; border: 1px solid var(--border-primary); background-color: var(--bg-primary); }
+.result-image-container img { width: 100%; height: 100%; object-fit: contain; }
