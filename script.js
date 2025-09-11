@@ -30,7 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
         }
         if (tool === 'artify') { return toolState.selectedStyle; }
-        if (tool === 'precision-edit') { return `Apply the following change ONLY to the masked area: "${toolState.userInput}".` + preservationPrompt; }
+        // --- PRECISION EDIT PROMPT FIX ---
+        if (tool === 'precision-edit') {
+            return `Apply the following change ONLY to the masked area: "${toolState.userInput}".` + preservationPrompt;
+        }
         return toolState.userInput;
     };
     
@@ -102,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             viewContent = `<section class="space-y-4"><div><h3 class="text-lg font-bold mb-1 text-center">Your masterpiece is ready!</h3><p class="text-center text-sm text-secondary italic break-words">Prompt: "${toolState.userInput}"</p></div><div><label class="block text-sm font-bold text-secondary mb-2">Original</label><div class="result-image-container"><img src="${URL.createObjectURL(toolState.file)}"></div></div><div><label class="block text-sm font-bold text-secondary mb-2">Edited</label><div class="result-image-container"><img src="${toolState.resultUrl}"></div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><button id="download-button" class="btn-secondary w-full py-2.5 rounded-md text-center cursor-pointer">Download</button><button id="new-edit-button" class="bg-gray-200 dark:bg-gray-700 text-primary w-full py-2.5 rounded-md font-bold">New Edit</button></div></section>`;
         }
         
-        contentContainer.innerHTML = `<div class="tool-wrapper">${header}</div><div class="main-container p-6">${viewContent}</div>`;
+        contentContainer.innerHTML = `<div class="tool-wrapper"><header class="tool-header"><h2 class="text-3xl font-bold">${header.title}</h2><p class="text-lg text-secondary">${header.subtitle}</p></header><div class="main-container p-6">${viewContent}</div></div>`;
         addEventListeners();
         if (toolState.view === 'result' || (state.activeTool === 'precision-edit' && toolState.view === 'edit')) {
             const container = contentContainer.querySelector('.result-image-container, .canvas-container');
@@ -126,8 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if(generateButton) { generateButton.addEventListener('click', () => {
                 if (state.activeTool === 'prompt-edit') { toolState.userInput = document.getElementById('prompt-input').value; }
                 else if (state.activeTool === 'removal-tool') { toolState.mode = document.querySelector('input[name="removal-mode"]:checked').value; if (toolState.mode === 'object') { toolState.objectToRemove = document.getElementById('object-input').value; } }
-                else if (state.activeTool === 'artify') { 
-                    const activeBtn = document.querySelector(`#artify .style-btn.active`); // Corrected selector
+                else if (state.activeTool === 'artify') {
+                    // --- ARTIFY BUG FIX ---
+                    const activeBtn = document.querySelector('.style-btn.active');
                     if (!activeBtn) { alert('Please select a style!'); return; }
                     const styleName = activeBtn.querySelector('span').textContent;
                     toolState.userInput = `Artify with ${styleName} style`;
@@ -169,11 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!canvas || !imagePreview) return;
         
         const setup = () => {
-            canvas.width = imagePreview.clientWidth;
-            canvas.height = imagePreview.clientHeight;
+            canvas.width = imagePreview.clientWidth; canvas.height = imagePreview.clientHeight;
             const ctx = canvas.getContext('2d');
-            let isDrawing = false;
-            let brushSize = 40;
+            let isDrawing = false, brushSize = 40;
 
             const brushSizeSlider = document.getElementById('brush-size');
             const clearButton = document.getElementById('clear-mask-button');
