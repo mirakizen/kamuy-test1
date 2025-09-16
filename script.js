@@ -23,7 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const createEngineeredPrompt = (tool, toolState) => {
         const preservationPrompt = " Based on the reference image, it is crucial to preserve the identity, facial features, expressions, skin tones, and poses of all subjects. All other elements and the overall style of the image must remain unchanged except for the specified edit.";
-        if (tool === 'prompt-edit') { return toolState.userInput + preservationPrompt; }
+        if (tool === 'prompt-edit') { 
+            const qualityEnhancers = "photorealistic, high resolution, detailed, sharp focus, no distortions";
+            return toolState.userInput + ", " + qualityEnhancers + preservationPrompt; 
+        }
         if (tool === 'removal-tool') {
             if (toolState.mode === 'background') return 'remove the background, keeping the subject perfectly intact. Output with a transparent background. Do not add a watermark.';
             if (toolState.mode === 'object') return `[Deletion] Remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally, keeping all other elements unchanged.`;
@@ -34,17 +37,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return toolState.userInput;
     };
     
-    // --- THE DEFINITIVE FIX: The "Internal Resizer" that respects AI rules ---
+    // --- Updated Internal Resizer for Seedream 4 ---
     const getFinalDimensions = (originalWidth, originalHeight) => {
         const roundToNearest8 = (num) => Math.round(num / 8) * 8;
-        const MAX_OUTPUT_DIMENSION = 1024; // Consistent max dimension for AI output
+        const MAX_OUTPUT_DIMENSION = 2048; // Increased to 2K for better quality
+        const MIN_OUTPUT_DIMENSION = 1024; // Minimum per API docs
 
         let targetWidth = originalWidth;
         let targetHeight = originalHeight;
+        const aspectRatio = targetWidth / targetHeight;
 
         // Scale down if dimensions are too large, preserving aspect ratio
         if (targetWidth > MAX_OUTPUT_DIMENSION || targetHeight > MAX_OUTPUT_DIMENSION) {
-            const aspectRatio = targetWidth / targetHeight;
             if (targetWidth > targetHeight) {
                 targetWidth = MAX_OUTPUT_DIMENSION;
                 targetHeight = MAX_OUTPUT_DIMENSION / aspectRatio;
@@ -52,6 +56,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 targetHeight = MAX_OUTPUT_DIMENSION;
                 targetWidth = MAX_OUTPUT_DIMENSION * aspectRatio;
             }
+        }
+        
+        // Scale up if too small (ensure min dimension >= 1024)
+        const minDim = Math.min(targetWidth, targetHeight);
+        if (minDim < MIN_OUTPUT_DIMENSION) {
+            const scaleFactor = MIN_OUTPUT_DIMENSION / minDim;
+            targetWidth *= scaleFactor;
+            targetHeight *= scaleFactor;
         }
         
         // Round both dimensions to the nearest multiple of 8
@@ -215,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920; // This maxDim is for upload compression, not final output
+            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 2048; // Updated for higher res
             if (width > maxDim || height > maxDim) { // Only resize for upload if very large
                 if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; }
             }
