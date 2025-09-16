@@ -37,9 +37,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- THE DEFINITIVE FIX: The "Internal Resizer" that respects AI rules ---
     const getFinalDimensions = (originalWidth, originalHeight) => {
         const roundToNearest8 = (num) => Math.round(num / 8) * 8;
+        const MAX_OUTPUT_DIMENSION = 1024; // Consistent max dimension for AI output
+
+        let targetWidth = originalWidth;
+        let targetHeight = originalHeight;
+
+        // Scale down if dimensions are too large, preserving aspect ratio
+        if (targetWidth > MAX_OUTPUT_DIMENSION || targetHeight > MAX_OUTPUT_DIMENSION) {
+            const aspectRatio = targetWidth / targetHeight;
+            if (targetWidth > targetHeight) {
+                targetWidth = MAX_OUTPUT_DIMENSION;
+                targetHeight = MAX_OUTPUT_DIMENSION / aspectRatio;
+            } else {
+                targetHeight = MAX_OUTPUT_DIMENSION;
+                targetWidth = MAX_OUTPUT_DIMENSION * aspectRatio;
+            }
+        }
+        
+        // Round both dimensions to the nearest multiple of 8
         return { 
-            width: roundToNearest8(originalWidth), 
-            height: roundToNearest8(originalHeight) 
+            width: roundToNearest8(targetWidth), 
+            height: roundToNearest8(targetHeight) 
         };
     };
 
@@ -188,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!file || !file.type.startsWith('image/')) { alert('Please select a valid image file.'); return; }
         toolState.file = file;
         const img = new Image();
-        img.onload = () => { toolState.dimensions = { width: img.naturalWidth, height: img.naturalHeight }; toolState.view = 'edit'; toolState.aspectRatio = 'original'; render(); };
+        img.onload = () => { toolState.dimensions = { width: img.naturalWidth, height: img.naturalHeight }; toolState.view = 'edit'; render(); };
         img.src = URL.createObjectURL(file);
     };
 
@@ -197,8 +215,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920;
-            if (width > maxDim || height > maxDim) { if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; } }
+            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920; // This maxDim is for upload compression, not final output
+            if (width > maxDim || height > maxDim) { // Only resize for upload if very large
+                if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; }
+            }
             canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
             canvas.toBlob((blob) => { URL.revokeObjectURL(img.src); resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })); }, 'image/jpeg', 0.95);
         };
