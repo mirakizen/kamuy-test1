@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const state = {
         activeTool: 'prompt-edit',
-        'prompt-edit': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', aspectRatio: 'original' },
-        'removal-tool': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '', aspectRatio: 'original' },
-        'artify': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null, aspectRatio: 'original' },
+        'prompt-edit': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload' },
+        'removal-tool': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '' },
+        'artify': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null },
         'image-series': { userInput: '', engineeredPrompt: '', view: 'edit', resultUrls: [] }
     };
 
@@ -34,36 +34,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return toolState.userInput;
     };
     
-    // --- THE DEFINITIVE FIX: The "Internal Resizer" ---
-    const calculateDimensions = (aspectRatio, originalWidth, originalHeight) => {
+    // --- THE DEFINITIVE FIX: The "Internal Resizer" that respects AI rules ---
+    const getFinalDimensions = (originalWidth, originalHeight) => {
         const roundToNearest8 = (num) => Math.round(num / 8) * 8;
-        let targetWidth, targetHeight;
-
-        if (aspectRatio === 'original') {
-            targetWidth = originalWidth;
-            targetHeight = originalHeight;
-        } else {
-            const [w, h] = aspectRatio.split(':').map(Number);
-            const originalRatio = originalWidth / originalHeight;
-            const targetRatio = w / h;
-            // Base the new dimensions on the original to maintain scale
-            if (targetRatio > originalRatio) { // New shape is wider
-                targetWidth = originalWidth;
-                targetHeight = originalWidth / targetRatio;
-            } else { // New shape is taller
-                targetHeight = originalHeight;
-                targetWidth = originalHeight * targetRatio;
-            }
-        }
-        // Return dimensions rounded to the nearest multiple of 8
-        return { width: roundToNearest8(targetWidth), height: roundToNearest8(targetHeight) };
+        return { 
+            width: roundToNearest8(originalWidth), 
+            height: roundToNearest8(originalHeight) 
+        };
     };
 
     let progressInterval = null;
     const generateImage = async () => {
         const toolState = state[state.activeTool];
         toolState.engineeredPrompt = createEngineeredPrompt(state.activeTool, toolState);
-        const outputDimensions = calculateDimensions(toolState.aspectRatio, toolState.dimensions.width, toolState.dimensions.height);
+        const outputDimensions = getFinalDimensions(toolState.dimensions.width, toolState.dimensions.height);
         
         const generateButton = document.getElementById('generate-button');
         const progressContainer = document.getElementById('progress-container');
@@ -121,14 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toolState.view === 'upload') {
             viewContent = `<section><input type="file" id="image-input" class="hidden" accept="image/*" /><div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
         } else if (toolState.view === 'edit') {
-            const aspectRatios = [
-                { id: 'original', name: 'Original', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="m5 12h14"/></svg>` },
-                { id: '1:1', name: 'Square', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>` },
-                { id: '16:9', name: 'Landscape', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/></svg>` },
-                { id: '9:16', name: 'Portrait', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/></svg>` },
-            ];
-            const aspectRatioHTML = `<div class="my-4"><label class="block text-sm font-bold mb-2">Aspect Ratio</label><div class="aspect-ratio-controls">${aspectRatios.map(r => `<div class="aspect-ratio-btn ${toolState.aspectRatio === r.id ? 'active' : ''}" data-ratio="${r.id}">${r.icon}<span>${r.name}</span></div>`).join('')}</div></div>`;
-
             let editControls = '';
             if (state.activeTool === 'prompt-edit') { editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., add sunglasses to the corgi">${toolState.userInput || ''}</textarea></div>`; }
             else if (state.activeTool === 'removal-tool') { editControls = `<div class="my-4 space-y-2"><div class="flex items-center space-x-4 flex-wrap"><label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label><label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label><label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label></div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'}"><label for="object-input" class="block text-sm font-bold mb-2 mt-4">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the cat on the right" value="${toolState.objectToRemove || ''}"></div></div>`; }
@@ -140,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const imagePreviewHTML = state.activeTool !== 'image-series' ? `<div class="mb-4" id="image-preview-container"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>` : '';
-            viewContent = `<section>${imagePreviewHTML}${editControls}${state.activeTool !== 'image-series' ? aspectRatioHTML : ''}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div><div id="progress-container" class="mt-4 hidden"><div id="progress-bar" style="width: 0%;"></div><div id="progress-text">0%</div></div></section>`;
+            viewContent = `<section>${imagePreviewHTML}${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div><div id="progress-container" class="mt-4 hidden"><div id="progress-bar" style="width: 0%;"></div><div id="progress-text">0%</div></div></section>`;
         } else if (toolState.view === 'result') {
             let resultHTML = '';
             if (state.activeTool === 'image-series') { resultHTML = `<div class="style-grid">${toolState.resultUrls.map(url => `<div class="result-image-container"><img src="${url}"></div>`).join('')}</div>`; }
@@ -205,13 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const a = document.createElement('a'); a.href = url; a.download = 'kamuy-edit.png'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 } catch (error) { console.error("Download failed:", error); alert("Could not download the image."); }
         }); }
-
-        const aspectRatioBtns = document.querySelectorAll('.aspect-ratio-btn');
-        if (aspectRatioBtns) { aspectRatioBtns.forEach(btn => { btn.addEventListener('click', () => {
-            aspectRatioBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            toolState.aspectRatio = btn.dataset.ratio;
-        }); }); }
     }
 
     const handleFileSelect = (file) => {
@@ -228,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 2048;
+            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920;
             if (width > maxDim || height > maxDim) { if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; } }
             canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
             canvas.toBlob((blob) => { URL.revokeObjectURL(img.src); resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })); }, 'image/jpeg', 0.95);
