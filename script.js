@@ -22,8 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const createEngineeredPrompt = (tool, toolState) => {
-        const preservationPrompt = " Based on the reference image, it is crucial to preserve the identity, facial features, expressions, skin tones, and poses of all subjects exactly as they are. Do not change or distort faces at all. All other elements and the overall style of the image must remain unchanged except for the specified edit. No artifacts, no deformations.";
-        const qualityEnhancers = "photorealistic, high resolution, detailed, sharp focus, no distortions, high quality faces, realistic skin texture";
+        const preservationPrompt = " Based on the reference image, it is crucial to preserve the identity, facial features, expressions, skin tones, poses, limbs, arms, hands, and body proportions of all subjects exactly as they are. Do not change, distort, remove, or alter faces, arms, hands, or any body parts at all. All other elements and the overall style, composition, and lighting of the image must remain unchanged except for the specified edit. No artifacts, no deformations, no missing limbs.";
+        const qualityEnhancers = "photorealistic, high resolution, detailed, sharp focus, no distortions, high quality faces, realistic skin texture, natural anatomy";
         if (tool === 'prompt-edit') { 
             return toolState.userInput + ", " + preservationPrompt + ", " + qualityEnhancers; 
         }
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isTextToImage = state.activeTool === 'image-series';
             const endpoint = isTextToImage ? '/api/series' : '/api/edit';
             
-            let body = { prompt: toolState.engineeredPrompt, width: outputDimensions.width, height: outputDimensions.height, strength: 0.4 }; // Added strength for better preservation
+            let body = { prompt: toolState.engineeredPrompt, width: outputDimensions.width, height: outputDimensions.height, strength: 0.25 }; // Lower strength for subtler, preservation-focused edits
             if (!isTextToImage) {
                 const compressedFile = await compressImage(toolState.file);
                 const base64Image = await fileToBase64(compressedFile);
