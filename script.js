@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'prompt-edit': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', aspectRatio: 'original' },
         'removal-tool': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '', aspectRatio: 'original' },
         'artify': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null, aspectRatio: 'original' },
-        'image-series': { userInput: '', engineeredPrompt: '', view: 'edit', resultUrls: [] } // No file upload for this tool
+        'image-series': { userInput: '', engineeredPrompt: '', view: 'edit', resultUrls: [] }
     };
 
     const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
@@ -34,9 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return toolState.userInput;
     };
     
-    // --- NEW: Dimension Calculation Logic ---
+    // --- THE DEFINITIVE FIX: The "Internal Resizer" ---
     const calculateDimensions = (aspectRatio, originalWidth, originalHeight) => {
-        const MAX_DIMENSION = 2048; // 2K Resolution Target
+        const roundToNearest8 = (num) => Math.round(num / 8) * 8;
         let targetWidth, targetHeight;
 
         if (aspectRatio === 'original') {
@@ -44,21 +44,19 @@ document.addEventListener('DOMContentLoaded', () => {
             targetHeight = originalHeight;
         } else {
             const [w, h] = aspectRatio.split(':').map(Number);
-            targetWidth = w;
-            targetHeight = h;
-        }
-
-        const currentRatio = targetWidth / targetHeight;
-        if (targetWidth > MAX_DIMENSION || targetHeight > MAX_DIMENSION) {
-            if (targetWidth > targetHeight) {
-                targetWidth = MAX_DIMENSION;
-                targetHeight = Math.round(MAX_DIMENSION / currentRatio);
-            } else {
-                targetHeight = MAX_DIMENSION;
-                targetWidth = Math.round(MAX_DIMENSION * currentRatio);
+            const originalRatio = originalWidth / originalHeight;
+            const targetRatio = w / h;
+            // Base the new dimensions on the original to maintain scale
+            if (targetRatio > originalRatio) { // New shape is wider
+                targetWidth = originalWidth;
+                targetHeight = originalWidth / targetRatio;
+            } else { // New shape is taller
+                targetHeight = originalHeight;
+                targetWidth = originalHeight * targetRatio;
             }
         }
-        return { width: targetWidth, height: targetHeight };
+        // Return dimensions rounded to the nearest multiple of 8
+        return { width: roundToNearest8(targetWidth), height: roundToNearest8(targetHeight) };
     };
 
     let progressInterval = null;
@@ -230,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 2048; // Increase compress quality
+            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 2048;
             if (width > maxDim || height > maxDim) { if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; } }
             canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
             canvas.toBlob((blob) => { URL.revokeObjectURL(img.src); resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })); }, 'image/jpeg', 0.95);
