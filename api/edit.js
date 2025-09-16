@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { image, imageName, imageType, prompt, width, height, mask } = req.body;
+    const { image, imageName, imageType, prompt, width, height, mask, strength } = req.body;
 
     if (!image || !prompt || !width || !height) {
       return res.status(400).json({ error: 'Bad request: Missing required parameters' });
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     const imageFile = await fileFromBase64(image, imageName, imageType);
     const imageUrl = await fal.storage.upload(imageFile);
     
-    // --- THIS IS THE FIX: Properly handle the mask ---
+    // --- Properly handle the mask ---
     let maskUrl = null;
     if (mask) {
         // If a mask is provided, convert and upload it to get a URL
@@ -40,12 +40,16 @@ export default async function handler(req, res) {
         maskUrl = await fal.storage.upload(maskFile);
     }
 
-    // Construct the input for the AI model
+    // Construct the input for the AI model with tuned params for better preservation
     const input = {
         prompt: prompt,
         image_urls: [imageUrl],
         width: width,
         height: height,
+        strength: strength || 0.2,  // Low strength for subtle edits, preserves original structure/faces/limbs
+        guidance_scale: 7.5,  // Balances prompt adherence with image fidelity
+        num_inference_steps: 30,  // More steps for finer details without over-processing
+        negative_prompt: "distorted faces, deformed limbs, artifacts, mutations, extra limbs, missing limbs, blurry, low quality",  // Explicitly avoid common issues
     };
     
     // Only add mask_url to the input if it exists
