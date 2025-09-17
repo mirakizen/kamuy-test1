@@ -18,23 +18,24 @@ document.addEventListener('DOMContentLoaded', () => {
         link.addEventListener('click', (e) => { e.preventDefault(); state.activeTool = link.dataset.tool; navLinks.forEach(l => l.classList.remove('active')); link.classList.add('active'); render(); });
     });
     const createEngineeredPrompt = (tool, toolState) => {
-        // --- ULTRA-AGGRESSIVE PROMPT ENGINEERING FOR FACE PRESERVATION ---
-        // This is a multi-layered command designed to be impossible for the AI to ignore.
+        // --- NEW STRATEGY: PRECISION GUIDANCE OVER PROHIBITION ---
+        // Instead of saying "don't change the face," we tell the AI exactly what to change and how.
         if (tool === 'prompt-edit') {
             const coreEdit = toolState.userInput;
-            return `【最高优先级指令】在执行任何编辑时，必须100%保留图像中所有人物的原始面部结构、五官、表情、肤色和身体姿态，任何对这些特征的修改、扭曲或变形都是绝对禁止的。【编辑任务】${coreEdit}。【最终确认】除上述编辑任务明确要求修改的部分外，图像的所有其他内容必须保持完全不变。`;
+            // This prompt instructs the AI to perform a localized, precise edit while maintaining all other details.
+            return `精确执行以下编辑指令：${coreEdit}。在执行过程中，必须保持图像中所有非编辑区域的原始细节、纹理和清晰度完全不变，包括人物的面部、皮肤、文字、图案和背景。编辑效果必须自然、无缝，不得产生任何模糊、失真或伪影。`;
         }
-        // For 'artify', we apply the same strict preservation rules.
+        // For 'artify', we focus on applying the style without destroying details.
         if (tool === 'artify') {
-            return `【最高优先级指令】在执行任何风格化时，必须100%保留图像中所有人物的原始面部结构、五官、表情、肤色和身体姿态，任何对这些特征的修改、扭曲或变形都是绝对禁止的。【风格化任务】将图像转换为${toolState.selectedStyle}风格。【最终确认】除风格化效果外，图像的所有构图、人物和细节必须保持完全不变。`;
+            return `将图像转换为${toolState.selectedStyle}风格。在风格化过程中，必须保持所有人物的面部特征清晰可辨，所有文字和图案细节完整无损。最终效果应是风格与原始细节的完美融合。`;
         }
-        // For 'removal-tool', the existing English prompts are usually sufficient as they focus on non-subject areas.
+        // For 'removal-tool', the existing prompts are usually precise enough.
         if (tool === 'removal-tool') {
             if (toolState.mode === 'background') return 'remove the background, keeping the subject perfectly intact. Output with a transparent background. Do not add a watermark.';
             if (toolState.mode === 'object') return `[Deletion] Remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally, keeping all other elements unchanged.`;
             if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
         }
-        // For 'image-series', no preservation is needed as it's text-to-image.
+        // For 'image-series', no preservation is needed.
         if (tool === 'image-series') { return toolState.userInput; }
         return toolState.userInput;
     };

@@ -39,17 +39,17 @@ export default async function handler(req, res) {
         maskUrl = await fal.storage.upload(maskFile);
     }
 
-    // --- ULTRA-AGGRESSIVE API PARAMS FOR MAXIMUM FIDELITY ---
-    // These parameters are tuned to prioritize detail and structure over speed.
+    // --- FINAL PARAMS: BALANCED FOR DETAIL AND COHERENCE ---
+    // We use a moderate strength to allow the AI some flexibility for a natural edit.
     const input = {
         prompt: prompt,
         image_urls: [imageUrl],
         width: width,
         height: height,
-        strength: strength || 0.1,  // Ultra-low strength to minimize any changes to the original structure
-        guidance_scale: 8.5,  // High guidance to ensure the prompt (including preservation commands) is followed precisely
-        num_inference_steps: 50,  // Maximum steps for the highest possible detail and accuracy
-        negative_prompt: "distorted face, deformed face, mutated face, ugly face, disfigured face, extra limbs, missing limbs, blurry, low quality, artifacts, mutation, bad anatomy, unnatural pose",  // Highly specific negative prompt targeting facial issues
+        strength: strength || 0.3,  // Moderate strength for a more natural, less destructive edit
+        guidance_scale: 7.5,  // Balanced guidance to follow the prompt without over-constraining
+        num_inference_steps: 40,  // Sufficient steps for high quality
+        negative_prompt: "blurry, low quality, distorted, deformed, artifacts, text corruption, unreadable text, messy, sloppy, inaccurate details",  // Focus on quality and detail preservation
     };
     
     if (maskUrl) {
