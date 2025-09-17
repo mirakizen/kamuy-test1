@@ -56,3 +56,69 @@ html.dark .btn-primary:disabled { background-color: #4a5d75; }
 .style-grid-aspect-ratio .style-btn span {
     font-size: 0.9em; /* Slightly smaller font for text */
 }
+
+/* Additional styles for enhanced UI */
+.tool-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem;
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    background-color: var(--bg-secondary);
+}
+.tool-card:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+html.dark .tool-card:hover {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+.tool-card svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 0.75rem;
+    color: var(--accent-primary);
+}
+.tool-card h3 {
+    font-size: 1.25rem; /* text-xl */
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+.tool-card p {
+    font-size: 0.875rem; /* text-sm */
+    color: var(--text-secondary);
+}
+
+.style-grid-lg {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Specific styling for active state in tool cards, if desired */
+.tool-card.active {
+    border-color: var(--accent-primary);
+    background-color: var(--sidebar-link-active-bg); /* Use accent background */
+    color: var(--sidebar-link-active-text); /* Use accent text color */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.tool-card.active svg {
+    color: var(--sidebar-link-active-text);
+}
+.tool-card.active p {
+    color: var(--sidebar-link-active-text);
+}
+
+/* Adjustments for dropzone text */
+.dropzone p.text-lg {
+    color: var(--text-primary); /* Ensure primary text color */
+}
+.dropzone p.text-sm {
+    color: var(--text-secondary); /* Ensure secondary text color */
+}
