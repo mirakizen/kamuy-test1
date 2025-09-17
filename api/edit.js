@@ -46,10 +46,10 @@ export default async function handler(req, res) {
         image_urls: [imageUrl],
         width: width,
         height: height,
-        strength: strength || 0.3,  // Moderate strength for a more natural, less destructive edit
+        strength: strength || 0.2,  // Default to 0.2 for better detail preservation
         guidance_scale: 7.5,  // Balanced guidance to follow the prompt without over-constraining
         num_inference_steps: 40,  // Sufficient steps for high quality
-        negative_prompt: "blurry, low quality, distorted, deformed, artifacts, text corruption, unreadable text, messy, sloppy, inaccurate details",  // Focus on quality and detail preservation
+        negative_prompt: "blurry, low quality, distorted, deformed, artifacts, text corruption, unreadable text, messy, sloppy, inaccurate details, mutated, malformed, extra limbs, bad anatomy, bad eyes, ugly, disfigured, poor facial details, strange face, duplicate, watermark, signature, logo", // Enhanced negative prompt for quality and facial integrity
     };
     
     if (maskUrl) {

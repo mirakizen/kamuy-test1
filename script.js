@@ -4,10 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentContainer = document.getElementById('content-container');
     const state = {
         activeTool: 'prompt-edit',
-        'prompt-edit': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload' },
-        'removal-tool': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '' },
-        'artify': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null },
-        'image-series': { userInput: '', engineeredPrompt: '', view: 'edit', resultUrls: [] }
+        'prompt-edit': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedAspectRatio: 'original' },
+        'removal-tool': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', mode: 'background', objectToRemove: '', selectedAspectRatio: 'original' },
+        'artify': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedStyle: null, selectedAspectRatio: 'original' },
+        'image-series': { userInput: '', engineeredPrompt: '', view: 'edit', resultUrls: [], selectedAspectRatio: 'original' }
     };
     const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
     const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
@@ -18,53 +18,93 @@ document.addEventListener('DOMContentLoaded', () => {
         link.addEventListener('click', (e) => { e.preventDefault(); state.activeTool = link.dataset.tool; navLinks.forEach(l => l.classList.remove('active')); link.classList.add('active'); render(); });
     });
     const createEngineeredPrompt = (tool, toolState) => {
-        // --- NEW STRATEGY: PRECISION GUIDANCE OVER PROHIBITION ---
-        // Instead of saying "don't change the face," we tell the AI exactly what to change and how.
         if (tool === 'prompt-edit') {
             const coreEdit = toolState.userInput;
-            // This prompt instructs the AI to perform a localized, precise edit while maintaining all other details.
-            return `精确执行以下编辑指令：${coreEdit}。在执行过程中，必须保持图像中所有非编辑区域的原始细节、纹理和清晰度完全不变，包括人物的面部、皮肤、文字、图案和背景。编辑效果必须自然、无缝，不得产生任何模糊、失真或伪影。`;
+            return `Precisely execute the following edit: ${coreEdit}. During execution, strictly preserve the original details, textures, and clarity of all non-edited areas in the image, including human faces, skin, text, patterns, and background. The edit must be natural, seamless, and free from any blur, distortion, or artifacts.`;
         }
-        // For 'artify', we focus on applying the style without destroying details.
         if (tool === 'artify') {
-            return `将图像转换为${toolState.selectedStyle}风格。在风格化过程中，必须保持所有人物的面部特征清晰可辨，所有文字和图案细节完整无损。最终效果应是风格与原始细节的完美融合。`;
+            return `Transform the image into ${toolState.selectedStyle} style. During stylization, all human facial features must remain clearly recognizable, and all text and pattern details must be completely intact. The final result should be a perfect fusion of style and original details.`;
         }
-        // For 'removal-tool', the existing prompts are usually precise enough.
         if (tool === 'removal-tool') {
             if (toolState.mode === 'background') return 'remove the background, keeping the subject perfectly intact. Output with a transparent background. Do not add a watermark.';
             if (toolState.mode === 'object') return `[Deletion] Remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally, keeping all other elements unchanged.`;
             if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
         }
-        // For 'image-series', no preservation is needed.
         if (tool === 'image-series') { return toolState.userInput; }
         return toolState.userInput;
     };
-    // --- THE DEFINITIVE FIX: The "Internal Resizer" that respects AI rules ---
-    const getFinalDimensions = (originalWidth, originalHeight) => {
+    const getFinalDimensions = (originalWidth, originalHeight, selectedAspectRatio) => {
         const roundToNearest8 = (num) => Math.round(num / 8) * 8;
-        const MAX_OUTPUT_DIMENSION = 1024;
-        let targetWidth = originalWidth;
-        let targetHeight = originalHeight;
-        if (targetWidth > MAX_OUTPUT_DIMENSION || targetHeight > MAX_OUTPUT_DIMENSION) {
-            const aspectRatio = targetWidth / targetHeight;
-            if (targetWidth > targetHeight) {
-                targetWidth = MAX_OUTPUT_DIMENSION;
-                targetHeight = MAX_OUTPUT_DIMENSION / aspectRatio;
-            } else {
-                targetHeight = MAX_OUTPUT_DIMENSION;
-                targetWidth = MAX_OUTPUT_DIMENSION * aspectRatio;
+        const MAX_DIM = 4096;
+        const MIN_DIM = 1024;
+
+        let targetWidth, targetHeight;
+        let finalAspectRatio;
+
+        if (selectedAspectRatio === 'original') {
+            finalAspectRatio = originalWidth / originalHeight;
+        } else {
+            let ratioW, ratioH;
+            switch (selectedAspectRatio) {
+                case '1:1': ratioW = 1; ratioH = 1; break;
+                case '4:3': ratioW = 4; ratioH = 3; break;
+                case '3:4': ratioW = 3; ratioH = 4; break;
+                case '16:9': ratioW = 16; ratioH = 9; break;
+                case '9:16': ratioW = 9; ratioH = 16; break;
+                default: ratioW = 1; ratioH = 1;
             }
+            finalAspectRatio = ratioW / ratioH;
         }
-        return { 
-            width: roundToNearest8(targetWidth), 
-            height: roundToNearest8(targetHeight) 
+
+        if (finalAspectRatio >= 1) { // Landscape or Square
+            targetWidth = MAX_DIM;
+            targetHeight = MAX_DIM / finalAspectRatio;
+        } else { // Portrait
+            targetHeight = MAX_DIM;
+            targetWidth = MAX_DIM * finalAspectRatio;
+        }
+
+        targetWidth = roundToNearest8(Math.round(targetWidth));
+        targetHeight = roundToNearest8(Math.round(targetHeight));
+
+        if (targetWidth < MIN_DIM || targetHeight < MIN_DIM) {
+            if (finalAspectRatio >= 1) { // Landscape or Square
+                targetHeight = MIN_DIM;
+                targetWidth = MIN_DIM * finalAspectRatio;
+            } else { // Portrait
+                targetWidth = MIN_DIM;
+                targetHeight = MIN_DIM / finalAspectRatio;
+            }
+            targetWidth = roundToNearest8(Math.round(targetWidth));
+            targetHeight = roundToNearest8(Math.round(targetHeight));
+        }
+        
+        if (targetWidth > MAX_DIM || targetHeight > MAX_DIM) {
+            const currentAspectRatio = targetWidth / targetHeight;
+            if (currentAspectRatio > 1) { // Landscape
+                targetWidth = MAX_DIM;
+                targetHeight = MAX_DIM / currentAspectRatio;
+            } else { // Portrait
+                targetHeight = MAX_DIM;
+                targetWidth = MAX_DIM * currentAspectRatio;
+            }
+            targetWidth = roundToNearest8(Math.round(targetWidth));
+            targetHeight = roundToNearest8(Math.round(targetHeight));
+        }
+
+        return {
+            width: targetWidth,
+            height: targetHeight
         };
     };
+
     let progressInterval = null;
     const generateImage = async () => {
         const toolState = state[state.activeTool];
         toolState.engineeredPrompt = createEngineeredPrompt(state.activeTool, toolState);
-        const outputDimensions = getFinalDimensions(toolState.dimensions.width, toolState.dimensions.height);
+        
+        const outputDimensions = getFinalDimensions(toolState.dimensions.width, toolState.dimensions.height, toolState.selectedAspectRatio);
+        
         const generateButton = document.getElementById('generate-button');
         const progressContainer = document.getElementById('progress-container');
         const progressBar = document.getElementById('progress-bar');
@@ -93,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isTextToImage && data.edited_image_urls) { toolState.resultUrls = data.edited_image_urls; }
                 else if (!isTextToImage && data.edited_image_url) { toolState.resultUrl = data.edited_image_url; }
                 else { throw new Error('Could not find image(s) in the response.'); }
+                toolState.outputDimensions = outputDimensions; 
                 toolState.view = 'result';
                 render();
             }, 1500);
@@ -109,9 +150,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const header = headers[state.activeTool];
         let viewContent = '';
         if (toolState.view === 'upload') {
-            viewContent = `<section><input type="file" id="image-input" class="hidden" accept="image/*" /><div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
+            viewContent = `
+                <section>
+                    <input type="file" id="image-input" class="hidden" accept="image/*" />
+                    <div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle>
+                        </svg>
+                        <p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p>
+                        <p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p>
+                    </div>
+                </section>
+            `;
         } else if (toolState.view === 'edit') {
             let editControls = '';
+            let aspectRatioControls = '';
+
+            if (state.activeTool !== 'image-series') {
+                 const aspectRatios = [
+                    { name: 'Original', value: 'original' },
+                    { name: 'Square', value: '1:1' },
+                    { name: 'Portrait (3:4)', value: '3:4' },
+                    { name: 'Landscape (4:3)', value: '4:3' },
+                    { name: 'Portrait (9:16)', value: '9:16' },
+                    { name: 'Widescreen (16:9)', value: '16:9' }
+                ];
+                aspectRatioControls = `
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2">Output Aspect Ratio:</label>
+                        <div class="style-grid style-grid-aspect-ratio">
+                            ${aspectRatios.map(ar => `
+                                <div class="style-btn ${toolState.selectedAspectRatio === ar.value ? 'active' : ''}" data-aspect-ratio="${ar.value}">
+                                    <span>${ar.name}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+            }
+
             if (state.activeTool === 'prompt-edit') { editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe your edit:</label><textarea id="prompt-input" rows="3" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., add sunglasses to the corgi">${toolState.userInput || ''}</textarea></div>`; }
             else if (state.activeTool === 'removal-tool') { editControls = `<div class="my-4 space-y-2"><div class="flex items-center space-x-4 flex-wrap"><label class="flex items-center"><input type="radio" name="removal-mode" value="background" ${toolState.mode === 'background' ? 'checked' : ''} class="mr-2">Remove Background</label><label class="flex items-center"><input type="radio" name="removal-mode" value="object" ${toolState.mode === 'object' ? 'checked' : ''} class="mr-2">Remove Object</label><label class="flex items-center"><input type="radio" name="removal-mode" value="watermark" ${toolState.mode === 'watermark' ? 'checked' : ''} class="mr-2">Remove Watermark</label></div><div id="object-input-container" class="${toolState.mode === 'object' ? '' : 'hidden'}"><label for="object-input" class="block text-sm font-bold mb-2 mt-4">Object to remove:</label><input type="text" id="object-input" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., the cat on the right" value="${toolState.objectToRemove || ''}"></div></div>`; }
             else if (state.activeTool === 'artify') {
@@ -121,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  editControls = `<div><label for="prompt-input" class="block text-sm font-bold mb-2">Describe the series of images you want to create:</label><textarea id="prompt-input" rows="5" class="w-full p-2 border border-primary rounded-md bg-transparent" placeholder="e.g., a set of 4 icons for a weather app in a minimalist style">${toolState.userInput || ''}</textarea></div>`;
             }
             const imagePreviewHTML = state.activeTool !== 'image-series' ? `<div class="mb-4" id="image-preview-container"><img id="image-preview" src="${URL.createObjectURL(toolState.file)}" class="rounded-lg w-full object-contain border border-primary p-1"></div>` : '';
-            viewContent = `<section>${imagePreviewHTML}${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div><div id="progress-container" class="mt-4 hidden"><div id="progress-bar" style="width: 0%;"></div><div id="progress-text">0%</div></div></section>`;
+            viewContent = `<section>${imagePreviewHTML}${aspectRatioControls}${editControls}<div class="mt-4 flex space-x-2"><button id="generate-button" class="btn-primary w-full py-2.5 rounded-md flex items-center justify-center"><span>Generate</span></button><button id="reset-button" class="bg-gray-200 dark:bg-gray-700 text-primary px-4 rounded-md font-semibold">Reset</button></div><div id="progress-container" class="mt-4 hidden"><div id="progress-bar" style="width: 0%;"></div><div id="progress-text">0%</div></div></section>`;
         } else if (toolState.view === 'result') {
             let resultHTML = '';
             if (state.activeTool === 'image-series') { resultHTML = `<div class="style-grid">${toolState.resultUrls.map(url => `<div class="result-image-container"><img src="${url}"></div>`).join('')}</div>`; }
@@ -131,9 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         contentContainer.innerHTML = `<header class="tool-header"><h2 class="text-3xl font-bold">${header.title}</h2><p class="text-lg text-secondary">${header.subtitle}</p></header><div class="main-container p-6">${viewContent}</div>`;
         addEventListeners();
-        if (toolState.view === 'result' && state.activeTool !== 'image-series') {
+        if (toolState.view === 'result' && state.activeTool !== 'image-series' && toolState.outputDimensions) {
             const resultContainers = contentContainer.querySelectorAll('.result-image-container');
-            resultContainers.forEach(c => { c.style.aspectRatio = `${toolState.dimensions.width} / ${toolState.dimensions.height}`; });
+            resultContainers.forEach(c => { c.style.aspectRatio = `${toolState.outputDimensions.width} / ${toolState.outputDimensions.height}`; });
         }
     };
     function addEventListeners() {
@@ -161,11 +238,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 generateImage();
         });}
         const resetButton = document.getElementById('reset-button');
-        if(resetButton) resetButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; toolState.userInput = ''; render(); });
+        if(resetButton) resetButton.addEventListener('click', () => { toolState.view = 'upload'; toolState.file = null; toolState.userInput = ''; toolState.selectedAspectRatio = 'original'; render(); });
         const removalModeRadios = document.querySelectorAll('input[name="removal-mode"]');
         if (removalModeRadios) { removalModeRadios.forEach(radio => { radio.addEventListener('change', (e) => { toolState.mode = e.target.value; document.getElementById('object-input-container').classList.toggle('hidden', e.target.value !== 'object'); }); }); }
         const styleBtns = document.querySelectorAll('.style-btn');
         if (styleBtns) { styleBtns.forEach(btn => { btn.addEventListener('click', () => { styleBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); toolState.selectedStyle = btn.dataset.stylePrompt; }); }); }
+        
+        const aspectRatioBtns = document.querySelectorAll('.style-grid-aspect-ratio .style-btn');
+        if (aspectRatioBtns.length > 0) {
+            aspectRatioBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    aspectRatioBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    toolState.selectedAspectRatio = btn.dataset.aspectRatio;
+                });
+            });
+        }
+
         const newEditButton = document.getElementById('new-edit-button');
         if(newEditButton) newEditButton.addEventListener('click', () => { toolState.view = toolState.file ? 'edit' : 'upload'; render(); });
         const downloadButton = document.getElementById('download-button');
@@ -192,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920;
+            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 4096;
             if (width > maxDim || height > maxDim) {
                 if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; }
             }
