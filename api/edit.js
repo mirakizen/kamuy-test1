@@ -40,16 +40,16 @@ export default async function handler(req, res) {
         maskUrl = await fal.storage.upload(maskFile);
     }
 
-    // Construct the input for the AI model with tuned params for better preservation
+    // Construct the input for the AI model with tuned params for maximum fidelity and preservation
     const input = {
         prompt: prompt,
         image_urls: [imageUrl],
         width: width,
         height: height,
-        strength: strength || 0.2,  // Low strength for subtle edits, preserves original structure/faces/limbs
-        guidance_scale: 7.5,  // Balances prompt adherence with image fidelity
-        num_inference_steps: 30,  // More steps for finer details without over-processing
-        negative_prompt: "distorted faces, deformed limbs, artifacts, mutations, extra limbs, missing limbs, blurry, low quality",  // Explicitly avoid common issues
+        strength: strength || 0.15,  // Very low strength for minimal perturbation, best for preserving faces and structure
+        guidance_scale: 8.0,  // Slightly higher to ensure prompt is followed without sacrificing image quality
+        num_inference_steps: 40,  // More steps for higher quality and detail, especially important for preserving fine features
+        negative_prompt: "distorted faces, deformed limbs, artifacts, mutations, extra limbs, missing limbs, blurry, low quality, ugly, disfigured",  // Explicitly avoid common issues
     };
     
     // Only add mask_url to the input if it exists
