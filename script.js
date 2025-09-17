@@ -18,29 +18,32 @@ document.addEventListener('DOMContentLoaded', () => {
         link.addEventListener('click', (e) => { e.preventDefault(); state.activeTool = link.dataset.tool; navLinks.forEach(l => l.classList.remove('active')); link.classList.add('active'); render(); });
     });
     const createEngineeredPrompt = (tool, toolState) => {
-        // For prompt-edit, we embed the preservation instruction directly into the core command.
+        // --- ULTRA-AGGRESSIVE PROMPT ENGINEERING FOR FACE PRESERVATION ---
+        // This is a multi-layered command designed to be impossible for the AI to ignore.
         if (tool === 'prompt-edit') {
-            return `编辑指令：在严格保持所有人物的身份、面部特征、表情、肤色和姿势不变的前提下，${toolState.userInput}。除指定的编辑外，图像的所有其他元素和整体风格必须保持不变。`;
+            const coreEdit = toolState.userInput;
+            return `【最高优先级指令】在执行任何编辑时，必须100%保留图像中所有人物的原始面部结构、五官、表情、肤色和身体姿态，任何对这些特征的修改、扭曲或变形都是绝对禁止的。【编辑任务】${coreEdit}。【最终确认】除上述编辑任务明确要求修改的部分外，图像的所有其他内容必须保持完全不变。`;
         }
-        // For other tools, we keep the existing logic but ensure preservation is mentioned for 'artify'.
+        // For 'artify', we apply the same strict preservation rules.
+        if (tool === 'artify') {
+            return `【最高优先级指令】在执行任何风格化时，必须100%保留图像中所有人物的原始面部结构、五官、表情、肤色和身体姿态，任何对这些特征的修改、扭曲或变形都是绝对禁止的。【风格化任务】将图像转换为${toolState.selectedStyle}风格。【最终确认】除风格化效果外，图像的所有构图、人物和细节必须保持完全不变。`;
+        }
+        // For 'removal-tool', the existing English prompts are usually sufficient as they focus on non-subject areas.
         if (tool === 'removal-tool') {
             if (toolState.mode === 'background') return 'remove the background, keeping the subject perfectly intact. Output with a transparent background. Do not add a watermark.';
             if (toolState.mode === 'object') return `[Deletion] Remove the ${toolState.objectToRemove}, inpainting the area to match the background naturally, keeping all other elements unchanged.`;
             if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
         }
-        if (tool === 'artify') { 
-            return `在严格保持人物身份和面部特征不变的前提下，将图像转换为${toolState.selectedStyle}。`;
-        }
+        // For 'image-series', no preservation is needed as it's text-to-image.
         if (tool === 'image-series') { return toolState.userInput; }
         return toolState.userInput;
     };
     // --- THE DEFINITIVE FIX: The "Internal Resizer" that respects AI rules ---
     const getFinalDimensions = (originalWidth, originalHeight) => {
         const roundToNearest8 = (num) => Math.round(num / 8) * 8;
-        const MAX_OUTPUT_DIMENSION = 1024; // Consistent max dimension for AI output
+        const MAX_OUTPUT_DIMENSION = 1024;
         let targetWidth = originalWidth;
         let targetHeight = originalHeight;
-        // Scale down if dimensions are too large, preserving aspect ratio
         if (targetWidth > MAX_OUTPUT_DIMENSION || targetHeight > MAX_OUTPUT_DIMENSION) {
             const aspectRatio = targetWidth / targetHeight;
             if (targetWidth > targetHeight) {
@@ -51,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 targetWidth = MAX_OUTPUT_DIMENSION * aspectRatio;
             }
         }
-        // Round both dimensions to the nearest multiple of 8
         return { 
             width: roundToNearest8(targetWidth), 
             height: roundToNearest8(targetHeight) 
@@ -189,8 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920; // This maxDim is for upload compression, not final output
-            if (width > maxDim || height > maxDim) { // Only resize for upload if very large
+            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920;
+            if (width > maxDim || height > maxDim) {
                 if (width > height) { height = (height / width) * maxDim; width = maxDim; } else { width = (width / height) * maxDim; height = maxDim; }
             }
             canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
