@@ -40,13 +40,14 @@ export default async function handler(req, res) {
     }
 
     // --- FINAL PARAMS: BALANCED FOR DETAIL AND COHERENCE ---
-    // We use a moderate strength to allow the AI some flexibility for a natural edit.
     const input = {
         prompt: prompt,
         image_urls: [imageUrl],
-        width: width,
-        height: height,
-        strength: strength || 0.2,  // Default to 0.2 for better detail preservation
+        image_size: { // CRITICAL FIX: Wrap width and height in image_size object
+            width: width,
+            height: height
+        },
+        strength: strength || 0.15,  // Lowered default strength further to 0.15 for better detail preservation
         guidance_scale: 7.5,  // Balanced guidance to follow the prompt without over-constraining
         num_inference_steps: 40,  // Sufficient steps for high quality
         negative_prompt: "blurry, low quality, distorted, deformed, artifacts, text corruption, unreadable text, messy, sloppy, inaccurate details, mutated, malformed, extra limbs, bad anatomy, bad eyes, ugly, disfigured, poor facial details, strange face, duplicate, watermark, signature, logo", // Enhanced negative prompt for quality and facial integrity
