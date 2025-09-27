@@ -3,13 +3,17 @@
 :root {
     --bg-primary: #f0f2f5; --bg-secondary: #ffffff; --text-primary: #1c1e21; --text-secondary: #606770; --border-primary: #e0e0e0; --accent-primary: #1b74e4; --accent-primary-hover: #186ac9; --accent-secondary: #42b72a; --accent-secondary-hover: #3ba326;
     --sidebar-bg: #ffffff; --sidebar-link-hover-bg: #f0f2f5; --sidebar-link-active-bg: #e7f3ff; --sidebar-link-active-text: #1b74e4;
+    --mobile-header-bg: #ffffff;
 }
 html.dark {
     --bg-primary: #18191a; --bg-secondary: #242526; --text-primary: #e4e6eb; --text-secondary: #b0b3b8; --border-primary: #3a3b3c; --accent-primary: #2d88ff; --accent-primary-hover: #297be2;
     --sidebar-bg: #242526; --sidebar-link-hover-bg: #3a3b3c; --sidebar-link-active-bg: #2e3956; --sidebar-link-active-text: #5e9dff;
+    --mobile-header-bg: #242526;
 }
 body { background-color: var(--bg-primary); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; transition: background-color 0.2s, color 0.2s; overflow: hidden; }
 .app-layout { display: flex; height: 100vh; width: 100vw; }
+
+/* Desktop Sidebar */
 .sidebar { width: 260px; background-color: var(--sidebar-bg); border-right: 1px solid var(--border-primary); display: flex; flex-direction: column; padding: 1rem; flex-shrink: 0; }
 .sidebar-header { padding: 0.5rem 0.5rem 1.5rem 0.5rem; }
 .sidebar-menu { list-style: none; padding: 0; margin: 0; flex-grow: 1; }
@@ -18,107 +22,171 @@ body { background-color: var(--bg-primary); color: var(--text-primary); font-fam
 .nav-link.active { background-color: var(--sidebar-link-active-bg); color: var(--sidebar-link-active-text); }
 .nav-link svg { margin-right: 0.75rem; flex-shrink: 0; }
 .sidebar-footer { margin-top: auto; padding: 0.5rem; }
+
+/* Main Content Area */
 .main-content { flex-grow: 1; overflow-y: auto; padding: 2rem; }
 .main-container { background-color: var(--bg-secondary); border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1); }
+html.dark .main-container { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4); }
+
+/* Dropzone & Buttons */
 .dropzone { border: 2px dashed var(--border-primary); transition: border-color 0.2s, background-color 0.2s; }
 .dropzone.dragover { border-color: var(--accent-primary); background-color: rgba(27, 116, 228, 0.05); }
+.dropzone p.text-lg { color: var(--text-primary); } /* Ensure primary text color */
+.dropzone p.text-sm { color: var(--text-secondary); } /* Ensure secondary text color */
+
 .btn-primary { background-color: var(--accent-primary); color: white; font-weight: bold; transition: background-color 0.2s; }
 .btn-primary:hover:not(:disabled) { background-color: var(--accent-primary-hover); }
 .btn-primary:disabled { background-color: #a0c3f0; cursor: not-allowed; }
 html.dark .btn-primary:disabled { background-color: #4a5d75; }
 .btn-secondary { background-color: var(--accent-secondary); color: white; font-weight: bold; transition: background-color 0.2s; }
 .btn-secondary:hover { background-color: var(--accent-secondary-hover); }
+
+/* Hidden Utility */
 .hidden { display: none; }
+
+/* Style & Tool Grids */
 .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.75rem; }
 .style-btn { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 2px solid var(--border-primary); border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .style-btn:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
 .style-btn.active { border-color: var(--accent-primary); background-color: var(--sidebar-link-active-bg); color: var(--sidebar-link-active-text); }
 .style-btn svg { width: 24px; height: 24px; flex-shrink: 0; }
 .style-btn span { font-weight: 500; }
+
+/* Aspect Ratio buttons */
+.style-grid-aspect-ratio { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; }
+.style-grid-aspect-ratio .style-btn { padding: 0.5rem 0.75rem; justify-content: center; text-align: center; }
+.style-grid-aspect-ratio .style-btn span { font-size: 0.9em; }
+
+/* Tool Card styles */
+.tool-card {
+    display: flex; flex-direction: column; align-items: center; padding: 1.5rem; border: 2px solid var(--border-primary); border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: center; background-color: var(--bg-secondary);
+}
+.tool-card:hover { border-color: var(--accent-primary); transform: translateY(-3px); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+html.dark .tool-card:hover { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25); }
+.tool-card svg { width: 48px; height: 48px; margin-bottom: 0.75rem; color: var(--accent-primary); }
+.tool-card h3 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.25rem; color: var(--text-primary); }
+.tool-card p { font-size: 0.875rem; color: var(--text-secondary); }
+.style-grid-lg { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
+.tool-card.active { border-color: var(--accent-primary); background-color: var(--sidebar-link-active-bg); color: var(--sidebar-link-active-text); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+.tool-card.active svg { color: var(--sidebar-link-active-text); }
+.tool-card.active p { color: var(--sidebar-link-active-text); }
+
+/* Result Image Container */
 .result-image-container { width: 100%; border-radius: 0.5rem; border: 1px solid var(--border-primary); background-color: var(--bg-primary); }
 .result-image-container img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Progress Bar */
 #progress-container { width: 100%; height: 2.5rem; background-color: var(--border-primary); border-radius: 9999px; overflow: hidden; position: relative; }
 #progress-bar { height: 100%; background-color: var(--accent-primary); transition: width 0.3s ease-in-out; }
 #progress-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.4); }
 .arrow-bounce { animation: bounce-down 1.5s infinite; }
 @keyframes bounce-down { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } 60% { transform: translateY(-2px); } }
 
-/* New styles for Aspect Ratio buttons */
-.style-grid-aspect-ratio {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Adjust column size as needed */
-    gap: 0.5rem;
-}
-.style-grid-aspect-ratio .style-btn {
-    padding: 0.5rem 0.75rem; /* Smaller padding for more compact buttons */
-    justify-content: center; /* Center content horizontally */
-    text-align: center;
-}
-.style-grid-aspect-ratio .style-btn span {
-    font-size: 0.9em; /* Slightly smaller font for text */
-}
-
-/* Additional styles for enhanced UI */
-.tool-card {
-    display: flex;
-    flex-direction: column;
+/* Mobile Header */
+.mobile-header {
+    display: none; /* Hidden by default, shown on mobile */
     align-items: center;
-    padding: 1.5rem;
-    border: 2px solid var(--border-primary);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-    background-color: var(--bg-secondary);
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background-color: var(--mobile-header-bg);
+    border-bottom: 1px solid var(--border-primary);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
-.tool-card:hover {
-    border-color: var(--accent-primary);
-    transform: translateY(-3px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-html.dark .tool-card:hover {
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-}
-.tool-card svg {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 0.75rem;
-    color: var(--accent-primary);
-}
-.tool-card h3 {
-    font-size: 1.25rem; /* text-xl */
-    font-weight: bold;
-    margin-bottom: 0.25rem;
+.mobile-header h1 {
     color: var(--text-primary);
 }
-.tool-card p {
-    font-size: 0.875rem; /* text-sm */
+.mobile-header button svg {
     color: var(--text-secondary);
 }
 
-.style-grid-lg {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1.5rem;
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    z-index: 200;
+    display: flex;
+    justify-content: flex-start; /* Sidebar slides in from left */
+    transition: background-color 0.3s ease-in-out;
+}
+.mobile-sidebar {
+    width: 260px;
+    background-color: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    transform: translateX(-100%); /* Start off-screen */
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+    height: 100%; /* Occupy full height */
+}
+.mobile-menu-overlay.active .mobile-sidebar {
+    transform: translateX(0); /* Slide in */
+}
+.mobile-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.5rem 1.5rem 0.5rem;
+    color: var(--text-primary);
 }
 
-/* Specific styling for active state in tool cards, if desired */
-.tool-card.active {
-    border-color: var(--accent-primary);
-    background-color: var(--sidebar-link-active-bg); /* Use accent background */
-    color: var(--sidebar-link-active-text); /* Use accent text color */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-.tool-card.active svg {
-    color: var(--sidebar-link-active-text);
-}
-.tool-card.active p {
-    color: var(--sidebar-link-active-text);
-}
-
-/* Adjustments for dropzone text */
-.dropzone p.text-lg {
-    color: var(--text-primary); /* Ensure primary text color */
-}
-.dropzone p.text-sm {
-    color: var(--text-secondary); /* Ensure secondary text color */
+/* Media Queries for Mobile Responsiveness */
+@media screen and (max-width: 768px) {
+    .app-layout {
+        flex-direction: column; /* Stack header and main content */
+        height: auto; /* Allow content to dictate height */
+        min-height: 100vh;
+    }
+    .sidebar {
+        display: none; /* Hide desktop sidebar on mobile */
+    }
+    .mobile-header {
+        display: flex; /* Show mobile header */
+    }
+    .main-content {
+        padding: 1rem; /* Adjust padding for mobile */
+        flex-grow: 1; /* Allow main content to grow */
+    }
+    .main-container {
+        padding: 1rem; /* Adjust inner container padding */
+        box-shadow: none; /* Remove shadow for simpler mobile look */
+        border-radius: 0; /* Remove border radius */
+    }
+    .tool-header {
+        margin-bottom: 1.5rem; /* Adjust spacing */
+    }
+    .tool-header h2 {
+        font-size: 2rem; /* Smaller headings */
+    }
+    .tool-header p {
+        font-size: 1rem; /* Smaller subtitles */
+    }
+    .style-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Smaller cards for styles */
+        gap: 0.5rem;
+    }
+    .style-grid-lg {
+        grid-template-columns: 1fr; /* Stack tool cards vertically */
+        gap: 1rem;
+    }
+    .style-btn {
+        padding: 0.6rem; /* Adjust padding */
+        gap: 0.5rem;
+    }
+    .style-btn span {
+        font-size: 0.8em;
+    }
+    .result-image-container {
+        border-radius: 0.25rem; /* Smaller border radius for results */
+    }
+    /* Brand It! grid for images */
+    .grid.grid-cols-2.gap-4.mb-4 {
+        grid-template-columns: 1fr; /* Stack images vertically on mobile */
+    }
 }

@@ -1,7 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const themeToggle = document.getElementById('theme-toggle');
-    const navLinks = document.querySelectorAll('.nav-link');
+    const themeToggle = document.getElementById('theme-toggle'); // Desktop theme toggle
+    const mobileThemeToggle = document.getElementById('mobile-theme-toggle'); // Mobile theme toggle
+    const navLinks = document.querySelectorAll('.nav-link'); // Both desktop and mobile menu links
     const contentContainer = document.getElementById('content-container');
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+    const mobileMenuClose = document.getElementById('mobile-menu-close');
+    const mobileToolTitle = document.getElementById('mobile-tool-title'); // For mobile header title
+
     const state = {
         activeTool: 'prompt-edit',
         'prompt-edit': { file: null, userInput: '', engineeredPrompt: '', dimensions: { width: 0, height: 0 }, view: 'upload', selectedAspectRatio: 'original', outputDimensions: null },
@@ -12,9 +18,39 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
     const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
-    const applyTheme = (theme) => { document.documentElement.classList.toggle('dark', theme === 'dark'); themeToggle.innerHTML = theme === 'dark' ? sunIcon : moonIcon; };
-    themeToggle.addEventListener('click', () => { const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme); });
+    
+    const applyTheme = (theme) => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        if (themeToggle) themeToggle.innerHTML = theme === 'dark' ? sunIcon : moonIcon;
+        if (mobileThemeToggle) mobileThemeToggle.innerHTML = theme === 'dark' ? sunIcon : moonIcon;
+    };
+    
+    const toggleTheme = () => {
+        const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        applyTheme(newTheme);
+    };
+
+    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+    if (mobileThemeToggle) mobileThemeToggle.addEventListener('click', toggleTheme);
     applyTheme(localStorage.getItem('theme') || 'light');
+
+    // Mobile menu toggling
+    if (mobileMenuToggle) mobileMenuToggle.addEventListener('click', () => {
+        mobileMenuOverlay.classList.add('active');
+        mobileMenuOverlay.classList.remove('hidden');
+    });
+    if (mobileMenuClose) mobileMenuClose.addEventListener('click', () => {
+        mobileMenuOverlay.classList.remove('active');
+        mobileMenuOverlay.classList.add('hidden');
+    });
+    mobileMenuOverlay.addEventListener('click', (e) => { // Close when clicking outside sidebar
+        if (e.target === mobileMenuOverlay) {
+            mobileMenuOverlay.classList.remove('active');
+            mobileMenuOverlay.classList.add('hidden');
+        }
+    });
+
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -32,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.activeTool = newTool;
                 state[newTool].view = state[newTool].file ? 'edit' : 'upload';
             }
+            // Close mobile menu if open
+            mobileMenuOverlay.classList.remove('active');
+            mobileMenuOverlay.classList.add('hidden');
             render();
         });
     });
@@ -49,7 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toolState.mode === 'watermark') return `remove any watermarks, text, or logos from the image, meticulously inpainting the area to seamlessly match the surrounding content without leaving any artifacts.`;
         }
         if (tool === 'image-series') { return toolState.userInput; }
-        // For brand-it, the engineered prompt is handled server-side in api/brand.js
         if (tool === 'brand-it') { return toolState.userInput; }
         return toolState.userInput;
     };
@@ -62,8 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let finalAspectRatio;
 
         if (selectedAspectRatio === 'original' || !originalWidth || !originalHeight) {
-            // If original dimensions are not available or 'original' is selected,
-            // we default to a square max if no specific aspect ratio is forced.
             if (!originalWidth || !originalHeight) {
                 originalWidth = MAX_DIM;
                 originalHeight = MAX_DIM;
@@ -76,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case '4:3': ratioW = 4; ratioH = 3; break;
                 case '3:4': ratioW = 3; ratioH = 4; break;
                 case '16:9': ratioW = 16; ratioH = 9; break;
-                case '9:16': ratioH = 16; ratioW = 9; break; // Corrected for 9:16
+                case '9:16': ratioH = 16; ratioW = 9; break;
                 default: ratioW = 1; ratioH = 1;
             }
             finalAspectRatio = ratioW / ratioH;
@@ -93,7 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
         targetWidth = roundToNearest8(Math.round(targetWidth));
         targetHeight = roundToNearest8(Math.round(targetHeight));
 
-        // Ensure minimum dimensions
         if (targetWidth < MIN_DIM || targetHeight < MIN_DIM) {
             if (finalAspectRatio >= 1) { // Landscape or Square
                 targetHeight = MIN_DIM;
@@ -105,8 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             targetWidth = roundToNearest8(Math.round(targetWidth));
             targetHeight = roundToNearest8(Math.round(targetHeight));
         }
-
-        // Re-check max dimensions after min adjustment to prevent exceeding
+        
         if (targetWidth > MAX_DIM || targetHeight > MAX_DIM) {
             const currentAspectRatio = targetWidth / targetHeight;
             if (currentAspectRatio > 1) { // Landscape
@@ -135,8 +169,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isBrandIt && !isTextToImage && !toolState.file) { alert('Please upload an image first.'); return; }
         if (isBrandIt && !toolState.logoFile) { alert('Please upload a brand logo.'); return; }
         if (isBrandIt && !toolState.userInput) { alert('Please enter a prompt for your brand design.'); return; }
-        if (!isBrandIt && !isTextToImage && !toolState.userInput) { alert('Please enter your edit description.'); return; }
+        if (!isBrandIt && !isTextToImage && !toolState.userInput && state.activeTool !== 'artify' && !(state.activeTool === 'removal-tool' && toolState.mode !== 'object')) {
+            alert('Please enter your edit description.'); return;
+        }
         if (state.activeTool === 'artify' && !toolState.selectedStyle) { alert('Please select an art style!'); return; }
+        if (state.activeTool === 'removal-tool' && toolState.mode === 'object' && !toolState.objectToRemove) { alert('Please specify the object to remove.'); return; }
 
 
         toolState.engineeredPrompt = createEngineeredPrompt(state.activeTool, toolState);
@@ -144,14 +181,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let originalWidth = toolState.dimensions.width || 1024;
         let originalHeight = toolState.dimensions.height || 1024;
 
-        // For image-series and brand-it, if no main image, default dimensions to a square.
         if (isTextToImage || (isBrandIt && !toolState.mainFile)) {
-            originalWidth = 1024; // Base for aspect ratio calculation
+            originalWidth = 1024;
             originalHeight = 1024;
         }
 
         const outputDimensions = getFinalDimensions(originalWidth, originalHeight, toolState.selectedAspectRatio);
-        toolState.outputDimensions = outputDimensions; // Store for result view
+        toolState.outputDimensions = outputDimensions;
 
         const generateButton = document.getElementById('generate-button');
         const progressContainer = document.getElementById('progress-container');
@@ -215,23 +251,25 @@ document.addEventListener('DOMContentLoaded', () => {
         let header = headers[state.activeTool];
         let viewContent = '';
 
-        // --- Tool Landing Pages (Select Mode) ---
+        // Update mobile header title
+        if (mobileToolTitle) mobileToolTitle.textContent = header.title;
+
         if (toolState.view === 'select-mode') {
             let toolCardsHTML = '';
             if (state.activeTool === 'removal-tool') {
                 toolCardsHTML = `
                     <div class="style-grid-lg">
-                        <div class="tool-card" data-subtool="background">
+                        <div class="tool-card ${toolState.selectedSubTool === 'background' ? 'active' : ''}" data-subtool="background">
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                             <h3>Remove Background</h3>
                             <p class="text-sm text-secondary">Isolate your subject with a transparent background.</p>
                         </div>
-                        <div class="tool-card" data-subtool="object">
+                        <div class="tool-card ${toolState.selectedSubTool === 'object' ? 'active' : ''}" data-subtool="object">
                              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 2.012 3 3L16.012 8l-3-3z"/><path d="M7.71 18.29a1 1 0 0 0-.31 1.15l-.29.58a1 1 0 0 0 1.15.31l.58-.29a1 1 0 0 0 .31-1.15z"/><path d="M12.92 2.38a2 2 0 0 0-2.83 0l-7.79 7.79a2 2 0 0 0 0 2.83l7.79 7.79a2 2 0 0 0 2.83 0L20.62 12.08a2 2 0 0 0 0-2.83z"/></svg>
                             <h3>Prompt Removal</h3>
                             <p class="text-sm text-secondary">Describe and remove specific objects with AI magic.</p>
                         </div>
-                        <div class="tool-card" data-subtool="watermark">
+                        <div class="tool-card ${toolState.selectedSubTool === 'watermark' ? 'active' : ''}" data-subtool="watermark">
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 12-4 4-4-4"/><path d="M5 20h14"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M6 4H4a2 2 0 0 0-2 2v2"/><path d="M12 12V4"/></svg>
                             <h3>Remove Watermark</h3>
                             <p class="text-sm text-secondary">Clean up unwanted text, logos, or watermarks.</p>
@@ -239,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             } else if (state.activeTool === 'artify') {
-                const styles = { 'Master Artists': [ { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive impasto brushstrokes', icon: '🎨' }, { name: 'Monet', prompt: 'in the style of Monet, impressionism, soft light', icon: '🌅' }, { name: 'Picasso', prompt: 'in the cubist style of Picasso, abstract, geometric', icon: '🖼️' } ], 'Digital & Retro': [ { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting', icon: '🌃' }, { name: 'Pixel Art', prompt: '16-bit pixel art style', icon: '👾' }, { name: 'Voxel Art', prompt: 'voxel art, isometric, blocky, 3d pixels', icon: '🧊' } ], 'Handcrafted & Physical': [ { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture', icon: '��' }, { name: 'Pencil Sketch', prompt: 'pencil sketch, hand-drawn, monochrome', icon: '✏️' }, { name: 'Claymation', prompt: 'claymation style, plasticine, stop-motion look', icon: '🗿' } ] };
+                const styles = { 'Master Artists': [ { name: 'Van Gogh', prompt: 'in the style of Van Gogh, expressive impasto brushstrokes', icon: '🎨' }, { name: 'Monet', prompt: 'in the style of Monet, impressionism, soft light', icon: '🌅' }, { name: 'Picasso', prompt: 'in the cubist style of Picasso, abstract, geometric', icon: '🖼️' } ], 'Digital & Retro': [ { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic city, cinematic lighting', icon: '🌃' }, { name: 'Pixel Art', prompt: '16-bit pixel art style', icon: '👾' }, { name: 'Voxel Art', prompt: 'voxel art, isometric, blocky, 3d pixels', icon: '🧊' } ], 'Handcrafted & Physical': [ { name: 'LEGO', prompt: 'as a LEGO diorama, plastic brick texture', icon: '🧱' }, { name: 'Pencil Sketch', prompt: 'pencil sketch, hand-drawn, monochrome', icon: '✏️' }, { name: 'Claymation', prompt: 'claymation style, plasticine, stop-motion look', icon: '🗿' } ] };
                 toolCardsHTML = Object.entries(styles).map(([category, styleList]) => `
                     <div class="mb-6">
                         <h3 class="style-category-title text-xl font-bold mb-3">${category}</h3>
@@ -259,7 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (toolState.view === 'upload' && state.activeTool !== 'brand-it') {
             viewContent = `<section><input type="file" id="image-input" class="hidden" accept="image/*" /><div id="dropzone" class="dropzone rounded-lg p-10 text-center cursor-pointer"><svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-20a4 4 0 014 4v20a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h4l2-4h8l2 4h4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="24" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle></svg><p class="mt-4 text-lg font-medium">Click to upload or drag & drop</p><p class="text-sm text-secondary mt-1">PNG, JPG, or WEBP. Max 8MB.</p></div></section>`;
         }
-        // --- BRAND IT! Specific Upload View ---
         else if (toolState.view === 'upload' && state.activeTool === 'brand-it') {
             viewContent = `
                 <section class="space-y-6">
@@ -287,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </section>
             `;
         }
-        // --- Edit View for all tools ---
         else if (toolState.view === 'edit') {
             let editControls = '';
             let aspectRatioControls = '';
@@ -402,7 +438,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function addEventListeners() {
         const toolState = state[state.activeTool];
 
-        // --- Common Upload Dropzones (for prompt-edit, removal-tool, artify) ---
         const dropzone = document.getElementById('dropzone');
         if (dropzone) {
             const imageInput = document.getElementById('image-input');
@@ -413,7 +448,6 @@ document.addEventListener('DOMContentLoaded', () => {
             imageInput.addEventListener('change', (e) => { if (e.target.files.length) handleFileSelect(e.target.files[0]); });
         }
 
-        // --- Brand It! Specific Upload Dropzones ---
         const mainImageDropzone = document.getElementById('main-image-dropzone');
         if (mainImageDropzone) {
             const mainImageInput = document.getElementById('main-image-input');
@@ -443,19 +477,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-
         const generateButton = document.getElementById('generate-button');
         if(generateButton) { generateButton.addEventListener('click', () => {
                 if (state.activeTool === 'prompt-edit' || state.activeTool === 'image-series' || state.activeTool === 'brand-it') {
                     toolState.userInput = document.getElementById('prompt-input').value;
                 } else if (state.activeTool === 'removal-tool') {
-                    toolState.mode = document.getElementById('removal-mode-input').value; // Use hidden input
+                    toolState.mode = document.getElementById('removal-mode-input').value;
                     if (toolState.mode === 'object') { toolState.objectToRemove = document.getElementById('object-input').value; }
                 } else if (state.activeTool === 'artify') {
-                    toolState.selectedStyle = document.getElementById('artify-style-input').value; // Use hidden input
-                    // userInput for artify is set in createEngineeredPrompt
+                    toolState.selectedStyle = document.getElementById('artify-style-input').value;
                     const activeBtnSpan = document.querySelector('.style-btn.active span');
-                    if(activeBtnSpan) toolState.userInput = `Artify with ${activeBtnSpan.textContent.replace(/[\uD800-\uDBFF\uDC00-\uDFFF]/g, '').trim()} style`; // Clean emoji
+                    if(activeBtnSpan) toolState.userInput = `Artify with ${activeBtnSpan.textContent.replace(/[\uD800-\uDBFF\uDC00-\uDFFF]/g, '').trim()} style`;
                 }
                 generateImage();
         });}
@@ -470,9 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (state.activeTool === 'removal-tool' || state.activeTool === 'artify') {
                 toolState.file = null;
                 toolState.userInput = '';
-                toolState.selectedStyle = null; // Clear selected style for artify
-                toolState.mode = 'background'; // Reset mode for removal
-                toolState.view = 'select-mode'; // Go back to select mode
+                toolState.selectedStyle = null;
+                toolState.mode = 'background';
+                toolState.view = 'select-mode';
             } else {
                 toolState.file = null; 
                 toolState.userInput = ''; 
@@ -482,37 +514,33 @@ document.addEventListener('DOMContentLoaded', () => {
             render(); 
         });
 
-        // --- Removal Tool Mode Selection ---
         const removalToolCards = document.querySelectorAll('.tool-card[data-subtool]');
         if (removalToolCards.length > 0) {
             removalToolCards.forEach(card => {
                 card.addEventListener('click', () => {
                     toolState.selectedSubTool = card.dataset.subtool;
-                    toolState.mode = card.dataset.subtool; // Set the mode in state
-                    toolState.view = 'upload'; // Go to upload after mode selected
+                    toolState.mode = card.dataset.subtool;
+                    toolState.view = 'upload';
                     render();
                 });
             });
         }
 
-        // --- Artify Style Selection ---
         const artifyStyleBtns = document.querySelectorAll('.style-grid .style-btn');
         if (artifyStyleBtns.length > 0) {
             artifyStyleBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    // Update the active state visually
                     artifyStyleBtns.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
 
                     toolState.selectedStyle = btn.dataset.stylePrompt;
-                    toolState.selectedSubTool = btn.querySelector('span').textContent.replace(/[\uD800-\uDBFF\uDC00-\uDFFF]/g, '').trim(); // Store display name
-                    toolState.view = 'upload'; // Go to upload after style selected
+                    toolState.selectedSubTool = btn.querySelector('span').textContent.replace(/[\uD800-\uDBFF\uDC00-\uDFFF]/g, '').trim();
+                    toolState.view = 'upload';
                     render();
                 });
             });
         }
 
-        // --- Aspect Ratio Selection ---
         const aspectRatioBtns = document.querySelectorAll('.style-grid-aspect-ratio .style-btn');
         if (aspectRatioBtns.length > 0) {
             aspectRatioBtns.forEach(btn => {
@@ -527,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newEditButton = document.getElementById('new-edit-button');
         if(newEditButton) newEditButton.addEventListener('click', () => { 
             if (state.activeTool === 'removal-tool' || state.activeTool === 'artify') {
-                toolState.view = 'edit'; // Stay on edit view for re-edits
+                toolState.view = 'edit';
             } else if (state.activeTool === 'brand-it') {
                  toolState.view = toolState.logoFile ? 'edit' : 'upload';
             }
@@ -549,8 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }); }
     }
 
-    // --- File Handling ---
-    const handleFileSelect = (file) => { // For single image tools
+    const handleFileSelect = (file) => {
         const toolState = state[state.activeTool];
         if (!file || !file.type.startsWith('image/')) { alert('Please select a valid image file.'); return; }
         toolState.file = file;
@@ -559,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
         img.src = URL.createObjectURL(file);
     };
 
-    const handleFileSelectMain = (file) => { // For Brand It! Main Image
+    const handleFileSelectMain = (file) => {
         const toolState = state[state.activeTool];
         if (!file || !file.type.startsWith('image/')) { alert('Please select a valid image file for the main image.'); return; }
         toolState.mainFile = file;
@@ -568,31 +595,29 @@ document.addEventListener('DOMContentLoaded', () => {
         img.src = URL.createObjectURL(file);
     };
 
-    const handleFileSelectLogo = (file) => { // For Brand It! Logo Image
+    const handleFileSelectLogo = (file) => {
         const toolState = state[state.activeTool];
         if (!file || !file.type.startsWith('image/')) { alert('Please select a valid image file for the logo.'); return; }
         toolState.logoFile = file;
-        render(); // Rerender to show logo preview
+        render();
     };
 
     const fileToBase64 = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); });
     
-    // Compression logic to ensure image is within reasonable size before sending
     const compressImage = (file) => new Promise((resolve, reject) => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920; // Compress input to 1920px max dimension
+            const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1920;
             if (width > maxDim || height > maxDim) {
                 const aspectRatio = width / height;
                 if (width > height) { width = maxDim; height = maxDim / aspectRatio; } else { height = maxDim; width = maxDim * aspectRatio; }
             }
             canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-            canvas.toBlob((blob) => { URL.revokeObjectURL(img.src); resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })); }, 'image/jpeg', 0.9); // Use 0.9 quality
+            canvas.toBlob((blob) => { URL.revokeObjectURL(img.src); resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })); }, 'image/jpeg', 0.9);
         };
         img.onerror = reject;
     });
 
-    // Initial render call
     render();
 });
