@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "@fal-ai/client": "^1.2.0"
+    "@fal-ai/client": "^1.2.0",
+    "twilio": "^5.10.2"
   }
 }
